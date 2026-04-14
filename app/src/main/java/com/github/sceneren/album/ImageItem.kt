@@ -20,6 +20,8 @@ import android.net.Uri
  * @property height       图片的高度（像素）
  * @property bucketId     图片所属目录的唯一标识
  * @property bucketName   图片所属目录的显示名称
+ * @property isGif        是否为 GIF 图片，基于 mimeType 判断
+ * @property isWebp       是否为 WebP 图片，基于 mimeType 判断
  */
 data class ImageItem(
     val id: Long,
@@ -33,4 +35,17 @@ data class ImageItem(
     val height: Int,
     val bucketId: Long,
     val bucketName: String
-)
+) {
+    // 根据 MIME 类型判断是否为 GIF 动图
+    val isGif: Boolean
+        get() = mimeType.equals(MIME_GIF, ignoreCase = true)
+
+    // 根据 MIME 类型判断是否为 WebP 格式图片
+    val isWebp: Boolean
+        get() = mimeType.equals(MIME_WEBP, ignoreCase = true)
+
+    companion object {
+        private const val MIME_GIF = "image/gif"
+        private const val MIME_WEBP = "image/webp"
+    }
+}

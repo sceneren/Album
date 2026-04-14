@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +33,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -184,14 +187,38 @@ fun ImageItemView(image: ImageItem) {
                 .fillMaxWidth()
                 .padding(8.dp)
         ) {
-            AsyncImage(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                model = image.uri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop
-            )
+            Box {
+                AsyncImage(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(10.dp)),
+                    model = image.uri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop
+                )
+                if (image.isWebp) {
+                    Text(
+                        text = "WebP",
+                        modifier = Modifier
+                            .padding(end = 10.dp, bottom = 10.dp)
+                            .background(color = Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .align(Alignment.BottomEnd)
+                    )
+                }
+                if (image.isGif) {
+                    Text(
+                        text = "GIF",
+                        modifier = Modifier
+                            .padding(end = 10.dp, bottom = 10.dp)
+                            .background(color = Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .align(Alignment.BottomEnd)
+                    )
+                }
+            }
+
             Text(
                 text = image.displayName,
             )
