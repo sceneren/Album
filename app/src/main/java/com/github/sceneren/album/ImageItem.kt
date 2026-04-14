@@ -1,6 +1,7 @@
 package com.github.sceneren.album
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 
 /**
  * 图片信息数据类
@@ -23,6 +24,7 @@ import android.net.Uri
  * @property isGif        是否为 GIF 图片，基于 mimeType 判断
  * @property isWebp       是否为 WebP 图片，基于 mimeType 判断
  */
+@Immutable
 data class ImageItem(
     val id: Long,
     val uri: Uri,

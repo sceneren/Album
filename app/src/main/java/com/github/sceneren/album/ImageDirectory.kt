@@ -1,6 +1,7 @@
 package com.github.sceneren.album
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 
 /**
  * 图片目录数据类
@@ -16,6 +17,7 @@ import android.net.Uri
  * @property coverUri   该目录中最新一张图片的 content:// URI，可作为封面展示
  * @property imageCount 该目录下的图片总数
  */
+@Immutable
 data class ImageDirectory(
     val bucketId: Long,
     val bucketName: String,

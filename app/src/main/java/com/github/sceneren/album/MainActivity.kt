@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,12 +51,14 @@ import com.github.sceneren.album.refresh.RefreshLazyVerticalGrid
 import com.github.sceneren.album.ui.theme.AlbumTheme
 import com.hjq.permissions.XXPermissions
 import com.hjq.permissions.permission.PermissionLists
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         AlbumLoader.init(this)
+        FileHelper.init(this)
         setContent {
             setSingletonImageLoaderFactory { context ->
                 ImageLoader.Builder(context)
@@ -181,10 +184,19 @@ fun TestAlbum(
 
 @Composable
 fun ImageItemView(image: ImageItem) {
+
+    val scope = rememberCoroutineScope()
+    var filePath by remember { mutableStateOf<String?>(null) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable {
+                    scope.launch {
+                        filePath = FileHelper.getFileUrl(image.uri)
+                    }
+                }
                 .padding(8.dp)
         ) {
             Box {
@@ -219,10 +231,8 @@ fun ImageItemView(image: ImageItem) {
                 }
             }
 
-            Text(
-                text = image.displayName,
-            )
-
+            Text(text = image.displayName)
+            Text(text = "文件路径：$filePath")
         }
     }
 }
