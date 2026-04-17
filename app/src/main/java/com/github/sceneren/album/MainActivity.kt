@@ -1,5 +1,6 @@
 package com.github.sceneren.album
 
+import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -45,6 +46,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.compose.setSingletonImageLoaderFactory
+import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
 import coil3.request.crossfade
 import com.github.sceneren.album.refresh.LoadMoreState
 import com.github.sceneren.album.refresh.RefreshLazyVerticalGrid
@@ -63,6 +66,13 @@ class MainActivity : ComponentActivity() {
             setSingletonImageLoaderFactory { context ->
                 ImageLoader.Builder(context)
                     .crossfade(true)
+                    .components {
+                        if (SDK_INT >= 28) {
+                            add(AnimatedImageDecoder.Factory())
+                        } else {
+                            add(GifDecoder.Factory())
+                        }
+                    }
                     .build()
             }
             AlbumTheme {

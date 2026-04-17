@@ -9,7 +9,6 @@ activityCompose = "1.13.0"
 kotlin = "2.3.20"
 composeBom = "2026.03.01"
 viewModel = "2.10.0"
-viewModelKtx = "2.6.2"
 
 deviceCompat = "2.6"
 xxPermissions = "28.2"
@@ -37,10 +36,11 @@ xx-permissions = { module = "com.github.getActivity:XXPermissions", version.ref 
 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [bundles]
-coil = ["coil-compose", "coil-network"]
+coil = ["coil-compose", "coil-network", "coil-gif"]
