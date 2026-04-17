@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
                     val selectedDir = viewModel.currentDir.collectAsStateWithLifecycle()
                     val loadMoreState = viewModel.loadMoreState.collectAsStateWithLifecycle()
                     val hasMoreData = viewModel.hasMore.collectAsStateWithLifecycle()
+
                     TestAlbum(
                         innerPadding = innerPadding,
                         dirList = directoryList.value,
@@ -106,12 +107,46 @@ fun TestAlbum(
     onRequestPermissionFail: () -> Unit,
     onChooseDir: (ImageDirectory) -> Unit,
 ) {
-
     val activity = LocalActivity.current
-
     var expanded by remember { mutableStateOf(false) }
-
     val lazyGridState = rememberLazyGridState()
+
+    /**
+     * 执行权限检查/申请并在成功后触发加载。
+     *
+     * 逻辑：
+     * 1）已有权限：直接加载目录（ViewModel 内会自动选中“全部图片”并加载第一页）
+     * 2）无权限：先申请权限，成功后走同一加载流程
+     */
+    fun checkOrRequestPermissionAndLoad() {
+        val currentActivity = activity ?: return
+
+        val hasPermission = XXPermissions.isGrantedPermission(
+            currentActivity,
+            PermissionLists.getReadMediaImagesPermission()
+        )
+
+        if (hasPermission) {
+            onRequestPermissionSuccess()
+            return
+        }
+
+        XXPermissions.with(currentActivity)
+            .permission(PermissionLists.getReadMediaImagesPermission())
+            .request { _, deniedList ->
+                val allGranted = deniedList.isEmpty()
+                if (allGranted) {
+                    onRequestPermissionSuccess()
+                } else {
+                    onRequestPermissionFail()
+                }
+            }
+    }
+
+    // 进入界面后自动执行权限流程
+    LaunchedEffect(Unit) {
+        checkOrRequestPermissionAndLoad()
+    }
 
     // 切换目录后，将图片列表滚动到顶部
     LaunchedEffect(selectedDir) {
@@ -119,37 +154,23 @@ fun TestAlbum(
     }
 
     Column(modifier = Modifier.padding(innerPadding)) {
-        Button(onClick = {
-            activity ?: return@Button
-            XXPermissions.with(activity)
-                .permission(PermissionLists.getReadMediaImagesPermission())
-                .request { _, deniedList ->
-                    val allGranted = deniedList.isEmpty()
-                    if (allGranted) {
-                        onRequestPermissionSuccess()
-                    } else {
-                        onRequestPermissionFail()
-                    }
-                }
-        }) { Text("申请权限") }
+        Button(onClick = { checkOrRequestPermissionAndLoad() }) {
+            Text("申请权限")
+        }
 
-        // 目录
+        // 目录选择
         Box {
             Text(
                 modifier = Modifier
-                    .clickable {
-                        expanded = true
-                    }
+                    .clickable { expanded = true }
                     .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(4.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                text = "当前选择的目录是:${selectedDir?.bucketName}"
+                text = "当前选择的目录是：${selectedDir?.bucketName}"
             )
 
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = {
-                    expanded = false
-                }
+                onDismissRequest = { expanded = false }
             ) {
                 dirList.forEach {
                     DropdownMenuItem(
@@ -162,6 +183,15 @@ fun TestAlbum(
                 }
             }
         }
+
+        // 图片数量提示
+        Card(modifier = Modifier.padding(8.dp)) {
+            Text(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                text = "当前目录下已经加载了：${imageList.size}张图片"
+            )
+        }
+
         // 图片列表
         RefreshLazyVerticalGrid(
             columns = GridCells.Fixed(4),
@@ -178,13 +208,11 @@ fun TestAlbum(
                 ImageItemView(image)
             }
         }
-
     }
 }
 
 @Composable
 fun ImageItemView(image: ImageItem) {
-
     val scope = rememberCoroutineScope()
     var filePath by remember { mutableStateOf<String?>(null) }
 
@@ -209,6 +237,7 @@ fun ImageItemView(image: ImageItem) {
                     contentDescription = null,
                     contentScale = ContentScale.Crop
                 )
+
                 if (image.isWebp) {
                     Text(
                         text = "WebP",
@@ -219,6 +248,7 @@ fun ImageItemView(image: ImageItem) {
                             .align(Alignment.BottomEnd)
                     )
                 }
+
                 if (image.isGif) {
                     Text(
                         text = "GIF",
