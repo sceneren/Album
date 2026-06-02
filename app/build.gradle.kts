@@ -58,4 +58,5 @@ dependencies {
     implementation(libs.device.compat)
     implementation(libs.xx.permissions)
     implementation(libs.bundles.coil)
+    implementation(libs.play.services.base)
 }

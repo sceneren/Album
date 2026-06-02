@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,8 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,6 +59,10 @@ import coil3.request.crossfade
 import com.github.sceneren.album.refresh.LoadMoreState
 import com.github.sceneren.album.refresh.RefreshLazyVerticalGrid
 import com.github.sceneren.album.ui.theme.AlbumTheme
+import com.google.android.gms.common.Feature
+import com.google.android.gms.common.api.OptionalModuleApi
+import com.google.android.gms.common.moduleinstall.ModuleInstall
+import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
 import com.hjq.permissions.XXPermissions
 import com.hjq.permissions.permission.PermissionLists
 import kotlinx.coroutines.launch
@@ -167,6 +174,7 @@ fun TestAlbum(
         lazyGridState.scrollToItem(0)
     }
 
+    // 1. 注册照片选择器启动器
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         // Callback is invoked after the user selects a media item or closes the
         // photo picker.
@@ -177,13 +185,56 @@ fun TestAlbum(
         }
     }
 
+    val context = LocalContext.current
+    // 2. 初始化 ModuleInstall 客户端
+    val moduleInstallClient = remember { ModuleInstall.getClient(context) }
+    val photoPickerApi = remember {
+        OptionalModuleApi { arrayOf(Feature("photopicker_activity", 1)) }
+    }
+
+    // 3. 启动照片选择器
+    fun startPhotoPicker() {
+        val request = ModuleInstallRequest.newBuilder()
+            .addApi(photoPickerApi)
+            .build()
+        moduleInstallClient.areModulesAvailable(photoPickerApi).addOnSuccessListener { result ->
+            if (!result.areModulesAvailable()) {
+                // 模块不可用，先检查并安装
+                moduleInstallClient.installModules(request)
+                    .addOnSuccessListener { response ->
+                        if (response.areModulesAlreadyInstalled()) {
+                            // 模块已就绪，直接打开
+                            Log.i("PhotoPicker", "模块已就绪，直接打开")
+                        } else {
+                            // 模块正在后台下载
+                            Log.i("PhotoPicker", "照片选择器组件正在下载中，请稍后再试")
+                        }
+                        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
+                    .addOnFailureListener { e ->
+                        // 如果 GMS 检查失败（如没网络），Contract 会自动降级打开旧版文档选择器
+                        Log.e("PhotoPicker", "模块安装失败: ${e.message}")
+                        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
+            } else {
+                Log.i("PhotoPicker", "模块可用，直接打开")
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+        }.addOnFailureListener { e ->
+            Log.e("PhotoPicker", "检查模块可用失败: ${e.message}")
+            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+
+
+    }
+
     Column(modifier = Modifier.padding(innerPadding)) {
         Button(onClick = { checkOrRequestPermissionAndLoad() }) {
             Text("申请权限")
         }
 
         Button(onClick = {
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            startPhotoPicker()
         }) {
             Text("原生照片选择器")
         }
@@ -234,6 +285,28 @@ fun TestAlbum(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             onLoadMore = onLoadMore
         ) {
+
+            if (imageList.isNotEmpty()) {
+                item(span = { GridItemSpan(4) }) {
+                    Box(modifier = Modifier.dropShadow(RoundedCornerShape(10.dp)) {
+                        radius = 10f
+                        spread = 10f
+                        color = Color.Red
+                        alpha = 0.5f
+                    }) {
+                        AsyncImage(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(10.dp)),
+                            model = imageList.first().uri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+
             items(imageList) { image ->
                 ImageItemView(image)
             }
@@ -246,7 +319,16 @@ fun ImageItemView(image: ImageItem) {
     val scope = rememberCoroutineScope()
     var filePath by remember { mutableStateOf<String?>(null) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .dropShadow(shape = RoundedCornerShape(10.dp)) {
+                radius = 10f
+                spread = 10f
+                color = Color.Red
+                alpha = 0.5f
+            }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
