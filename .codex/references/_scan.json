@@ -1,0 +1,353 @@
+{
+  "project_root": "D:\\StudioProjects_lib\\Album",
+  "project_type": {
+    "platform": "Android",
+    "build": "Gradle Kotlin DSL"
+  },
+  "scan_time": "2026-07-03 11:14:22",
+  "module_count": 1,
+  "modules": [
+    {
+      "name": "app",
+      "path": "app",
+      "is_aar": false,
+      "is_application": true,
+      "has_source": true,
+      "source_dirs": [
+        {
+          "root": "app\\src\\main\\java",
+          "file_count": 15,
+          "file_list": [
+            "com\\github\\sceneren\\album\\AlbumLoader.kt",
+            "com\\github\\sceneren\\album\\AlbumViewModel.kt",
+            "com\\github\\sceneren\\album\\App.kt",
+            "com\\github\\sceneren\\album\\FileHelper.kt",
+            "com\\github\\sceneren\\album\\ImageDirectory.kt",
+            "com\\github\\sceneren\\album\\ImageItem.kt",
+            "com\\github\\sceneren\\album\\MainActivity.kt",
+            "com\\github\\sceneren\\album\\PagedResult.kt",
+            "com\\github\\sceneren\\album\\refresh\\Footer.kt",
+            "com\\github\\sceneren\\album\\refresh\\LoadMoreState.kt",
+            "com\\github\\sceneren\\album\\refresh\\RefreshLazyColumn.kt",
+            "com\\github\\sceneren\\album\\refresh\\RefreshLazyVerticalGrid.kt",
+            "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
+            "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
+            "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
+          ],
+          "top_packages": [
+            "com.github.sceneren"
+          ]
+        }
+      ],
+      "file_count": 15,
+      "file_list": [
+        "com\\github\\sceneren\\album\\AlbumLoader.kt",
+        "com\\github\\sceneren\\album\\AlbumViewModel.kt",
+        "com\\github\\sceneren\\album\\App.kt",
+        "com\\github\\sceneren\\album\\FileHelper.kt",
+        "com\\github\\sceneren\\album\\ImageDirectory.kt",
+        "com\\github\\sceneren\\album\\ImageItem.kt",
+        "com\\github\\sceneren\\album\\MainActivity.kt",
+        "com\\github\\sceneren\\album\\PagedResult.kt",
+        "com\\github\\sceneren\\album\\refresh\\Footer.kt",
+        "com\\github\\sceneren\\album\\refresh\\LoadMoreState.kt",
+        "com\\github\\sceneren\\album\\refresh\\RefreshLazyColumn.kt",
+        "com\\github\\sceneren\\album\\refresh\\RefreshLazyVerticalGrid.kt",
+        "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
+        "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
+        "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
+      ],
+      "resource_dirs": [
+        {
+          "dir": "drawable",
+          "count": 2,
+          "files": [
+            "ic_launcher_background.xml",
+            "ic_launcher_foreground.xml"
+          ]
+        },
+        {
+          "dir": "mipmap-anydpi-v26",
+          "count": 2,
+          "files": [
+            "ic_launcher.xml",
+            "ic_launcher_round.xml"
+          ]
+        },
+        {
+          "dir": "mipmap-hdpi",
+          "count": 2,
+          "files": [
+            "ic_launcher.webp",
+            "ic_launcher_round.webp"
+          ]
+        },
+        {
+          "dir": "mipmap-mdpi",
+          "count": 2,
+          "files": [
+            "ic_launcher.webp",
+            "ic_launcher_round.webp"
+          ]
+        },
+        {
+          "dir": "mipmap-xhdpi",
+          "count": 2,
+          "files": [
+            "ic_launcher.webp",
+            "ic_launcher_round.webp"
+          ]
+        },
+        {
+          "dir": "mipmap-xxhdpi",
+          "count": 2,
+          "files": [
+            "ic_launcher.webp",
+            "ic_launcher_round.webp"
+          ]
+        },
+        {
+          "dir": "mipmap-xxxhdpi",
+          "count": 2,
+          "files": [
+            "ic_launcher.webp",
+            "ic_launcher_round.webp"
+          ]
+        },
+        {
+          "dir": "values",
+          "count": 3,
+          "files": [
+            "colors.xml",
+            "strings.xml",
+            "themes.xml"
+          ]
+        },
+        {
+          "dir": "xml",
+          "count": 2,
+          "files": [
+            "backup_rules.xml",
+            "data_extraction_rules.xml"
+          ]
+        }
+      ],
+      "asset_files": [],
+      "tree": "app\\src\\main\\java/\n└── com/  (15个文件)\n    └── github/  (15个文件)\n        └── sceneren/  (15个文件)\n            └── album/  (15个文件)",
+      "dependencies": [
+        {
+          "name": "libs.androidx.core.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.lifecycle.runtime.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.activity.compose",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.bom",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.graphics",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.tooling.preview",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.material3",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.junit",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.junit",
+          "type": "androidTestImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.espresso.core",
+          "type": "androidTestImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.bom",
+          "type": "androidTestImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.test.junit4",
+          "type": "androidTestImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.tooling",
+          "type": "debugImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.test.manifest",
+          "type": "debugImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.viewmodel",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.device.compat",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.xx.permissions",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.bundles.coil",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.play.services.base",
+          "type": "implementation",
+          "external": true
+        }
+      ],
+      "build_config": {
+        "dependencies": [
+          {
+            "name": "libs.androidx.core.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.lifecycle.runtime.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.activity.compose",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.bom",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.graphics",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.tooling.preview",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.material3",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.junit",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.junit",
+            "type": "androidTestImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.espresso.core",
+            "type": "androidTestImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.bom",
+            "type": "androidTestImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.test.junit4",
+            "type": "androidTestImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.tooling",
+            "type": "debugImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.test.manifest",
+            "type": "debugImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.viewmodel",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.device.compat",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.xx.permissions",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.bundles.coil",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.play.services.base",
+            "type": "implementation",
+            "external": true
+          }
+        ],
+        "plugin_type": "application",
+        "namespace": "com.github.sceneren.album",
+        "application_id": "com.github.sceneren.album",
+        "compile_sdk": "37",
+        "min_sdk": "24",
+        "target_sdk": "37",
+        "compose": true,
+        "view_binding": false
+      }
+    }
+  ]
+}
