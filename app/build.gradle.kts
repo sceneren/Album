@@ -35,6 +35,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":album-api"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -57,4 +58,8 @@ dependencies {
     implementation(libs.xx.permissions)
     implementation(libs.bundles.coil)
     implementation(libs.play.services.base)
+    implementation(libs.androidx.paging.compose)
+    implementation(libs.coil.video)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
 }

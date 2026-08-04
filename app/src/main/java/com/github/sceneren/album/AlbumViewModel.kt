@@ -1,80 +1,151 @@
 package com.github.sceneren.album
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.github.sceneren.album.refresh.LoadMoreState
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import com.github.sceneren.album.api.AlbumDirectory
+import com.github.sceneren.album.api.AlbumMedia
+import com.github.sceneren.album.api.AlbumMediaFilter
+import com.github.sceneren.album.api.AlbumMediaSource
+import com.github.sceneren.album.api.MediaAccessStatus
+import com.github.sceneren.album.api.PhotoPickResult
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
-class AlbumViewModel : ViewModel() {
-    private val _imageDirectoriesFlow = MutableStateFlow<List<ImageDirectory>>(emptyList())
-    val imageDirectoriesState: StateFlow<List<ImageDirectory>> get() = _imageDirectoriesFlow
+internal data class AlbumUiState(
+    val mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
+    val accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED,
+    val source: AlbumMediaSource = AlbumMediaSource.PHOTO_PICKER,
+    val directories: List<AlbumDirectory> = emptyList(),
+    val selectedBucketId: Long = AlbumDirectory.ALL_BUCKET_ID,
+    val pickerResult: PhotoPickResult? = null,
+    val errorMessage: String? = null,
+)
 
-    private val _imageListFlow = MutableStateFlow<List<ImageItem>>(emptyList())
-    val imageListState: StateFlow<List<ImageItem>> get() = _imageListFlow
+@OptIn(ExperimentalCoroutinesApi::class)
+internal class AlbumViewModel(
+    private val client: AlbumDataClient,
+) : ViewModel() {
+    private val mutableUiState = MutableStateFlow(AlbumUiState())
+    val uiState: StateFlow<AlbumUiState> = mutableUiState.asStateFlow()
 
-    private val _loadMoreStateFlow = MutableStateFlow<LoadMoreState>(LoadMoreState.IDLE)
-    val loadMoreState: StateFlow<LoadMoreState> get() = _loadMoreStateFlow
+    private val pagingFlow = MutableStateFlow<Flow<PagingData<AlbumMedia>>>(
+        flowOf(PagingData.empty()),
+    )
+    val mediaPagingData: Flow<PagingData<AlbumMedia>> =
+        pagingFlow.flatMapLatest { it }.cachedIn(viewModelScope)
 
-    private val _currentDirFlow = MutableStateFlow<ImageDirectory?>(null)
-    val currentDir: StateFlow<ImageDirectory?> get() = _currentDirFlow
+    private var directoryJob: Job? = null
 
-    private val _hasMoreFlow = MutableStateFlow(false)
-    val hasMore: StateFlow<Boolean> get() = _hasMoreFlow
+    fun refresh() {
+        val current = mutableUiState.value
+        val feed = try {
+            client.getFeed(current.mediaFilter, current.selectedBucketId)
+        } catch (exception: Exception) {
+            mutableUiState.value = current.copy(errorMessage = exception.displayMessage())
+            return
+        }
 
-    private var currentPage = 1
+        directoryJob?.cancel()
+        val sourceChanged = feed.source != current.source
+        val selectedBucketId = if (sourceChanged) {
+            AlbumDirectory.ALL_BUCKET_ID
+        } else {
+            current.selectedBucketId
+        }
+        mutableUiState.value = current.copy(
+            accessStatus = feed.accessStatus,
+            source = feed.source,
+            directories = if (feed.source == AlbumMediaSource.PHOTO_PICKER || sourceChanged) {
+                emptyList()
+            } else {
+                current.directories
+            },
+            selectedBucketId = selectedBucketId,
+            errorMessage = null,
+        )
+        pagingFlow.value = feed.pagingData
 
-    /**
-     * 加载目录并自动选中“全部图片”目录
-     *
-     * 设计原因：进入界面后需要在权限通过时自动展示默认内容，
-     * 将“拉目录 + 选中默认目录 + 加载第一页”封装到同一入口，
-     * 可以避免 UI 层手动串联引发的时序问题。
-     */
-    fun getImageDirectories() {
-        viewModelScope.launch {
-            val directories = AlbumLoader.getImageDirectories()
-            _imageDirectoriesFlow.value = directories
-
-            // 自动选中“全部图片”目录，展示第一页数据
-            val allDirectory = directories.firstOrNull { it.bucketId == ImageDirectory.ALL_BUCKET_ID }
-            setCurrentDir(allDirectory)
+        if (feed.source == AlbumMediaSource.MEDIA_STORE) {
+            val expectedFilter = feed.mediaFilter
+            directoryJob = viewModelScope.launch {
+                client.getDirectories(expectedFilter)
+                    .onSuccess { directories ->
+                        val latest = mutableUiState.value
+                        if (
+                            latest.mediaFilter == expectedFilter &&
+                            latest.source == AlbumMediaSource.MEDIA_STORE
+                        ) {
+                            mutableUiState.value = latest.copy(
+                                directories = directories,
+                                errorMessage = null,
+                            )
+                        }
+                    }
+                    .onFailure { failure ->
+                        val latest = mutableUiState.value
+                        if (latest.mediaFilter == expectedFilter) {
+                            mutableUiState.value = latest.copy(
+                                directories = emptyList(),
+                                errorMessage = failure.displayMessage(),
+                            )
+                        }
+                    }
+            }
         }
     }
 
-    fun setCurrentDir(directory: ImageDirectory?) {
-        _currentDirFlow.value = directory
-        currentPage = 1
-        getImagesByDirectory()
+    fun setMediaFilter(filter: AlbumMediaFilter) {
+        val current = mutableUiState.value
+        if (current.mediaFilter == filter) return
+
+        mutableUiState.value = current.copy(
+            mediaFilter = filter,
+            directories = emptyList(),
+            selectedBucketId = AlbumDirectory.ALL_BUCKET_ID,
+            errorMessage = null,
+        )
+        refresh()
     }
 
-    private fun getImagesByDirectory() {
-        viewModelScope.launch {
-            val result = AlbumLoader.getImagesByDirectory(
-                _currentDirFlow.value?.bucketId ?: ImageDirectory.ALL_BUCKET_ID,
-                page = 1
-            )
-            _imageListFlow.value = result.data
-            _loadMoreStateFlow.value = LoadMoreState.IDLE
-            _hasMoreFlow.value = result.hasNextPage
+    fun selectDirectory(bucketId: Long) {
+        val current = mutableUiState.value
+        if (current.selectedBucketId == bucketId) return
+
+        mutableUiState.value = current.copy(
+            selectedBucketId = bucketId,
+            errorMessage = null,
+        )
+        refresh()
+    }
+
+    fun onPhotoPickResult(result: PhotoPickResult) {
+        mutableUiState.value = mutableUiState.value.copy(pickerResult = result)
+        if (result is PhotoPickResult.Selected) {
+            refresh()
         }
     }
 
-    fun loadMoreImages() {
-        Log.e("AlbumViewModel", "loadMoreImages: ")
-        viewModelScope.launch {
-            _loadMoreStateFlow.value = LoadMoreState.LOADING
-            val bucketId = _currentDirFlow.value?.bucketId ?: ImageDirectory.ALL_BUCKET_ID
-            val result = AlbumLoader.getImagesByDirectory(bucketId, page = ++currentPage)
-            _imageListFlow.value += result.data
-            _loadMoreStateFlow.value = LoadMoreState.IDLE
-            _hasMoreFlow.value = result.hasNextPage
-            Log.e(
-                "AlbumViewModel",
-                "loadMoreImages: size = ${result.data.size}, hasNextPage = ${result.hasNextPage}, currentPage = $currentPage, bucketId = $bucketId"
-            )
+    internal class Factory(
+        private val client: AlbumDataClient,
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            require(modelClass.isAssignableFrom(AlbumViewModel::class.java)) {
+                "Unsupported ViewModel class: ${modelClass.name}"
+            }
+            return AlbumViewModel(client) as T
         }
     }
 }
+
+private fun Throwable.displayMessage(): String = message ?: javaClass.simpleName
