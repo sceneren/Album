@@ -30,6 +30,28 @@ class MediaPermissionRequestFactoryTest {
     }
 
     @Test
+    fun api34ImageRequestsImageAndSelectedMedia() {
+        assertArrayEquals(
+            arrayOf(
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+            ),
+            MediaPermissionRequestFactory.create(AlbumMediaFilter.IMAGES, 34),
+        )
+    }
+
+    @Test
+    fun api34VideoRequestsVideoAndSelectedMedia() {
+        assertArrayEquals(
+            arrayOf(
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+            ),
+            MediaPermissionRequestFactory.create(AlbumMediaFilter.VIDEOS, 34),
+        )
+    }
+
+    @Test
     fun api32UsesLegacyRead() {
         assertArrayEquals(
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
