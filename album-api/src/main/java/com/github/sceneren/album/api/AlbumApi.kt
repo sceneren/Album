@@ -8,6 +8,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.map
 import com.github.sceneren.album.api.internal.database.AlbumDatabaseFactory
+import com.github.sceneren.album.api.internal.database.PickedMediaDraft
 import com.github.sceneren.album.api.internal.database.PickedMediaEntity
 import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import com.github.sceneren.album.api.internal.database.RoomPickedMediaStore
@@ -52,6 +53,39 @@ class AlbumApi internal constructor(
     fun getMediaAccessStatus(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
     ): MediaAccessStatus = accessResolver.resolve(mediaFilter)
+
+    /**
+     * Persists media currently visible under PARTIAL system access for [mediaFilter].
+     *
+     * The records do not own persistable URI grants because their access is controlled by the
+     * system selected-media permission. FULL and DENIED access return zero without querying
+     * MediaStore.
+     */
+    suspend fun syncPartialSelections(
+        mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
+    ): Result<Int> = resultOnIo {
+        if (accessResolver.resolve(mediaFilter) != MediaAccessStatus.PARTIAL) {
+            return@resultOnIo 0
+        }
+
+        val selectedAtEpochMillis = System.currentTimeMillis()
+        val drafts = mediaStore.loadAll(mediaFilter).map { media ->
+            PickedMediaDraft(
+                uri = media.uri.toString(),
+                mediaType = media.mediaType.name,
+                displayName = media.displayName,
+                mimeType = media.mimeType,
+                sizeBytes = media.sizeBytes,
+                width = media.width,
+                height = media.height,
+                durationMillis = media.durationMillis,
+                selectedAtEpochMillis = selectedAtEpochMillis,
+                ownsPersistableGrant = false,
+            )
+        }
+        pickedStore.upsertBatch(drafts)
+        drafts.size
+    }
 
     /**
      * Creates a cold paged media feed for [mediaFilter] and, for MediaStore, [bucketId].

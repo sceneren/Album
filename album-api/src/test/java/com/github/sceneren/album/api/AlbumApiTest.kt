@@ -83,6 +83,53 @@ class AlbumApiTest {
     }
 
     @Test
+    fun partialSyncPersistsVisibleMediaWithoutOwningGrant() = runTest {
+        permissions.result = MediaAccessStatus.PARTIAL
+        mediaStore.allMedia = listOf(
+            media("partial-image", AlbumMediaType.IMAGE),
+            media("partial-video", AlbumMediaType.VIDEO),
+        )
+
+        assertEquals(
+            2,
+            api.syncPartialSelections(AlbumMediaFilter.IMAGES_AND_VIDEOS).getOrThrow(),
+        )
+
+        assertEquals(1, mediaStore.loadAllCalls)
+        assertEquals(AlbumMediaFilter.IMAGES_AND_VIDEOS, mediaStore.lastLoadAllFilter)
+        assertEquals(
+            listOf("content://media/partial-image", "content://media/partial-video"),
+            pickedStore.upsertedDrafts.map(PickedMediaDraft::uri),
+        )
+        assertTrue(pickedStore.upsertedDrafts.none(PickedMediaDraft::ownsPersistableGrant))
+    }
+
+    @Test
+    fun partialSyncDoesNotQueryWhenAccessIsFullOrDenied() = runTest {
+        mediaStore.allMedia = listOf(media("ignored", AlbumMediaType.IMAGE))
+
+        permissions.result = MediaAccessStatus.FULL
+        assertEquals(0, api.syncPartialSelections().getOrThrow())
+        permissions.result = MediaAccessStatus.DENIED
+        assertEquals(0, api.syncPartialSelections().getOrThrow())
+
+        assertEquals(0, mediaStore.loadAllCalls)
+        assertTrue(pickedStore.upsertedDrafts.isEmpty())
+    }
+
+    @Test
+    fun partialSyncKeepsExistingPhotoPickerGrantOwnership() = runTest {
+        permissions.result = MediaAccessStatus.PARTIAL
+        val persistedUri = uri("owned-partial")
+        pickedStore.seed(entity("owned-partial", ownsGrant = true))
+        mediaStore.allMedia = listOf(media("owned-partial", AlbumMediaType.IMAGE))
+
+        api.syncPartialSelections().getOrThrow()
+
+        assertTrue(pickedStore.rows.getValue(persistedUri.toString()).ownsPersistableGrant)
+    }
+
+    @Test
     fun fullDirectoriesUseMediaStore() = runTest {
         permissions.result = MediaAccessStatus.FULL
 
@@ -158,10 +205,17 @@ class AlbumApiTest {
     private class FakeMediaStoreDataSource : MediaStoreDataSource {
         var directoryCalls = 0
         var lastDirectoryFilter: AlbumMediaFilter? = null
+        var loadAllCalls = 0
+        var lastLoadAllFilter: AlbumMediaFilter? = null
+        var allMedia: List<AlbumMedia> = emptyList()
 
         override suspend fun loadAll(
             mediaFilter: AlbumMediaFilter,
-        ): List<AlbumMedia> = emptyList()
+        ): List<AlbumMedia> {
+            loadAllCalls++
+            lastLoadAllFilter = mediaFilter
+            return allMedia
+        }
 
         override suspend fun loadPage(
             mediaFilter: AlbumMediaFilter,
@@ -181,6 +235,7 @@ class AlbumApiTest {
 
     private class FakePickedMediaStore : PickedMediaStore {
         val rows = linkedMapOf<String, PickedMediaEntity>()
+        val upsertedDrafts = mutableListOf<PickedMediaDraft>()
         var lastPagingFilter: AlbumMediaFilter? = null
 
         fun seed(entity: PickedMediaEntity) {
@@ -206,7 +261,19 @@ class AlbumApiTest {
 
         override suspend fun upsertBatch(
             drafts: List<PickedMediaDraft>,
-        ): List<PickedMediaEntity> = error("Not used")
+        ): List<PickedMediaEntity> {
+            upsertedDrafts += drafts
+            return drafts.mapIndexed { index, draft ->
+                val existing = rows[draft.uri]
+                val entity = draft.toEntity(
+                    sortOrder = drafts.size - index.toLong(),
+                    ownsPersistableGrant = existing?.ownsPersistableGrant == true ||
+                        draft.ownsPersistableGrant,
+                )
+                rows[entity.uri] = entity
+                entity
+            }
+        }
 
         override suspend fun find(uri: String): PickedMediaEntity? = rows[uri]
 
@@ -269,4 +336,21 @@ class AlbumApiTest {
     )
 
     private fun uri(name: String): Uri = Uri.parse("content://picker/$name")
+
+    private fun media(name: String, mediaType: AlbumMediaType) = AlbumMedia(
+        uri = Uri.parse("content://media/$name"),
+        mediaType = mediaType,
+        displayName = "$name.jpg",
+        mimeType = if (mediaType == AlbumMediaType.IMAGE) "image/jpeg" else "video/mp4",
+        sizeBytes = 4_096L,
+        dateAddedEpochSeconds = 100L,
+        dateModifiedEpochSeconds = 99L,
+        width = 1_920,
+        height = 1_080,
+        durationMillis = if (mediaType == AlbumMediaType.VIDEO) 2_000L else null,
+        bucketId = 1L,
+        bucketName = "Camera",
+        selectedAtEpochMillis = null,
+        source = AlbumMediaSource.MEDIA_STORE,
+    )
 }
