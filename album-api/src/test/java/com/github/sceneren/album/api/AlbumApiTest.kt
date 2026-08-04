@@ -159,6 +159,10 @@ class AlbumApiTest {
         var directoryCalls = 0
         var lastDirectoryFilter: AlbumMediaFilter? = null
 
+        override suspend fun loadAll(
+            mediaFilter: AlbumMediaFilter,
+        ): List<AlbumMedia> = emptyList()
+
         override suspend fun loadPage(
             mediaFilter: AlbumMediaFilter,
             bucketId: Long,

@@ -99,6 +99,10 @@ class MediaStoreMediaPagingSourceTest {
     ) : MediaStoreDataSource {
         val requestedOffsets = mutableListOf<Int>()
 
+        override suspend fun loadAll(
+            mediaFilter: AlbumMediaFilter,
+        ): List<AlbumMedia> = emptyList()
+
         override suspend fun loadPage(
             mediaFilter: AlbumMediaFilter,
             bucketId: Long,

@@ -67,6 +67,33 @@ class AndroidMediaStoreDataSourceTest {
     }
 
     @Test
+    fun loadAllOmitsPagingArgumentsAndKeepsFilterSelection() = runTest {
+        val provider = RecordingMediaProvider(
+            rows = listOf(videoRow(id = 11, duration = 3_000)),
+        )
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        val source = AndroidMediaStoreDataSource(
+            context = ApplicationProvider.getApplicationContext(),
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = async { source.loadAll(AlbumMediaFilter.VIDEOS) }
+        advanceUntilIdle()
+
+        assertEquals(listOf("content://media/external/video/media/11"), result.await().map { it.uri.toString() })
+        assertEquals(
+            listOf(MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()),
+            provider.lastQueryArgs?.getStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS)?.toList(),
+        )
+        assertEquals(null, provider.lastQueryArgs?.getIntOrNull(ContentResolver.QUERY_ARG_LIMIT))
+        assertEquals(null, provider.lastQueryArgs?.getIntOrNull(ContentResolver.QUERY_ARG_OFFSET))
+        assertEquals(
+            "date_added DESC, _id DESC",
+            provider.lastQueryArgs?.getString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER),
+        )
+    }
+
+    @Test
     @Config(sdk = [29])
     fun api29UsesSqlLimitAndOffset() = runTest {
         val provider = RecordingMediaProvider(rows = listOf(imageRow(id = 9)))
@@ -182,6 +209,9 @@ class AndroidMediaStoreDataSourceTest {
             selectionArgs: Array<out String>?,
         ): Int = 0
     }
+
+    private fun Bundle.getIntOrNull(key: String): Int? =
+        if (containsKey(key)) getInt(key) else null
 
     private fun imageRow(
         id: Long,

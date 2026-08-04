@@ -24,6 +24,16 @@ internal class AndroidMediaStoreDataSource(
     private val contentResolver = context.applicationContext.contentResolver
     private val filesUri = MediaStore.Files.getContentUri(EXTERNAL_VOLUME)
 
+    override suspend fun loadAll(
+        mediaFilter: AlbumMediaFilter,
+    ): List<AlbumMedia> = withContext(ioDispatcher) {
+        query(
+            spec = MediaStoreQuerySpec.create(mediaFilter, AlbumDirectory.ALL_BUCKET_ID),
+            limit = null,
+            offset = null,
+        )
+    }
+
     override suspend fun loadPage(
         mediaFilter: AlbumMediaFilter,
         bucketId: Long,

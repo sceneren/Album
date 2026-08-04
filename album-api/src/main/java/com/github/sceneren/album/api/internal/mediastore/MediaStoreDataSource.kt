@@ -5,6 +5,10 @@ import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 
 internal interface MediaStoreDataSource {
+    suspend fun loadAll(
+        mediaFilter: AlbumMediaFilter,
+    ): List<AlbumMedia>
+
     suspend fun loadPage(
         mediaFilter: AlbumMediaFilter,
         bucketId: Long,
