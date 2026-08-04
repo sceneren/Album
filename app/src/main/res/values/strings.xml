@@ -1,3 +1,24 @@
 <resources>
     <string name="app_name">Album</string>
+    <string name="filter_images">图片</string>
+    <string name="filter_videos">视频</string>
+    <string name="filter_images_and_videos">图片和视频</string>
+    <string name="access_and_source">访问状态：%1$s · 数据源：%2$s</string>
+    <string name="access_full">完整</string>
+    <string name="access_partial">部分</string>
+    <string name="access_denied">未授权</string>
+    <string name="source_media_store">MediaStore</string>
+    <string name="source_photo_picker">Photo Picker 持久列表</string>
+    <string name="request_permission">请求相册权限</string>
+    <string name="open_photo_picker">选择媒体</string>
+    <string name="all_media">全部</string>
+    <string name="video_badge">视频</string>
+    <string name="retry">重试</string>
+    <string name="loading">正在加载…</string>
+    <string name="empty_media">暂无媒体</string>
+    <string name="unknown_error">发生未知错误</string>
+    <string name="media_content_description">媒体预览</string>
+    <string name="picker_selected_count">已保存 %1$d 项选择</string>
+    <string name="picker_cancelled">已取消选择</string>
+    <string name="picker_failed">选择失败：%1$s</string>
 </resources>
