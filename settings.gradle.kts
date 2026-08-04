@@ -25,4 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Album"
 include(":app")
- 
+include(":album-api")

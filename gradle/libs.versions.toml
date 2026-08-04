@@ -14,6 +14,12 @@ viewModel = "2.10.0"
 deviceCompat = "2.6"
 xxPermissions = "28.2"
 coil = "3.5.0"
+paging = "3.5.0"
+room = "2.8.4"
+ksp = "2.3.10"
+coroutines = "1.11.0"
+androidxTestCore = "1.7.0"
+robolectric = "4.16.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,9 +46,25 @@ xx-permissions = { module = "com.github.getActivity:XXPermissions", version.ref 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
+coil-video = { module = "io.coil-kt.coil3:coil-video", version.ref = "coil" }
+
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityCompose" }
+androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
+androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
+androidx-paging-testing = { module = "androidx.paging:paging-testing", version.ref = "paging" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-paging = { module = "androidx.room:room-paging", version.ref = "room" }
+androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [bundles]
