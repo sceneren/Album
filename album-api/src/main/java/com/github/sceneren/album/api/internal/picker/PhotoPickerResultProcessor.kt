@@ -45,11 +45,11 @@ internal class PhotoPickerResultProcessor(
 
         val typedUris = try {
             uniqueUris.map { uri -> uri to metadataReader.requiredType(uri) }
-        } catch (throwable: Throwable) {
-            throwable.rethrowCancellation()
+        } catch (exception: Exception) {
+            exception.rethrowCancellation()
             return PhotoPickResult.Failed(
                 reason = PhotoPickFailure.MEDIA_TYPE_NOT_ALLOWED,
-                cause = throwable,
+                cause = exception,
             )
         }
         if (typedUris.any { (_, type) -> !mediaFilter.allows(type) }) {
@@ -58,11 +58,11 @@ internal class PhotoPickerResultProcessor(
 
         val persistedBefore = try {
             grantManager.persistedReadUris()
-        } catch (throwable: Throwable) {
-            throwable.rethrowCancellation()
+        } catch (exception: Exception) {
+            exception.rethrowCancellation()
             return PhotoPickResult.Failed(
                 reason = PhotoPickFailure.PERSISTABLE_PERMISSION_FAILED,
-                cause = throwable,
+                cause = exception,
             )
         }
         val newGrants = mutableListOf<Uri>()
@@ -74,23 +74,23 @@ internal class PhotoPickerResultProcessor(
                     newGrants += uri
                 }
             }
-        } catch (throwable: Throwable) {
-            throwable.rethrowCancellationAfter { releaseNewGrants(newGrants) }
+        } catch (exception: Exception) {
+            exception.rethrowCancellationAfter { releaseNewGrants(newGrants) }
             releaseNewGrants(newGrants)
             return PhotoPickResult.Failed(
                 reason = PhotoPickFailure.PERSISTABLE_PERMISSION_FAILED,
-                cause = throwable,
+                cause = exception,
             )
         }
 
         val metadata = try {
             typedUris.map { (uri, type) -> metadataReader.read(uri, type) }
-        } catch (throwable: Throwable) {
-            throwable.rethrowCancellationAfter { releaseNewGrants(newGrants) }
+        } catch (exception: Exception) {
+            exception.rethrowCancellationAfter { releaseNewGrants(newGrants) }
             releaseNewGrants(newGrants)
             return PhotoPickResult.Failed(
                 reason = PhotoPickFailure.METADATA_READ_FAILED,
-                cause = throwable,
+                cause = exception,
             )
         }
 
@@ -113,12 +113,12 @@ internal class PhotoPickerResultProcessor(
 
         val entities = try {
             store.upsertBatch(drafts)
-        } catch (throwable: Throwable) {
-            throwable.rethrowCancellationAfter { releaseNewGrants(newGrants) }
+        } catch (exception: Exception) {
+            exception.rethrowCancellationAfter { releaseNewGrants(newGrants) }
             releaseNewGrants(newGrants)
             return PhotoPickResult.Failed(
                 reason = PhotoPickFailure.DATABASE_WRITE_FAILED,
-                cause = throwable,
+                cause = exception,
             )
         }
 
@@ -127,7 +127,11 @@ internal class PhotoPickerResultProcessor(
 
     private fun releaseNewGrants(newGrants: List<Uri>) {
         newGrants.asReversed().forEach { uri ->
-            runCatching { grantManager.releaseRead(uri) }
+            try {
+                grantManager.releaseRead(uri)
+            } catch (_: Exception) {
+                // Best-effort rollback; the original failure remains authoritative.
+            }
         }
     }
 
@@ -137,11 +141,11 @@ internal class PhotoPickerResultProcessor(
         AlbumMediaFilter.IMAGES_AND_VIDEOS -> true
     }
 
-    private fun Throwable.rethrowCancellation() {
+    private fun Exception.rethrowCancellation() {
         if (this is CancellationException) throw this
     }
 
-    private inline fun Throwable.rethrowCancellationAfter(cleanup: () -> Unit) {
+    private inline fun Exception.rethrowCancellationAfter(cleanup: () -> Unit) {
         if (this is CancellationException) {
             cleanup()
             throw this

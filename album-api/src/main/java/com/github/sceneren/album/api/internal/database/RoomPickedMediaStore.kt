@@ -1,7 +1,7 @@
 package com.github.sceneren.album.api.internal.database
 
-import android.net.Uri
 import androidx.paging.PagingSource
+import androidx.core.net.toUri
 import androidx.room.withTransaction
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
@@ -23,7 +23,11 @@ internal class RoomPickedMediaStore(
         if (drafts.isEmpty()) return emptyList()
 
         return database.withTransaction {
-            val existingByUri = dao.findByUris(drafts.map(PickedMediaDraft::uri))
+            val existingByUri = drafts
+                .map(PickedMediaDraft::uri)
+                .distinct()
+                .chunked(SQLITE_BIND_BATCH_SIZE)
+                .flatMap { uris -> dao.findByUris(uris) }
                 .associateBy(PickedMediaEntity::uri)
             val firstSortOrder = (dao.maxSortOrder() ?: 0L) + drafts.size
             val entities = drafts.mapIndexed { index, draft ->
@@ -55,10 +59,14 @@ internal class RoomPickedMediaStore(
     }
 
     override suspend fun all(): List<PickedMediaEntity> = dao.all()
+
+    private companion object {
+        const val SQLITE_BIND_BATCH_SIZE = 900
+    }
 }
 
 internal fun PickedMediaEntity.toAlbumMedia(): AlbumMedia = AlbumMedia(
-    uri = Uri.parse(uri),
+    uri = uri.toUri(),
     mediaType = when (mediaType) {
         AlbumMediaType.IMAGE.name -> AlbumMediaType.IMAGE
         AlbumMediaType.VIDEO.name -> AlbumMediaType.VIDEO

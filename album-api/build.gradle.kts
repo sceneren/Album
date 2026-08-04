@@ -26,7 +26,9 @@ android {
 }
 
 dependencies {
-    api(libs.androidx.activity.ktx)
+    api(libs.androidx.activity.ktx) {
+        exclude(group = "androidx.compose.runtime", module = "runtime-annotation")
+    }
     api(libs.androidx.paging.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

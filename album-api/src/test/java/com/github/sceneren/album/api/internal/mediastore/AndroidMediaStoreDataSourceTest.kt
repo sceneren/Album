@@ -118,6 +118,16 @@ class AndroidMediaStoreDataSourceTest {
         assertEquals(AlbumMediaType.IMAGE, directories[1].coverMediaType)
         assertEquals(AlbumMediaType.VIDEO, directories[2].coverMediaType)
         assertEquals(null, directories[0].bucketName)
+        assertEquals(
+            listOf(
+                MediaStore.Files.FileColumns._ID,
+                MediaStore.Files.FileColumns.MEDIA_TYPE,
+                MediaStore.MediaColumns.DATE_ADDED,
+                MediaStore.Images.ImageColumns.BUCKET_ID,
+                MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
+            ),
+            provider.lastProjection?.toList(),
+        )
     }
 
     private class RecordingMediaProvider(
@@ -125,6 +135,7 @@ class AndroidMediaStoreDataSourceTest {
     ) : ContentProvider() {
         var lastQueryArgs: Bundle? = null
         var lastSortOrder: String? = null
+        var lastProjection: Array<out String>? = null
 
         override fun onCreate(): Boolean = true
 
@@ -135,6 +146,7 @@ class AndroidMediaStoreDataSourceTest {
             cancellationSignal: CancellationSignal?,
         ): Cursor {
             lastQueryArgs = queryArgs?.let(::Bundle)
+            lastProjection = projection
             return cursor(projection)
         }
 
@@ -146,6 +158,7 @@ class AndroidMediaStoreDataSourceTest {
             sortOrder: String?,
         ): Cursor {
             lastSortOrder = sortOrder
+            lastProjection = projection
             return cursor(projection)
         }
 

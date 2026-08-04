@@ -1,6 +1,7 @@
 package com.github.sceneren.album.api.internal.permission
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -20,6 +21,7 @@ internal class AndroidMediaAccessResolver(
             PackageManager.PERMISSION_GRANTED
     },
 ) : MediaAccessResolver {
+    @SuppressLint("InlinedApi")
     override fun resolve(filter: AlbumMediaFilter): MediaAccessStatus {
         val sdk = sdkInt()
         return MediaAccessPolicy.resolve(

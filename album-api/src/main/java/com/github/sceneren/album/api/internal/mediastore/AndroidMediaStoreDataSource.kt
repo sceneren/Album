@@ -40,41 +40,9 @@ internal class AndroidMediaStoreDataSource(
     override suspend fun getDirectories(
         mediaFilter: AlbumMediaFilter,
     ): List<AlbumDirectory> = withContext(ioDispatcher) {
-        val media = query(
-            spec = MediaStoreQuerySpec.create(mediaFilter, AlbumDirectory.ALL_BUCKET_ID),
-            limit = null,
-            offset = null,
+        queryDirectories(
+            MediaStoreQuerySpec.create(mediaFilter, AlbumDirectory.ALL_BUCKET_ID),
         )
-        if (media.isEmpty()) return@withContext emptyList()
-
-        val realDirectories = LinkedHashMap<Long, MutableDirectory>()
-        media.forEach { item ->
-            val bucketId = item.bucketId ?: return@forEach
-            val directory = realDirectories.getOrPut(bucketId) {
-                MutableDirectory(
-                    bucketId = bucketId,
-                    bucketName = item.bucketName,
-                    coverUri = item.uri,
-                    coverMediaType = item.mediaType,
-                    firstMediaDate = item.dateAddedEpochSeconds ?: Long.MIN_VALUE,
-                )
-            }
-            directory.mediaCount++
-        }
-
-        val all = AlbumDirectory(
-            bucketId = AlbumDirectory.ALL_BUCKET_ID,
-            bucketName = null,
-            coverUri = media.first().uri,
-            coverMediaType = media.first().mediaType,
-            mediaCount = media.size.toLong(),
-        )
-        listOf(all) + realDirectories.values
-            .sortedWith(
-                compareByDescending<MutableDirectory> { it.firstMediaDate }
-                    .thenBy(MutableDirectory::bucketId),
-            )
-            .map(MutableDirectory::toAlbumDirectory)
     }
 
     private fun query(
@@ -82,7 +50,26 @@ internal class AndroidMediaStoreDataSource(
         limit: Int?,
         offset: Int?,
     ): List<AlbumMedia> {
-        val cursor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val cursor = queryCursor(spec, PROJECTION, limit, offset)
+        return cursor?.use(::readMedia) ?: emptyList()
+    }
+
+    private fun queryDirectories(spec: MediaStoreQuerySpec): List<AlbumDirectory> {
+        val cursor = queryCursor(
+            spec = spec,
+            projection = DIRECTORY_PROJECTION,
+            limit = null,
+            offset = null,
+        )
+        return cursor?.use(::readDirectories) ?: emptyList()
+    }
+
+    private fun queryCursor(
+        spec: MediaStoreQuerySpec,
+        projection: Array<String>,
+        limit: Int?,
+        offset: Int?,
+    ): Cursor? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val queryArgs = Bundle().apply {
                 putString(ContentResolver.QUERY_ARG_SQL_SELECTION, spec.selection)
                 putStringArray(
@@ -93,7 +80,7 @@ internal class AndroidMediaStoreDataSource(
                 limit?.let { putInt(ContentResolver.QUERY_ARG_LIMIT, it) }
                 offset?.let { putInt(ContentResolver.QUERY_ARG_OFFSET, it) }
             }
-            contentResolver.query(filesUri, PROJECTION, queryArgs, null)
+            contentResolver.query(filesUri, projection, queryArgs, null)
         } else {
             val pageSuffix = if (limit != null && offset != null) {
                 " LIMIT $limit OFFSET $offset"
@@ -102,15 +89,12 @@ internal class AndroidMediaStoreDataSource(
             }
             contentResolver.query(
                 filesUri,
-                PROJECTION,
+                projection,
                 spec.selection,
                 spec.selectionArgs.toTypedArray(),
                 SORT_ORDER + pageSuffix,
             )
         }
-
-        return cursor?.use(::readMedia) ?: emptyList()
-    }
 
     private fun readMedia(cursor: Cursor): List<AlbumMedia> {
         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
@@ -155,6 +139,61 @@ internal class AndroidMediaStoreDataSource(
                 )
             }
         }
+    }
+
+    private fun readDirectories(cursor: Cursor): List<AlbumDirectory> {
+        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+        val mediaTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+        val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+        val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_ID)
+        val bucketNameColumn =
+            cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME)
+        val realDirectories = LinkedHashMap<Long, MutableDirectory>()
+        var firstUri: Uri? = null
+        var firstType: AlbumMediaType? = null
+        var totalCount = 0L
+
+        while (cursor.moveToNext()) {
+            val mediaType = cursor.readMediaType(mediaTypeColumn)
+            val mediaUri = ContentUris.withAppendedId(
+                mediaType.contentUri,
+                cursor.getLong(idColumn),
+            )
+            if (firstUri == null) {
+                firstUri = mediaUri
+                firstType = mediaType
+            }
+            totalCount++
+
+            val bucketId = cursor.longOrNull(bucketIdColumn) ?: continue
+            val directory = realDirectories.getOrPut(bucketId) {
+                MutableDirectory(
+                    bucketId = bucketId,
+                    bucketName = cursor.stringOrNull(bucketNameColumn),
+                    coverUri = mediaUri,
+                    coverMediaType = mediaType,
+                    firstMediaDate = cursor.positiveLongOrNull(dateAddedColumn)
+                        ?: Long.MIN_VALUE,
+                )
+            }
+            directory.mediaCount++
+        }
+
+        val coverUri = firstUri ?: return emptyList()
+        val coverType = checkNotNull(firstType)
+        val all = AlbumDirectory(
+            bucketId = AlbumDirectory.ALL_BUCKET_ID,
+            bucketName = null,
+            coverUri = coverUri,
+            coverMediaType = coverType,
+            mediaCount = totalCount,
+        )
+        return listOf(all) + realDirectories.values
+            .sortedWith(
+                compareByDescending<MutableDirectory> { it.firstMediaDate }
+                    .thenBy(MutableDirectory::bucketId),
+            )
+            .map(MutableDirectory::toAlbumDirectory)
     }
 
     private fun Cursor.readMediaType(column: Int): AlbumMediaType = when (getInt(column)) {
@@ -213,6 +252,14 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.MediaColumns.WIDTH,
             MediaStore.MediaColumns.HEIGHT,
             MediaStore.Video.VideoColumns.DURATION,
+            MediaStore.Images.ImageColumns.BUCKET_ID,
+            MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
+        )
+
+        val DIRECTORY_PROJECTION = arrayOf(
+            MediaStore.Files.FileColumns._ID,
+            MediaStore.Files.FileColumns.MEDIA_TYPE,
+            MediaStore.MediaColumns.DATE_ADDED,
             MediaStore.Images.ImageColumns.BUCKET_ID,
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )

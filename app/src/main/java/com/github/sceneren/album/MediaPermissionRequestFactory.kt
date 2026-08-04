@@ -1,10 +1,12 @@
 package com.github.sceneren.album
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import com.github.sceneren.album.api.AlbumMediaFilter
 
 internal object MediaPermissionRequestFactory {
+    @SuppressLint("InlinedApi")
     fun create(
         filter: AlbumMediaFilter,
         sdkInt: Int,

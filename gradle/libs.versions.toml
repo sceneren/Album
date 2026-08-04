@@ -8,11 +8,8 @@ lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.13.0"
 kotlin = "2.4.0"
 composeBom = "2026.05.01"
-playServicesBase = "18.10.0"
 viewModel = "2.10.0"
 
-deviceCompat = "2.6"
-xxPermissions = "28.2"
 coil = "3.5.0"
 paging = "3.5.0"
 room = "2.8.4"
@@ -38,13 +35,7 @@ androidx-compose-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-v
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 
-play-services-base = { module = "com.google.android.gms:play-services-base", version.ref = "playServicesBase" }
-
-device-compat = { module = "com.github.getActivity:DeviceCompat", version.ref = "deviceCompat" }
-xx-permissions = { module = "com.github.getActivity:XXPermissions", version.ref = "xxPermissions" }
-
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
-coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 coil-video = { module = "io.coil-kt.coil3:coil-video", version.ref = "coil" }
 
@@ -66,6 +57,3 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
-[bundles]
-coil = ["coil-compose", "coil-network", "coil-gif"]

@@ -3,6 +3,7 @@ package com.github.sceneren.album.api
 import android.content.Context
 import android.net.Uri
 import androidx.activity.ComponentActivity
+import androidx.core.net.toUri
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.map
@@ -32,6 +33,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
+/**
+ * Data-only entry point for permission-aware media paging and persistent Photo Picker selections.
+ *
+ * Hosts own permission requests and UI. A full media permission routes reads to MediaStore;
+ * partial or denied access routes reads to the library's persisted Photo Picker database.
+ */
 class AlbumApi internal constructor(
     private val accessResolver: MediaAccessResolver,
     private val mediaStore: MediaStoreDataSource,
@@ -41,10 +48,14 @@ class AlbumApi internal constructor(
     private val uriAccessChecker: UriAccessChecker,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    /** Returns the effective media-library access for [mediaFilter]. */
     fun getMediaAccessStatus(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
     ): MediaAccessStatus = accessResolver.resolve(mediaFilter)
 
+    /**
+     * Creates a cold paged media feed for [mediaFilter] and, for MediaStore, [bucketId].
+     */
     fun getMediaFeed(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
         bucketId: Long = AlbumDirectory.ALL_BUCKET_ID,
@@ -84,6 +95,7 @@ class AlbumApi internal constructor(
         )
     }
 
+    /** Returns MediaStore directories when access is full, otherwise an empty list. */
     suspend fun getMediaDirectories(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
     ): Result<List<AlbumDirectory>> = resultOnIo {
@@ -94,6 +106,12 @@ class AlbumApi internal constructor(
         }
     }
 
+    /**
+     * Registers a lifecycle-bound Photo Picker launcher before [activity] is started.
+     *
+     * A null [maxSelectionCount] applies no library-defined cap; the platform picker may still
+     * impose its own limit. Successful selections are persisted for later paging.
+     */
     fun registerPhotoPicker(
         activity: ComponentActivity,
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -106,6 +124,7 @@ class AlbumApi internal constructor(
         onResult = onResult,
     )
 
+    /** Removes one persisted picker selection and releases a grant owned by this library. */
     suspend fun removePersistedSelection(uri: Uri): Result<Boolean> = resultOnIo {
         val removed = pickedStore.remove(uri.toString()) ?: return@resultOnIo false
         if (removed.ownsPersistableGrant) {
@@ -114,21 +133,31 @@ class AlbumApi internal constructor(
         true
     }
 
+    /** Clears persisted picker selections and releases all grants owned by this library. */
     suspend fun clearPersistedSelections(): Result<Int> = resultOnIo {
         val removed = pickedStore.clear()
+        var firstFailure: Exception? = null
         removed.forEach { item ->
             if (item.ownsPersistableGrant) {
-                grantManager.releaseRead(Uri.parse(item.uri))
+                try {
+                    grantManager.releaseRead(item.uri.toUri())
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (exception: Exception) {
+                    if (firstFailure == null) firstFailure = exception
+                }
             }
         }
+        firstFailure?.let { throw it }
         removed.size
     }
 
+    /** Removes picker records whose persisted URI access is no longer usable. */
     suspend fun reconcilePersistedSelections(): Result<Int> = resultOnIo {
         val persistedUris = grantManager.persistedReadUris()
         var removedCount = 0
         pickedStore.all().forEach { item ->
-            val uri = Uri.parse(item.uri)
+            val uri = item.uri.toUri()
             val hasPersistedGrant = uri in persistedUris
             val stale = !hasPersistedGrant || !uriAccessChecker.canRead(uri)
             if (stale) {
@@ -151,8 +180,10 @@ class AlbumApi internal constructor(
     }
 
     companion object {
+        /** Default number of items requested by each paging load. */
         const val DEFAULT_PAGE_SIZE: Int = 50
 
+        /** Creates an application-scoped API instance backed by MediaStore and Room. */
         fun create(context: Context): AlbumApi {
             val appContext = context.applicationContext
             val resolver = appContext.contentResolver

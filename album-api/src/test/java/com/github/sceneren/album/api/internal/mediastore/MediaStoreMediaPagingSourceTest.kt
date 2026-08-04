@@ -7,6 +7,7 @@ import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -65,6 +66,31 @@ class MediaStoreMediaPagingSourceTest {
         ) as PagingSource.LoadResult.Error<Int, AlbumMedia>
 
         assertSame(failure, result.throwable)
+    }
+
+    @Test
+    fun cancellationPropagates() = runTest {
+        val cancellation = CancellationException("cancel load")
+        val source = MediaStoreMediaPagingSource(
+            dataSource = FakeMediaStoreDataSource(failure = cancellation),
+            mediaFilter = AlbumMediaFilter.IMAGES,
+            bucketId = AlbumDirectory.ALL_BUCKET_ID,
+        )
+        var thrown: CancellationException? = null
+
+        try {
+            source.load(
+                PagingSource.LoadParams.Refresh(
+                    key = null,
+                    loadSize = 20,
+                    placeholdersEnabled = false,
+                ),
+            )
+        } catch (exception: CancellationException) {
+            thrown = exception
+        }
+
+        assertSame(cancellation, thrown)
     }
 
     private class FakeMediaStoreDataSource(

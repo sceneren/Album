@@ -128,6 +128,21 @@ class RoomPickedMediaStoreTest {
         assertFalse(store.all().any { it.uri == "content://picked/remove" })
     }
 
+    @Test
+    fun batchLargerThanSqliteBindLimitIsPersisted() = runTest {
+        val drafts = (0..1_000).map { index ->
+            draft(
+                uri = "content://picked/image-$index",
+                mediaType = AlbumMediaType.IMAGE,
+                selectedAt = index.toLong(),
+            )
+        }
+
+        store.upsertBatch(drafts)
+
+        assertEquals(drafts.size, store.all().size)
+    }
+
     private suspend fun load(filter: AlbumMediaFilter): List<PickedMediaEntity> {
         val result = store.pagingSource(filter).load(
             PagingSource.LoadParams.Refresh(

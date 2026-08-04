@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
+import kotlinx.coroutines.CancellationException
 
 internal class MediaStoreMediaPagingSource(
     private val dataSource: MediaStoreDataSource,
@@ -28,8 +29,10 @@ internal class MediaStoreMediaPagingSource(
             prevKey = if (offset == 0) null else maxOf(0, offset - params.loadSize),
             nextKey = if (data.size == params.loadSize) offset + data.size else null,
         )
-    } catch (throwable: Throwable) {
-        LoadResult.Error(throwable)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (exception: Exception) {
+        LoadResult.Error(exception)
     }
 
     override fun getRefreshKey(state: PagingState<Int, AlbumMedia>): Int? {

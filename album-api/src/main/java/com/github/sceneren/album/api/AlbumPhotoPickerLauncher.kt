@@ -1,11 +1,13 @@
 package com.github.sceneren.album.api
 
+/** Host-controlled launcher registered through [AlbumApi.registerPhotoPicker]. */
 interface AlbumPhotoPickerLauncher {
     val mediaFilter: AlbumMediaFilter
 
     fun launch()
 }
 
+/** Result of processing and persisting a Photo Picker request. */
 sealed interface PhotoPickResult {
     data class Selected(val media: List<AlbumMedia>) : PhotoPickResult
 
@@ -17,6 +19,7 @@ sealed interface PhotoPickResult {
     ) : PhotoPickResult
 }
 
+/** Stable failure categories reported while validating or persisting picker results. */
 enum class PhotoPickFailure {
     SELECTION_LIMIT_EXCEEDED,
     MEDIA_TYPE_NOT_ALLOWED,

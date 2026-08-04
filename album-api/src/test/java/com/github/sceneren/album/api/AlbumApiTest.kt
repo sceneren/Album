@@ -123,6 +123,18 @@ class AlbumApiTest {
     }
 
     @Test
+    fun clearAttemptsEveryOwnedGrantWhenOneReleaseFails() = runTest {
+        pickedStore.seed(entity("first", ownsGrant = true))
+        pickedStore.seed(entity("second", ownsGrant = true))
+        grants.releaseFailureFor = uri("first")
+
+        val result = api.clearPersistedSelections()
+
+        assertTrue(result.isFailure)
+        assertEquals(listOf(uri("first"), uri("second")), grants.released)
+    }
+
+    @Test
     fun reconcileRemovesMissingAndUnreadableUris() = runTest {
         pickedStore.seed(entity("keep", ownsGrant = true))
         pickedStore.seed(entity("missing", ownsGrant = true))
@@ -219,6 +231,7 @@ class AlbumApiTest {
     private class FakeGrantManager : PersistableGrantManager {
         val persisted = linkedSetOf<Uri>()
         val released = mutableListOf<Uri>()
+        var releaseFailureFor: Uri? = null
 
         override fun persistedReadUris(): Set<Uri> = persisted.toSet()
 
@@ -226,6 +239,7 @@ class AlbumApiTest {
 
         override fun releaseRead(uri: Uri) {
             released += uri
+            if (uri == releaseFailureFor) error("release failed")
             persisted -= uri
         }
     }

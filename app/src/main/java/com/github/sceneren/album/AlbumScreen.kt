@@ -38,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -56,6 +55,7 @@ import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.MediaAccessStatus
 import com.github.sceneren.album.api.PhotoPickResult
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -264,6 +264,8 @@ private fun MediaCard(
     item: AlbumMedia,
     imageLoader: ImageLoader,
 ) {
+    val overlayColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)
+    val overlayContentColor = MaterialTheme.colorScheme.inverseOnSurface
     ElevatedCard {
         Column {
             Box {
@@ -280,26 +282,26 @@ private fun MediaCard(
                 if (item.mediaType == AlbumMediaType.VIDEO) {
                     Text(
                         text = stringResource(R.string.video_badge),
-                        color = Color.White,
+                        color = overlayContentColor,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(6.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
+                            .background(overlayColor)
                             .padding(horizontal = 6.dp, vertical = 3.dp),
                     )
                 }
                 item.durationMillis?.let { duration ->
                     Text(
                         text = formatDuration(duration),
-                        color = Color.White,
+                        color = overlayContentColor,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(6.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
+                            .background(overlayColor)
                             .padding(horizontal = 6.dp, vertical = 3.dp),
                     )
                 }
@@ -379,8 +381,8 @@ private fun formatDuration(durationMillis: Long): String {
     val minutes = (totalSeconds % 3_600L) / 60L
     val seconds = totalSeconds % 60L
     return if (hours > 0L) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
+        String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
     } else {
-        "%d:%02d".format(minutes, seconds)
+        String.format(Locale.ROOT, "%d:%02d", minutes, seconds)
     }
 }

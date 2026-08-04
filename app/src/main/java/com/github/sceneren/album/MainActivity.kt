@@ -8,8 +8,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil3.ImageLoader
 import coil3.gif.AnimatedImageDecoder
@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AlbumTheme {
-                val state by hostViewModel.uiState.collectAsState()
+                val state by hostViewModel.uiState.collectAsStateWithLifecycle()
                 val media = hostViewModel.mediaPagingData.collectAsLazyPagingItems()
                 AlbumScreen(
                     state = state,
