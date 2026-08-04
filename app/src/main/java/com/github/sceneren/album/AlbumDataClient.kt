@@ -6,6 +6,10 @@ import com.github.sceneren.album.api.AlbumMediaFeed
 import com.github.sceneren.album.api.AlbumMediaFilter
 
 internal interface AlbumDataClient {
+    suspend fun syncPartialSelections(
+        mediaFilter: AlbumMediaFilter,
+    ): Result<Int>
+
     fun getFeed(
         mediaFilter: AlbumMediaFilter,
         bucketId: Long,
@@ -19,6 +23,10 @@ internal interface AlbumDataClient {
 internal class AlbumApiDataClient(
     private val api: AlbumApi,
 ) : AlbumDataClient {
+    override suspend fun syncPartialSelections(
+        mediaFilter: AlbumMediaFilter,
+    ): Result<Int> = api.syncPartialSelections(mediaFilter)
+
     override fun getFeed(
         mediaFilter: AlbumMediaFilter,
         bucketId: Long,

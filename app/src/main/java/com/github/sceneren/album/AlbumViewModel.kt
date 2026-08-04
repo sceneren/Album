@@ -11,6 +11,7 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.MediaAccessStatus
 import com.github.sceneren.album.api.PhotoPickResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -44,56 +45,77 @@ internal class AlbumViewModel(
     val mediaPagingData: Flow<PagingData<AlbumMedia>> =
         pagingFlow.flatMapLatest { it }.cachedIn(viewModelScope)
 
-    private var directoryJob: Job? = null
+    private var refreshJob: Job? = null
 
     fun refresh() {
-        val current = mutableUiState.value
-        val feed = try {
-            client.getFeed(current.mediaFilter, current.selectedBucketId)
-        } catch (exception: Exception) {
-            mutableUiState.value = current.copy(errorMessage = exception.displayMessage())
-            return
-        }
+        refreshJob?.cancel()
+        val requested = mutableUiState.value
+        val expectedFilter = requested.mediaFilter
+        val expectedBucketId = requested.selectedBucketId
+        refreshJob = viewModelScope.launch {
+            val syncFailure = try {
+                client.syncPartialSelections(expectedFilter).exceptionOrNull()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                exception
+            }
+            if (!isCurrent(expectedFilter, expectedBucketId)) return@launch
 
-        directoryJob?.cancel()
-        val sourceChanged = feed.source != current.source
-        val selectedBucketId = if (sourceChanged) {
-            AlbumDirectory.ALL_BUCKET_ID
-        } else {
-            current.selectedBucketId
-        }
-        mutableUiState.value = current.copy(
-            accessStatus = feed.accessStatus,
-            source = feed.source,
-            directories = if (feed.source == AlbumMediaSource.PHOTO_PICKER || sourceChanged) {
-                emptyList()
+            val feed = try {
+                client.getFeed(expectedFilter, expectedBucketId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                mutableUiState.value = mutableUiState.value.copy(
+                    errorMessage = exception.displayMessage(),
+                )
+                return@launch
+            }
+            if (!isCurrent(expectedFilter, expectedBucketId)) return@launch
+
+            val current = mutableUiState.value
+            val sourceChanged = feed.source != current.source
+            val selectedBucketId = if (sourceChanged) {
+                AlbumDirectory.ALL_BUCKET_ID
             } else {
-                current.directories
-            },
-            selectedBucketId = selectedBucketId,
-            errorMessage = null,
-        )
-        pagingFlow.value = feed.pagingData
+                current.selectedBucketId
+            }
+            val syncErrorMessage = syncFailure?.displayMessage()
+            mutableUiState.value = current.copy(
+                accessStatus = feed.accessStatus,
+                source = feed.source,
+                directories = if (feed.source == AlbumMediaSource.PHOTO_PICKER || sourceChanged) {
+                    emptyList()
+                } else {
+                    current.directories
+                },
+                selectedBucketId = selectedBucketId,
+                errorMessage = syncErrorMessage,
+            )
+            pagingFlow.value = feed.pagingData
 
-        if (feed.source == AlbumMediaSource.MEDIA_STORE) {
-            val expectedFilter = feed.mediaFilter
-            directoryJob = viewModelScope.launch {
+            if (feed.source == AlbumMediaSource.MEDIA_STORE) {
                 client.getDirectories(expectedFilter)
                     .onSuccess { directories ->
                         val latest = mutableUiState.value
                         if (
                             latest.mediaFilter == expectedFilter &&
+                            latest.selectedBucketId == selectedBucketId &&
                             latest.source == AlbumMediaSource.MEDIA_STORE
                         ) {
                             mutableUiState.value = latest.copy(
                                 directories = directories,
-                                errorMessage = null,
+                                errorMessage = syncErrorMessage,
                             )
                         }
                     }
                     .onFailure { failure ->
                         val latest = mutableUiState.value
-                        if (latest.mediaFilter == expectedFilter) {
+                        if (
+                            latest.mediaFilter == expectedFilter &&
+                            latest.selectedBucketId == selectedBucketId
+                        ) {
                             mutableUiState.value = latest.copy(
                                 directories = emptyList(),
                                 errorMessage = failure.displayMessage(),
@@ -102,6 +124,15 @@ internal class AlbumViewModel(
                     }
             }
         }
+    }
+
+    private fun isCurrent(
+        expectedFilter: AlbumMediaFilter,
+        expectedBucketId: Long,
+    ): Boolean {
+        val current = mutableUiState.value
+        return current.mediaFilter == expectedFilter &&
+            current.selectedBucketId == expectedBucketId
     }
 
     fun setMediaFilter(filter: AlbumMediaFilter) {
