@@ -4,52 +4,33 @@
 
 ```mermaid
 graph TD
-    Root["Album root project"] --> App[":app"]
-    App --> AndroidX["AndroidX Core, Lifecycle, Activity Compose"]
-    App --> Compose["Compose BOM, UI, Material3, Tooling"]
-    App --> Coil["Coil 3 Compose, Network, GIF"]
-    App --> Permissions["XXPermissions"]
-    App --> PlayServices["Google Play services base"]
-    App --> Tests["JUnit, AndroidX JUnit, Espresso, Compose UI Test"]
+    App[":app — host UI"] --> Api[":album-api — reusable data library"]
+    App --> Compose["Compose / Material3 / Paging Compose"]
+    App --> Coil["Coil image, GIF, video"]
+    Api --> Activity["AndroidX Activity Result"]
+    Api --> Paging["Paging Runtime"]
+    Api --> Room["Room Runtime / Paging / KSP"]
+    Api --> Coroutines["Kotlin Coroutines Android"]
 ```
 
-## Gradle Modules
-
-| Module | Path | Type | Depends on project modules |
+| Module | Type | Project dependencies | Compose enabled |
 |---|---|---|---|
-| `:app` | `app` | Android application | none |
+| `:app` | Android application | `:album-api` | yes |
+| `:album-api` | Android library | none | no |
 
-## Version Catalog Aliases Used by `:app`
+## Important Aliases
 
-| Alias | Configuration | Purpose |
-|---|---|---|
-| `libs.androidx.core.ktx` | implementation | Kotlin Android extensions |
-| `libs.androidx.lifecycle.runtime.ktx` | implementation | Lifecycle runtime |
-| `libs.androidx.activity.compose` | implementation | Compose activity integration |
-| `libs.androidx.compose.bom` | implementation, androidTestImplementation | Compose dependency alignment |
-| `libs.androidx.compose.ui` | implementation | Compose UI |
-| `libs.androidx.compose.ui.graphics` | implementation | Compose graphics |
-| `libs.androidx.compose.ui.tooling.preview` | implementation | Compose previews |
-| `libs.androidx.compose.material3` | implementation | Material3 components |
-| `libs.androidx.compose.viewmodel` | implementation | ViewModel integration for Compose |
-| `libs.device.compat` | implementation | Device compatibility utility |
-| `libs.xx.permissions` | implementation | Runtime permissions |
-| `libs.bundles.coil` | implementation | Coil image loading bundle |
-| `libs.play.services.base` | implementation | Google Play services module install support |
-| `libs.junit` | testImplementation | Local unit tests |
-| `libs.androidx.junit` | androidTestImplementation | Instrumented tests |
-| `libs.androidx.espresso.core` | androidTestImplementation | UI instrumentation |
-| `libs.androidx.compose.ui.test.junit4` | androidTestImplementation | Compose UI testing |
-| `libs.androidx.compose.ui.tooling` | debugImplementation | Compose tooling |
-| `libs.androidx.compose.ui.test.manifest` | debugImplementation | Compose test manifest |
+| Scope | Aliases |
+|---|---|
+| Library public API | `androidx-activity-ktx`, `androidx-paging-runtime` |
+| Library implementation | `androidx-core-ktx`, `androidx-lifecycle-runtime-ktx`, `androidx-room-runtime`, `androidx-room-paging`, `kotlinx-coroutines-android` |
+| Library code generation/tests | `androidx-room-compiler`, Paging/Room test helpers, coroutine test, Robolectric |
+| Host UI | Activity Compose, lifecycle/ViewModel Compose, Paging Compose, Compose BOM/UI/Material3 |
+| Host media rendering | Coil Compose/GIF/video |
 
-## Cycle Check
+## Rules
 
-No project-module cycle exists because the project currently has only `:app`.
-
-## Change Rules
-
-- Add new third-party dependencies through `gradle/libs.versions.toml`.
-- Prefer version catalog aliases in `app/build.gradle.kts`.
-- If a new module is added, rerun `python .codex/scripts/gen_references.py` and update this file.
-
+- Dependency direction is one-way: `:app` to `:album-api`.
+- Add dependencies through `gradle/libs.versions.toml` and use catalog aliases.
+- Keep Compose UI, Material3, Coil, permission-prompt libraries, and app-only utilities out of `:album-api`.
+- Regenerate `.codex/references/_scan.json` after module, dependency, or source-layout changes.

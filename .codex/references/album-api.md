@@ -1,0 +1,47 @@
+# Module: album-api
+
+## Overview
+
+`:album-api` is a reusable Android Library that exposes data and Activity Result integration for a permission-aware photo/video album. It contains no Compose, Material3, Coil, or other rendered UI.
+
+## Metadata
+
+| Item | Value |
+|---|---|
+| Type | Android Library (AAR) |
+| Gradle path | `:album-api` |
+| Namespace | `com.github.sceneren.album.api` |
+| Min / compile SDK | 24 / 37 |
+| Main source files | 25 |
+| Compose / View Binding | disabled / disabled |
+
+## Public API
+
+- `AlbumApi.create(context)`: application-scoped facade.
+- `getMediaAccessStatus(filter)`: returns `FULL`, `PARTIAL`, or `DENIED`.
+- `getMediaFeed(filter, bucketId, pageSize)`: returns source metadata and `Flow<PagingData<AlbumMedia>>`.
+- `getMediaDirectories(filter)`: returns MediaStore bucket summaries only under full access.
+- `registerPhotoPicker(activity, filter, maxSelectionCount, onResult)`: registers `PickVisualMedia` or `PickMultipleVisualMedia`; null count means no library-defined cap.
+- `removePersistedSelection`, `clearPersistedSelections`, `reconcilePersistedSelections`: maintain stored selections and grants.
+- Models: `AlbumMedia`, `AlbumDirectory`, `AlbumMediaFilter`, `AlbumMediaType`, `AlbumMediaSource`, `AlbumMediaFeed`, `PhotoPickResult`.
+
+## Internal Data Flow
+
+- Permission policy evaluates the requested media types by SDK level.
+- Full access uses `AndroidMediaStoreDataSource` and `MediaStoreMediaPagingSource` with deterministic offset paging.
+- Partial/denied access uses Room `picked_media`, ordered by selection order then URI.
+- Picker processing deduplicates and validates the whole batch, retains new read grants, reads metadata, and commits one Room transaction. Failures roll back newly acquired grants best-effort.
+- Existing owned grants survive reselection; stale records can be reconciled; large URI queries are chunked below SQLite's legacy bind limit.
+- Directory aggregation streams a lightweight cursor projection rather than materializing every full media model.
+
+## Dependencies
+
+- Public surface: AndroidX Activity KTX and Paging Runtime.
+- Internal: AndroidX Core/Lifecycle, Room Runtime/Paging, Kotlin coroutines Android, KSP Room compiler.
+- Tests: JUnit, Robolectric, AndroidX Test Core, Paging/Room test helpers, coroutine test.
+
+## Boundary Rules
+
+- Never add Compose/UI/rendering dependencies or app resources.
+- Do not request runtime permissions; report access and let the host decide when to prompt.
+- Keep URIs as the durable media identity and release only grants marked as library-owned.

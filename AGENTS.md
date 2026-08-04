@@ -9,9 +9,10 @@ This project has completed Codex AI assistance initialization.
 - Platform: Android application
 - Build system: Gradle Kotlin DSL
 - Language: Kotlin
-- UI: Jetpack Compose Material3
-- Module: `:app`
-- Package, namespace, and application id: `com.github.sceneren.album`
+- UI: Jetpack Compose Material3 in host module only
+- Modules: `:app` host demo and reusable data-only Android Library `:album-api`
+- App package, namespace, and application id: `com.github.sceneren.album`
+- Library namespace: `com.github.sceneren.album.api`
 - NDK/C++: no
 - References mode: full mode through `.codex/references/_scan.json`
 
@@ -21,7 +22,7 @@ Before changing code:
 
 1. Read `.codex/rules/project_rule.md`.
 2. Read `.codex/references/_scan.json`.
-3. Read the relevant reference file, usually `.codex/references/app.md`.
+3. Read the relevant reference file: `.codex/references/app.md` or `.codex/references/album-api.md`.
 4. Inspect the source files being changed.
 
 Do not invent APIs, modules, Gradle aliases, permissions, or resources. The source tree and references are the authority.
@@ -42,6 +43,7 @@ Do not invent APIs, modules, Gradle aliases, permissions, or resources. The sour
 ## References
 
 - `.codex/references/app.md`: module overview and class responsibilities.
+- `.codex/references/album-api.md`: reusable library API, routing, persistence, and MediaStore responsibilities.
 - `.codex/references/dependencies.md`: Gradle module and dependency map.
 - `.codex/references/conventions.md`: coding, media, permission, and test conventions.
 
@@ -60,6 +62,6 @@ python .codex/scripts/gen_references.py --diff
 ## Verification
 
 - Debug build on Windows: `./gradlew.bat :app:assembleDebug`
-- Unit tests on Windows: `./gradlew.bat :app:testDebugUnitTest`
+- Library build on Windows: `./gradlew.bat :album-api:assembleDebug`
+- Unit tests on Windows: `./gradlew.bat :album-api:testDebugUnitTest :app:testDebugUnitTest`
 - Instrumented tests with device/emulator: `./gradlew.bat :app:connectedDebugAndroidTest`
-

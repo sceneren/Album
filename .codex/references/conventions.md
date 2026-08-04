@@ -1,47 +1,38 @@
 # Album Coding Conventions
 
-## Kotlin and Compose
+## Kotlin and Module Boundaries
 
-- Use Kotlin official style with 4-space indentation.
-- Keep Compose UI declarative and side-effect-light.
-- Put long-lived state in `AlbumViewModel`; use Compose local state only for short UI state such as dropdown expansion.
-- Collect flows with lifecycle-aware APIs in UI.
-- Prefer `MaterialTheme.colorScheme` and centralized theme tokens over hardcoded colors.
-- Product strings should move to `strings.xml` when they are no longer temporary/demo text.
+- Use Kotlin official style with 4-space indentation and immutable public models.
+- Public reusable library APIs require concise KDoc; implementation details stay under `.internal`.
+- Keep `:album-api` data-only and Compose-free. Compose functions, UI state presentation, theme tokens, and Coil belong to `:app`.
+- Collect host flows with lifecycle-aware APIs and keep long-lived state in `AlbumViewModel`.
 
-## MediaStore and Storage
+## Media and Persistence
 
-- Use `content://` URIs as the primary representation of media.
-- Use `ContentResolver` and MediaStore projections instead of deprecated raw file paths.
-- Use `Dispatchers.IO` for queries and file operations.
-- Close cursors with `use`.
-- Keep API 30+ Bundle query logic and API 24-29 fallback logic aligned.
+- Use `content://` URIs and `ContentResolver`; never depend on raw external paths.
+- Run MediaStore, Room, metadata, and grant operations on an IO dispatcher.
+- Close cursors with `use` and keep projections minimal, especially for full-library directory aggregation.
+- Preserve deterministic order for paging and persisted selections.
+- Treat a Photo Picker batch atomically at the data layer; validate before committing, and clean up newly acquired grants after a failure.
+- Chunk collection-bound SQL queries so the default-unlimited library API remains compatible with older SQLite bind limits.
 
 ## Permissions
 
-- Keep Manifest SDK gates for legacy storage permissions.
-- Use Android 13+ `READ_MEDIA_IMAGES` and related media permissions for modern devices.
-- Request runtime permissions through the existing XXPermissions flow unless a migration is planned.
-- Do not repeatedly prompt from recomposition.
+- The host declares and requests runtime media permissions; the library only resolves current access.
+- Apply the active image/video/mixed filter to both permission resolution and data selection.
+- Full access uses MediaStore; partial and denied access use persisted Photo Picker selections.
+- Do not repeatedly prompt from composition or automatically prompt on every resume.
 
-## Naming
+## UI
 
-- Activity: `{Feature}Activity`.
-- ViewModel: `{Feature}ViewModel`.
-- Data models: descriptive nouns such as `ImageItem`.
-- Compose functions: PascalCase and UI-oriented names.
-- Resource names: lowercase snake_case.
+- Use `MaterialTheme.colorScheme`, resources, adaptive lazy grids, and explicit Paging loading/error/empty states.
+- Decode media through Coil; do not manually decode bitmaps in list cells.
+- Product text belongs in `strings.xml`; locale-independent technical formatting uses `Locale.ROOT`.
 
-## Tests
+## Tests and Commands
 
-- Unit tests: `app/src/test/java`.
-- Instrumented tests: `app/src/androidTest/java`.
-- Add focused tests for pagination and helper logic where possible.
-- Device/emulator checks are required for MediaStore, permissions, and Photo Picker behavior.
-
-## Build Commands
-
-- Debug build: `./gradlew.bat :app:assembleDebug`.
-- Unit tests: `./gradlew.bat :app:testDebugUnitTest`.
-- Instrumented tests: `./gradlew.bat :app:connectedDebugAndroidTest`.
-
+- Library tests: `album-api/src/test/java`; host tests: `app/src/test/java` and `app/src/androidTest/java`.
+- Test permission policy, picker contracts/results, grant ownership/rollback, Room ordering/filtering, and Paging offsets.
+- Unit tests: `./gradlew.bat :album-api:testDebugUnitTest :app:testDebugUnitTest`.
+- Build/lint: `./gradlew.bat :album-api:assembleDebug :app:assembleDebug :album-api:lintDebug :app:lintDebug`.
+- Real MediaStore, permission, and Photo Picker behavior requires an Android device or emulator.
