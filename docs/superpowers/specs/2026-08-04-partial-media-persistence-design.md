@@ -64,7 +64,7 @@ API 34+ 的选定媒体辅助权限必须与对应媒体类型权限一起请求
 
 - 所有 MediaStore、Room 和授权操作都通过库现有的 `resultOnIo` 边界及数据源 dispatcher 在 `Dispatchers.IO` 上执行。
 - `CancellationException` 不转换为失败的 `Result`。
-- PARTIAL 查询失败或返回空列表时不删除已有持久选择；系统记录等待下一次成功同步，现有显式 reconcile 仍只管理 Photo Picker 持久授权。
+- PARTIAL 查询失败或返回空列表时不删除已有持久选择；系统记录等待下一次成功同步。reconcile 对库自有授权检查持久授权，对系统记录只检查当前 URI 是否可读。
 - 批量 upsert 使用单次数据库事务，使重复 URI 收敛为确定结果。
 - 宿主 refresh 被新任务取代时取消旧任务；只有最新捕获的筛选类型和文件夹才能更新 UI 状态。
 

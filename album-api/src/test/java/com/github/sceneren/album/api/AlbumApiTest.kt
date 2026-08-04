@@ -196,6 +196,15 @@ class AlbumApiTest {
         assertEquals(listOf(uri("unreadable")), grants.released)
     }
 
+    @Test
+    fun reconcileKeepsReadableNonOwnedPartialRecordWithoutPersistedGrant() = runTest {
+        pickedStore.seed(entity("partial", ownsGrant = false))
+        accessChecker.readable += uri("partial")
+
+        assertEquals(0, api.reconcilePersistedSelections().getOrThrow())
+        assertTrue(pickedStore.rows.containsKey(uri("partial").toString()))
+    }
+
     private class FakeMediaAccessResolver : MediaAccessResolver {
         var result: MediaAccessStatus = MediaAccessStatus.DENIED
 

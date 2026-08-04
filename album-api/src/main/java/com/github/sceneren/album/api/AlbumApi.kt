@@ -193,7 +193,8 @@ class AlbumApi internal constructor(
         pickedStore.all().forEach { item ->
             val uri = item.uri.toUri()
             val hasPersistedGrant = uri in persistedUris
-            val stale = !hasPersistedGrant || !uriAccessChecker.canRead(uri)
+            val stale = !uriAccessChecker.canRead(uri) ||
+                (item.ownsPersistableGrant && !hasPersistedGrant)
             if (stale) {
                 val removed = pickedStore.remove(item.uri) ?: return@forEach
                 if (removed.ownsPersistableGrant && hasPersistedGrant) {

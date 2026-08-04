@@ -20,7 +20,7 @@
 
 - `MainActivity`: creates `AlbumApi`, registers permission and image/video/mixed picker launchers before start, collects UI state with lifecycle awareness, and supplies Coil image/video decoders.
 - `AlbumDataClient` / `AlbumApiDataClient`: adapter that keeps the ViewModel testable while delegating data operations to the library.
-- `AlbumViewModel`: owns the selected filter/directory, refreshes access/source/directories, exposes a cached Paging flow, and reports picker outcomes.
+- `AlbumViewModel`: owns the selected filter/directory, synchronizes PARTIAL media before refreshing access/source/directories, exposes a cached Paging flow, and reports picker outcomes.
 - `MediaPermissionRequestFactory`: creates SDK- and filter-specific host permission arrays.
 - `AlbumScreen`: renders access/source status, filters, directory chips, Paging load states, image/video cards, and explicit permission/picker actions.
 - `ui/theme`: application Material3 theme tokens.
@@ -30,7 +30,7 @@
 1. `MainActivity` creates `AlbumApi` and registers three filter-specific picker launchers.
 2. The ViewModel asks the API for access status and a feed.
 3. Full access displays paged MediaStore media and directories; partial/denied access displays the persisted Photo Picker feed.
-4. Permission results and `onResume` trigger refresh. Picker results are already validated and persisted by `:album-api`, then refresh the host state.
+4. Permission results and `onResume` trigger refresh. Refresh first synchronizes PARTIAL media into `:album-api`; Picker results are already validated and persisted by `:album-api`, then refresh the host state.
 5. `AlbumScreen` consumes `LazyPagingItems`; Coil renders content URIs and video frames.
 
 ## Dependencies
