@@ -119,6 +119,21 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    fun boundedPageUsesSameStableOrderAndOffset() = runTest {
+        store.upsertBatch(
+            listOf(
+                draft("content://picked/first", AlbumMediaType.IMAGE, 30),
+                draft("content://picked/second", AlbumMediaType.IMAGE, 20),
+                draft("content://picked/third", AlbumMediaType.IMAGE, 10),
+            ),
+        )
+
+        val page = store.loadPage(AlbumMediaFilter.IMAGES, offset = 1, limit = 1)
+
+        assertEquals(listOf("content://picked/second"), page.map(PickedMediaEntity::uri))
+    }
+
+    @Test
     fun removeReturnsDeletedRow() = runTest {
         store.upsertBatch(listOf(draft("content://picked/remove", AlbumMediaType.IMAGE, 10)))
 

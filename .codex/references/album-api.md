@@ -33,6 +33,7 @@
 - Partial/denied access uses Room `picked_media`, ordered by selection order then URI.
 - PARTIAL 刷新前通过 `syncPartialSelections` 将系统选定媒体写入同一 Room 表；系统记录不拥有可持久化 URI 授权。
 - Picker processing deduplicates and validates the whole batch, retains new read grants, reads metadata, and commits one Room transaction. Failures roll back newly acquired grants best-effort.
+- 相机拍摄成功后会立即写入同一持久列表；DENIED/PARTIAL 下可在后续会话中继续分页展示，已完成拍摄不会在取消当前会话时删除。
 - Existing owned grants survive reselection; stale records can be reconciled; large URI queries are chunked below SQLite's legacy bind limit.
 - Directory aggregation streams a lightweight cursor projection rather than materializing every full media model.
 

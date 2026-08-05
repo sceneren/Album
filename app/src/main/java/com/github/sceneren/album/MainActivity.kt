@@ -31,11 +31,12 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerResult
 import com.github.sceneren.album.api.SingleSelectionFinishMode
-import com.github.sceneren.album.ui.compose.ComposeAlbumPickerContract
-import com.github.sceneren.album.ui.compose.ComposeAlbumPickerRequest
+import com.github.sceneren.album.ui.compose.AlbumPickerContract as ComposePickerContract
+import com.github.sceneren.album.ui.compose.AlbumPickerRequest as ComposePickerRequest
 import com.github.sceneren.album.ui.theme.AlbumTheme
-import com.github.sceneren.album.ui.view.ViewAlbumPickerContract
-import com.github.sceneren.album.ui.view.ViewAlbumPickerRequest
+import com.github.sceneren.album.ui.view.AlbumPickerAppearance as ViewPickerAppearance
+import com.github.sceneren.album.ui.view.AlbumPickerContract as ViewPickerContract
+import com.github.sceneren.album.ui.view.AlbumPickerRequest as ViewPickerRequest
 
 /** 仅用于演示两个可复用 UI 模块，媒体查询和选择状态均由模块负责。 */
 class MainActivity : ComponentActivity() {
@@ -43,11 +44,11 @@ class MainActivity : ComponentActivity() {
     private var compressionEnabled by mutableStateOf(false)
     private var lastResult by mutableStateOf<AlbumPickerResult?>(null)
 
-    private val viewPicker = registerForActivityResult(ViewAlbumPickerContract()) { result ->
+    private val viewPicker = registerForActivityResult(ViewPickerContract()) { result ->
         lastResult = result
     }
 
-    private val composePicker = registerForActivityResult(ComposeAlbumPickerContract()) { result ->
+    private val composePicker = registerForActivityResult(ComposePickerContract()) { result ->
         lastResult = result
     }
 
@@ -62,8 +63,18 @@ class MainActivity : ComponentActivity() {
                         result = lastResult,
                         onFilter = { selectedFilter = it },
                         onCompression = { compressionEnabled = it },
-                        onOpenView = { viewPicker.launch(ViewAlbumPickerRequest(buildRequest())) },
-                        onOpenCompose = { composePicker.launch(ComposeAlbumPickerRequest(buildRequest())) },
+                        onOpenView = {
+                            viewPicker.launch(
+                                ViewPickerRequest(
+                                    config = buildRequest(),
+                                    appearance = ViewPickerAppearance(
+                                        gridItemSpacingDp = 1,
+                                        gridSpanCount = 4,
+                                    ),
+                                ),
+                            )
+                        },
+                        onOpenCompose = { composePicker.launch(ComposePickerRequest(buildRequest())) },
                         modifier = Modifier.padding(paddingValues),
                     )
                 }
@@ -80,6 +91,7 @@ class MainActivity : ComponentActivity() {
             mixedMediaCaptureType = AlbumCameraCaptureType.PHOTO,
         ),
         compression = AlbumCompressionConfig(enabled = compressionEnabled),
+        showPermissionUpgrade = true,
     )
 }
 

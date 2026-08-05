@@ -56,8 +56,10 @@ internal class AlbumPickerSessionStore(
         Context.MODE_PRIVATE,
     )
 
-    fun create(config: AlbumPickerConfig): AlbumPickerSessionState =
-        AlbumPickerSessionState(UUID.randomUUID().toString(), config).also(::save)
+    fun create(
+        config: AlbumPickerConfig,
+        sessionId: String = UUID.randomUUID().toString(),
+    ): AlbumPickerSessionState = AlbumPickerSessionState(sessionId, config).also(::save)
 
     fun save(state: AlbumPickerSessionState) {
         preferences.edit()

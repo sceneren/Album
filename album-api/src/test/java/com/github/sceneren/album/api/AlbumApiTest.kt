@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import androidx.paging.testing.asSnapshot
+import androidx.test.core.app.ApplicationProvider
 import com.github.sceneren.album.api.internal.database.PickedMediaDraft
 import com.github.sceneren.album.api.internal.database.PickedMediaEntity
 import com.github.sceneren.album.api.internal.database.PickedMediaStore
@@ -14,6 +15,8 @@ import com.github.sceneren.album.api.internal.picker.PersistableGrantManager
 import com.github.sceneren.album.api.internal.picker.PickerRegistrar
 import com.github.sceneren.album.api.internal.picker.UriAccessChecker
 import kotlinx.coroutines.test.runTest
+import java.io.File
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -72,6 +75,45 @@ class AlbumApiTest {
 
         assertEquals(AlbumMediaSource.PHOTO_PICKER, feed.source)
         assertEquals(MediaAccessStatus.DENIED, feed.accessStatus)
+    }
+
+    @Test
+    fun `未授权拍摄结果持久化并可在新会话展示`() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val config = AlbumPickerConfig(AlbumMediaFilter.IMAGES, maxSelectionCount = 3)
+        val sessionId = "camera-${UUID.randomUUID()}"
+        val firstClient = api.createPickerClient(context)
+        val opened = firstClient.openSession(config, sessionId)
+        assertEquals(sessionId, opened.sessionId)
+
+        val capture = firstClient.prepareCamera(sessionId, AlbumMediaType.IMAGE).getOrThrow()
+        val cameraFile = File(capture.filePath).apply { writeText("captured") }
+        val recoveredClient = api.createPickerClient(context)
+
+        try {
+            assertTrue(recoveredClient.openSession(config, sessionId).hasPendingCamera)
+
+            val completed = recoveredClient.completeCamera(sessionId, success = true).getOrThrow()
+            assertEquals(listOf(capture.uri), completed.cameraItems.map(AlbumMedia::uri))
+            assertEquals(listOf(capture.uri.toString()), pickedStore.rows.keys.toList())
+
+            recoveredClient.cancel(sessionId)
+            assertTrue(cameraFile.isFile)
+
+            val nextSession = recoveredClient.openSession(
+                config = config,
+                sessionId = "next-${UUID.randomUUID()}",
+            )
+            assertTrue(nextSession.cameraItems.isEmpty())
+            val persisted = api.getMediaFeed(AlbumMediaFilter.IMAGES)
+                .pagingData
+                .asSnapshot()
+            assertEquals(listOf(capture.uri), persisted.map(AlbumMedia::uri))
+        } finally {
+            cameraFile.delete()
+            recoveredClient.cancel(sessionId)
+        }
     }
 
     @Test
@@ -147,6 +189,52 @@ class AlbumApiTest {
     }
 
     @Test
+    fun fullBoundedPageRoutesToMediaStoreWithBucketAndOffset() = runTest {
+        permissions.result = MediaAccessStatus.FULL
+        mediaStore.pageMedia = listOf(media("page-image", AlbumMediaType.IMAGE))
+
+        val result = api.loadMediaPage(
+            mediaFilter = AlbumMediaFilter.IMAGES,
+            bucketId = 42L,
+            offset = 25,
+            limit = 10,
+        ).getOrThrow()
+
+        assertEquals(mediaStore.pageMedia, result)
+        assertEquals(AlbumMediaFilter.IMAGES, mediaStore.lastPageFilter)
+        assertEquals(42L, mediaStore.lastPageBucketId)
+        assertEquals(25, mediaStore.lastPageOffset)
+        assertEquals(10, mediaStore.lastPageLimit)
+        assertEquals(0, pickedStore.pageCalls)
+    }
+
+    @Test
+    fun partialBoundedPageRoutesToPersistedPickerList() = runTest {
+        permissions.result = MediaAccessStatus.PARTIAL
+        pickedStore.seed(entity("first", ownsGrant = true))
+        pickedStore.seed(entity("second", ownsGrant = false))
+
+        val result = api.loadMediaPage(
+            mediaFilter = AlbumMediaFilter.IMAGES,
+            bucketId = 99L,
+            offset = 1,
+            limit = 1,
+        ).getOrThrow()
+
+        assertEquals(listOf(uri("second")), result.map(AlbumMedia::uri))
+        assertEquals(AlbumMediaFilter.IMAGES, pickedStore.lastPageFilter)
+        assertEquals(1, pickedStore.lastPageOffset)
+        assertEquals(1, pickedStore.lastPageLimit)
+        assertEquals(null, mediaStore.lastPageBucketId)
+    }
+
+    @Test
+    fun boundedPageRejectsInvalidRangeAsFailure() = runTest {
+        assertTrue(api.loadMediaPage(offset = -1).isFailure)
+        assertTrue(api.loadMediaPage(limit = 0).isFailure)
+    }
+
+    @Test
     fun removeReleasesOnlyLibraryOwnedGrant() = runTest {
         pickedStore.seed(entity("owned", ownsGrant = true))
         pickedStore.seed(entity("host", ownsGrant = false))
@@ -217,6 +305,11 @@ class AlbumApiTest {
         var loadAllCalls = 0
         var lastLoadAllFilter: AlbumMediaFilter? = null
         var allMedia: List<AlbumMedia> = emptyList()
+        var pageMedia: List<AlbumMedia> = emptyList()
+        var lastPageFilter: AlbumMediaFilter? = null
+        var lastPageBucketId: Long? = null
+        var lastPageOffset: Int? = null
+        var lastPageLimit: Int? = null
 
         override suspend fun loadAll(
             mediaFilter: AlbumMediaFilter,
@@ -231,7 +324,13 @@ class AlbumApiTest {
             bucketId: Long,
             offset: Int,
             limit: Int,
-        ): List<AlbumMedia> = emptyList()
+        ): List<AlbumMedia> {
+            lastPageFilter = mediaFilter
+            lastPageBucketId = bucketId
+            lastPageOffset = offset
+            lastPageLimit = limit
+            return pageMedia
+        }
 
         override suspend fun getDirectories(
             mediaFilter: AlbumMediaFilter,
@@ -246,6 +345,10 @@ class AlbumApiTest {
         val rows = linkedMapOf<String, PickedMediaEntity>()
         val upsertedDrafts = mutableListOf<PickedMediaDraft>()
         var lastPagingFilter: AlbumMediaFilter? = null
+        var pageCalls = 0
+        var lastPageFilter: AlbumMediaFilter? = null
+        var lastPageOffset: Int? = null
+        var lastPageLimit: Int? = null
 
         fun seed(entity: PickedMediaEntity) {
             rows[entity.uri] = entity
@@ -266,6 +369,27 @@ class AlbumApiTest {
                     state: PagingState<Int, PickedMediaEntity>,
                 ): Int? = null
             }
+        }
+
+        override suspend fun loadPage(
+            filter: AlbumMediaFilter,
+            offset: Int,
+            limit: Int,
+        ): List<PickedMediaEntity> {
+            pageCalls++
+            lastPageFilter = filter
+            lastPageOffset = offset
+            lastPageLimit = limit
+            return rows.values
+                .filter { entity ->
+                    when (filter) {
+                        AlbumMediaFilter.IMAGES -> entity.mediaType == AlbumMediaType.IMAGE.name
+                        AlbumMediaFilter.VIDEOS -> entity.mediaType == AlbumMediaType.VIDEO.name
+                        AlbumMediaFilter.IMAGES_AND_VIDEOS -> true
+                    }
+                }
+                .drop(offset)
+                .take(limit)
         }
 
         override suspend fun upsertBatch(

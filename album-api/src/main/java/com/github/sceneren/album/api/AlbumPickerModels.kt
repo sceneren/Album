@@ -2,7 +2,11 @@ package com.github.sceneren.album.api
 
 import android.net.Uri
 
-/** 相册选择器的公共配置。最大选择数必须在 1 到 100 之间。 */
+/**
+ * 相册选择器的公共配置。最大选择数必须在 1 到 100 之间。
+ *
+ * @property showPermissionUpgrade 外部是否允许在未完全授权时显示“申请相册权限”入口；完全授权时始终隐藏。
+ */
 data class AlbumPickerConfig(
     val mediaFilter: AlbumMediaFilter,
     val maxSelectionCount: Int,

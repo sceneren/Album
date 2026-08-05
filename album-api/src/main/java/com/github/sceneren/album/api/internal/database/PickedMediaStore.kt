@@ -36,6 +36,12 @@ internal data class PickedMediaDraft(
 internal interface PickedMediaStore {
     fun pagingSource(filter: AlbumMediaFilter): PagingSource<Int, PickedMediaEntity>
 
+    suspend fun loadPage(
+        filter: AlbumMediaFilter,
+        offset: Int,
+        limit: Int,
+    ): List<PickedMediaEntity>
+
     suspend fun upsertBatch(drafts: List<PickedMediaDraft>): List<PickedMediaEntity>
 
     suspend fun find(uri: String): PickedMediaEntity?

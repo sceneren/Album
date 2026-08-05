@@ -18,6 +18,8 @@ coroutines = "1.11.0"
 androidxTestCore = "1.7.0"
 robolectric = "4.16.1"
 recyclerview = "1.4.0"
+viewpager2 = "1.1.0"
+zoomimage = "1.6.0"
 luban = "2.0.1"
 
 [libraries]
@@ -44,6 +46,7 @@ coil-video = { module = "io.coil-kt.coil3:coil-video", version.ref = "coil" }
 
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityCompose" }
 androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "recyclerview" }
+androidx-viewpager2 = { module = "androidx.viewpager2:viewpager2", version.ref = "viewpager2" }
 androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
 androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
 androidx-paging-testing = { module = "androidx.paging:paging-testing", version.ref = "paging" }
@@ -54,6 +57,8 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 luban = { module = "top.zibin:luban", version.ref = "luban" }
+zoomimage-compose = { module = "io.github.panpf.zoomimage:zoomimage-compose", version.ref = "zoomimage" }
+zoomimage-view = { module = "io.github.panpf.zoomimage:zoomimage-view", version.ref = "zoomimage" }
 androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 

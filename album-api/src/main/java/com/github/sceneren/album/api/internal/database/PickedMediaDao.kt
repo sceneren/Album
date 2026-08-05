@@ -14,6 +14,18 @@ internal interface PickedMediaDao {
     )
     fun pagingSource(mediaTypes: List<String>): PagingSource<Int, PickedMediaEntity>
 
+    @Query(
+        "SELECT * FROM picked_media " +
+            "WHERE mediaType IN (:mediaTypes) " +
+            "ORDER BY sortOrder DESC, uri ASC " +
+            "LIMIT :limit OFFSET :offset",
+    )
+    suspend fun loadPage(
+        mediaTypes: List<String>,
+        offset: Int,
+        limit: Int,
+    ): List<PickedMediaEntity>
+
     @Query("SELECT * FROM picked_media WHERE uri IN (:uris)")
     suspend fun findByUris(uris: List<String>): List<PickedMediaEntity>
 

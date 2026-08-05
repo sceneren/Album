@@ -17,6 +17,16 @@ internal class RoomPickedMediaStore(
         filter: AlbumMediaFilter,
     ): PagingSource<Int, PickedMediaEntity> = dao.pagingSource(filter.databaseTypes())
 
+    override suspend fun loadPage(
+        filter: AlbumMediaFilter,
+        offset: Int,
+        limit: Int,
+    ): List<PickedMediaEntity> {
+        require(offset >= 0) { "offset 不能小于 0" }
+        require(limit > 0) { "limit 必须大于 0" }
+        return dao.loadPage(filter.databaseTypes(), offset, limit)
+    }
+
     override suspend fun upsertBatch(
         drafts: List<PickedMediaDraft>,
     ): List<PickedMediaEntity> {

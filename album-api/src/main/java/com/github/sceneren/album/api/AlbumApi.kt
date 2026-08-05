@@ -129,6 +129,28 @@ class AlbumApi internal constructor(
         )
     }
 
+    /**
+     * 按确定的偏移量加载一页媒体，供预览页在用户左右滑动时继续按需取数。
+     *
+     * 完全授权时读取 MediaStore，并应用 [bucketId]；部分授权或未授权时读取已经持久化
+     * 的 Photo Picker 列表。该接口不会一次性把整个相册加载到内存。
+     */
+    suspend fun loadMediaPage(
+        mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
+        bucketId: Long = AlbumDirectory.ALL_BUCKET_ID,
+        offset: Int = 0,
+        limit: Int = DEFAULT_PAGE_SIZE,
+    ): Result<List<AlbumMedia>> = resultOnIo {
+        require(offset >= 0) { "offset 不能小于 0" }
+        require(limit > 0) { "limit 必须大于 0" }
+
+        if (accessResolver.resolve(mediaFilter) == MediaAccessStatus.FULL) {
+            mediaStore.loadPage(mediaFilter, bucketId, offset, limit)
+        } else {
+            pickedStore.loadPage(mediaFilter, offset, limit).map(PickedMediaEntity::toAlbumMedia)
+        }
+    }
+
     /** Returns MediaStore directories when access is full, otherwise an empty list. */
     suspend fun getMediaDirectories(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -188,6 +210,10 @@ class AlbumApi internal constructor(
 
     /** Removes picker records whose persisted URI access is no longer usable. */
     suspend fun reconcilePersistedSelections(): Result<Int> = resultOnIo {
+        reconcilePersistedSelectionsInternal()
+    }
+
+    private suspend fun reconcilePersistedSelectionsInternal(): Int {
         val persistedUris = grantManager.persistedReadUris()
         var removedCount = 0
         pickedStore.all().forEach { item ->
@@ -203,18 +229,27 @@ class AlbumApi internal constructor(
                 removedCount++
             }
         }
-        removedCount
+        return removedCount
     }
 
     /** 创建由 View/Compose 相册页面共用的选择会话客户端。 */
     fun createPickerClient(context: Context): AlbumPickerClient =
-        AlbumPickerClient(context.applicationContext)
+        AlbumPickerClient(
+            context = context.applicationContext,
+            pickedStore = pickedStore,
+        )
 
     /** 删除本库生成且位于应用专属目录中的文件。 */
     suspend fun deleteGeneratedMedia(context: Context, filePath: String): Result<Boolean> =
         resultOnIo {
             val file = generatedFile(context, filePath)
-            if (file == null) false else !file.exists() || file.delete()
+            if (file == null) {
+                false
+            } else {
+                val deleted = !file.exists() || file.delete()
+                if (deleted) reconcilePersistedSelectionsInternal()
+                deleted
+            }
         }
 
     /** 清理应用专属相册复制、压缩和相机文件，原始媒体不会被删除。 */
@@ -223,12 +258,14 @@ class AlbumApi internal constructor(
             ?: return@resultOnIo 0
         val directories = listOf("photo_picker", "luban", "camera")
             .map { java.io.File(root, it) }
-        directories.sumOf { directory ->
+        val deletedCount = directories.sumOf { directory ->
             directory.walkTopDown()
                 .filter { it.isFile }
                 .onEach { it.delete() }
                 .count()
         }
+        reconcilePersistedSelectionsInternal()
+        deletedCount
     }
 
     private fun generatedFile(context: Context, path: String): java.io.File? {

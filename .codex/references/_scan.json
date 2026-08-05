@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-05 09:53:54",
+  "scan_time": "2026-08-05 12:04:35",
   "module_count": 4,
   "modules": [
     {
@@ -212,6 +212,11 @@
           "external": true
         },
         {
+          "name": "libs.coil",
+          "type": "implementation",
+          "external": true
+        },
+        {
           "name": "libs.coil.gif",
           "type": "implementation",
           "external": true
@@ -333,6 +338,11 @@
           },
           {
             "name": "libs.coil.compose",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.coil",
             "type": "implementation",
             "external": true
           },
@@ -631,53 +641,62 @@
       "source_dirs": [
         {
           "root": "album-ui-view\\src\\main\\java",
-          "file_count": 2,
+          "file_count": 4,
           "file_list": [
-            "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerActivity.kt",
-            "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerContract.kt"
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumImageLoader.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerActivity.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerContract.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 2,
+      "file_count": 4,
       "file_list": [
-        "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerActivity.kt",
-        "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerContract.kt"
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumImageLoader.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerActivity.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerContract.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt"
       ],
       "resource_dirs": [
         {
           "dir": "drawable",
-          "count": 3,
+          "count": 7,
           "files": [
-            "ic_album_add.xml",
-            "ic_album_back.xml",
-            "ic_album_camera.xml"
+            "auv_ic_album_add.xml",
+            "auv_ic_album_back.xml",
+            "auv_ic_album_camera.xml",
+            "auv_ic_album_checked.xml",
+            "auv_ic_album_expand_more.xml",
+            "auv_ic_album_play.xml",
+            "auv_ic_album_unchecked.xml"
           ]
         },
         {
           "dir": "layout",
-          "count": 4,
+          "count": 5,
           "files": [
-            "activity_view_album_picker.xml",
-            "dialog_album_preview.xml",
-            "item_album_action.xml",
-            "item_album_media.xml"
+            "auv_activity_album_picker.xml",
+            "auv_dialog_album_preview.xml",
+            "auv_item_album_action.xml",
+            "auv_item_album_media.xml",
+            "auv_item_album_preview_page.xml"
           ]
         },
         {
           "dir": "values",
           "count": 3,
           "files": [
-            "colors.xml",
-            "strings.xml",
-            "styles.xml"
+            "auv_colors.xml",
+            "auv_strings.xml",
+            "auv_styles.xml"
           ]
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (2个文件)\n    └── github/  (2个文件)\n        └── sceneren/  (2个文件)\n            └── album/  (2个文件)",
+      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (4个文件)\n    └── github/  (4个文件)\n        └── sceneren/  (4个文件)\n            └── album/  (4个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -704,12 +723,12 @@
           "external": true
         },
         {
-          "name": "libs.coil",
+          "name": "libs.androidx.viewpager2",
           "type": "implementation",
           "external": true
         },
         {
-          "name": "libs.coil.video",
+          "name": "libs.zoomimage.view",
           "type": "implementation",
           "external": true
         },
@@ -761,12 +780,12 @@
             "external": true
           },
           {
-            "name": "libs.coil",
+            "name": "libs.androidx.viewpager2",
             "type": "implementation",
             "external": true
           },
           {
-            "name": "libs.coil.video",
+            "name": "libs.zoomimage.view",
             "type": "implementation",
             "external": true
           },
@@ -808,32 +827,44 @@
       "source_dirs": [
         {
           "root": "album-ui-compose\\src\\main\\java",
-          "file_count": 2,
+          "file_count": 3,
           "file_list": [
-            "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerActivity.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerContract.kt"
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerActivity.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 2,
+      "file_count": 3,
       "file_list": [
-        "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerActivity.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerContract.kt"
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerActivity.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt"
       ],
       "resource_dirs": [
         {
-          "dir": "values",
-          "count": 1,
+          "dir": "drawable",
+          "count": 3,
           "files": [
-            "styles.xml"
+            "auc_ic_album_checked.xml",
+            "auc_ic_album_play.xml",
+            "auc_ic_album_unchecked.xml"
+          ]
+        },
+        {
+          "dir": "values",
+          "count": 2,
+          "files": [
+            "auc_strings.xml",
+            "auc_styles.xml"
           ]
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (2个文件)\n    └── github/  (2个文件)\n        └── sceneren/  (2个文件)\n            └── album/  (2个文件)",
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (3个文件)\n    └── github/  (3个文件)\n        └── sceneren/  (3个文件)\n            └── album/  (3个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -885,12 +916,7 @@
           "external": true
         },
         {
-          "name": "libs.coil.compose",
-          "type": "implementation",
-          "external": true
-        },
-        {
-          "name": "libs.coil.video",
+          "name": "libs.zoomimage.compose",
           "type": "implementation",
           "external": true
         },
@@ -967,12 +993,7 @@
             "external": true
           },
           {
-            "name": "libs.coil.compose",
-            "type": "implementation",
-            "external": true
-          },
-          {
-            "name": "libs.coil.video",
+            "name": "libs.zoomimage.compose",
             "type": "implementation",
             "external": true
           },

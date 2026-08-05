@@ -32,8 +32,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.paging.compose)
-    implementation(libs.coil.compose)
-    implementation(libs.coil.video)
+    implementation(libs.zoomimage.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core.ktx)

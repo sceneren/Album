@@ -1,11 +1,10 @@
 package com.github.sceneren.album.ui.view
 
 import android.app.Activity
-import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -34,7 +33,6 @@ import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import coil3.load
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumMedia
@@ -48,20 +46,24 @@ import com.github.sceneren.album.api.PhotoPickResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** 基于 XML 布局的 View 全屏相册选择页。 */
-class ViewAlbumPickerActivity : ComponentActivity() {
+class AlbumPickerActivity : ComponentActivity() {
     private lateinit var config: com.github.sceneren.album.api.AlbumPickerConfig
-    private lateinit var appearance: ViewAlbumPickerAppearance
+    private lateinit var appearance: AlbumPickerAppearance
     private lateinit var api: AlbumApi
     private lateinit var client: com.github.sceneren.album.api.AlbumPickerClient
+    private lateinit var imageLoader: AlbumImageLoader
     private lateinit var session: AlbumPickerSessionSnapshot
 
     private lateinit var root: View
     private lateinit var toolbar: View
     private lateinit var bottomBar: View
     private lateinit var grid: RecyclerView
+    private lateinit var titleAction: View
     private lateinit var title: TextView
+    private lateinit var titleArrow: ImageView
     private lateinit var cancelButton: TextView
     private lateinit var previewButton: Button
     private lateinit var doneButton: Button
@@ -86,13 +88,14 @@ class ViewAlbumPickerActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val theme = intent.getIntExtra(ViewAlbumPickerExtras.THEME, 0)
+        val theme = intent.getIntExtra(AlbumPickerExtras.THEME, 0)
         if (theme != 0) setTheme(theme)
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         config = AlbumPickerIntentCodec.readConfig(intent)
-        appearance = ViewAlbumPickerExtras.readAppearance(intent)
+        appearance = AlbumPickerExtras.readAppearance(intent)
+        imageLoader = AlbumUi.requireImageLoader()
         api = AlbumApi.create(this)
         client = api.createPickerClient(this)
         val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
@@ -101,9 +104,9 @@ class ViewAlbumPickerActivity : ComponentActivity() {
         photoPicker = api.registerPhotoPicker(this, config.mediaFilter, config.maxSelectionCount) { result ->
             showMessage(
                 when (result) {
-                is PhotoPickResult.Selected -> getString(R.string.album_view_added_count, result.media.size)
-                PhotoPickResult.Cancelled -> getString(R.string.album_view_add_cancelled)
-                is PhotoPickResult.Failed -> getString(R.string.album_view_add_failed, result.reason.name)
+                is PhotoPickResult.Selected -> getString(R.string.auv_added_count, result.media.size)
+                PhotoPickResult.Cancelled -> getString(R.string.auv_add_cancelled)
+                is PhotoPickResult.Failed -> getString(R.string.auv_add_failed, result.reason.name)
                 },
             )
             refreshContent()
@@ -111,9 +114,10 @@ class ViewAlbumPickerActivity : ComponentActivity() {
         cameraLauncher = client.registerCamera(this, session.sessionId) { result ->
             result.onSuccess { updated ->
                 renderSession(updated)
+                if (accessStatus != MediaAccessStatus.FULL) refreshContent()
                 maybeAutoConfirm()
             }.onFailure { failure ->
-                showMessage(failure.message ?: getString(R.string.album_view_camera_failed))
+                showMessage(failure.message ?: getString(R.string.auv_camera_failed))
             }
         }
 
@@ -138,47 +142,66 @@ class ViewAlbumPickerActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    /** 所有页面控件均由 activity_view_album_picker.xml 声明。 */
+    /** 所有页面控件均由 auv_activity_album_picker.xml 声明。 */
     private fun bindViews() {
-        setContentView(R.layout.activity_view_album_picker)
-        root = findViewById(R.id.album_picker_root)
-        toolbar = findViewById(R.id.album_picker_toolbar)
-        bottomBar = findViewById(R.id.album_picker_bottom)
-        grid = findViewById(R.id.album_picker_grid)
-        title = findViewById(R.id.album_picker_title)
-        cancelButton = findViewById(R.id.album_picker_cancel)
-        previewButton = findViewById(R.id.album_picker_preview)
-        doneButton = findViewById(R.id.album_picker_done)
-        permissionButton = findViewById(R.id.album_picker_permission)
+        setContentView(R.layout.auv_activity_album_picker)
+        root = findViewById(R.id.auv_picker_root)
+        toolbar = findViewById(R.id.auv_picker_toolbar)
+        bottomBar = findViewById(R.id.auv_picker_bottom)
+        grid = findViewById(R.id.auv_picker_grid)
+        titleAction = findViewById(R.id.auv_picker_title_action)
+        title = findViewById(R.id.auv_picker_title)
+        titleArrow = findViewById(R.id.auv_picker_title_arrow)
+        cancelButton = findViewById(R.id.auv_picker_cancel)
+        previewButton = findViewById(R.id.auv_picker_preview)
+        doneButton = findViewById(R.id.auv_picker_done)
+        permissionButton = findViewById(R.id.auv_picker_permission)
 
-        findViewById<ImageButton>(R.id.album_picker_back).setOnClickListener {
+        findViewById<ImageButton>(R.id.auv_picker_back).setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
-        title.setOnClickListener { showDirectories() }
+        titleAction.setOnClickListener { showDirectories() }
         cancelButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         previewButton.setOnClickListener { showPreview() }
         doneButton.setOnClickListener { confirmSelection() }
         permissionButton.setOnClickListener { requestMediaPermission() }
 
-        grid.layoutManager = GridLayoutManager(this, GRID_SPAN_COUNT)
+        val gridMetrics = GridMetrics(
+            spanCount = appearance.gridSpanCount,
+            spacingPx = dpToPx(appearance.gridItemSpacingDp),
+        )
+        grid.layoutManager = GridLayoutManager(this, gridMetrics.spanCount)
+        grid.addItemDecoration(GridSpacingItemDecoration(gridMetrics))
         grid.itemAnimator = null
-        actionAdapter = ActionAdapter(appearance) { action ->
+        actionAdapter = ActionAdapter(appearance, gridMetrics) { action ->
             when (action) {
                 Action.CAMERA -> cameraLauncher?.launch(cameraMediaType())
                 Action.ADD -> photoPickerLaunch()
             }
         }
-        cameraAdapter = CameraAdapter(appearance, ::onMediaPreview, ::toggleMedia)
-        mediaAdapter = GalleryAdapter(appearance, ::onMediaPreview, ::toggleMedia)
+        cameraAdapter = CameraAdapter(
+            appearance,
+            gridMetrics,
+            imageLoader,
+            ::onMediaPreview,
+            ::toggleMedia,
+        )
+        mediaAdapter = GalleryAdapter(
+            appearance,
+            gridMetrics,
+            imageLoader,
+            ::onMediaPreview,
+            ::toggleMedia,
+        )
         grid.adapter = ConcatAdapter(actionAdapter, cameraAdapter, mediaAdapter)
     }
 
     /** 将可配置外观应用到 XML 中已声明的控件，不创建新的界面层级。 */
     private fun applyAppearance() {
-        val toolbarColor = appearance.toolbarColor ?: color(R.color.album_view_toolbar)
-        val bottomColor = appearance.bottomBarColor ?: color(R.color.album_view_bottom)
-        val primaryColor = appearance.primaryTextColor ?: color(R.color.album_view_primary)
-        val accentColor = appearance.accentColor ?: color(R.color.album_view_accent)
+        val toolbarColor = appearance.toolbarColor ?: color(R.color.auv_toolbar)
+        val bottomColor = appearance.bottomBarColor ?: color(R.color.auv_bottom)
+        val primaryColor = appearance.primaryTextColor ?: color(R.color.auv_primary)
+        val accentColor = appearance.accentColor ?: color(R.color.auv_accent)
         root.setBackgroundColor(toolbarColor)
         toolbar.setBackgroundColor(toolbarColor)
         bottomBar.setBackgroundColor(bottomColor)
@@ -186,8 +209,14 @@ class ViewAlbumPickerActivity : ComponentActivity() {
         cancelButton.setTextColor(primaryColor)
         previewButton.setTextColor(primaryColor)
         doneButton.setTextColor(accentColor)
-        appearance.backIconRes?.let { findViewById<ImageButton>(R.id.album_picker_back).setImageResource(it) }
-        appearance.folderIconRes?.let { title.setCompoundDrawablesWithIntrinsicBounds(0, 0, it, 0) }
+        appearance.backIconRes?.let { findViewById<ImageButton>(R.id.auv_picker_back).setImageResource(it) }
+        val customFolderIcon = appearance.folderIconRes
+        titleArrow.setImageResource(customFolderIcon ?: R.drawable.auv_ic_album_expand_more)
+        if (customFolderIcon == null) {
+            titleArrow.setColorFilter(primaryColor)
+        } else {
+            titleArrow.clearColorFilter()
+        }
         appearance.doneIconRes?.let { doneButton.setCompoundDrawablesWithIntrinsicBounds(it, 0, 0, 0) }
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
@@ -247,11 +276,18 @@ class ViewAlbumPickerActivity : ComponentActivity() {
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
         renderActions()
         permissionButton.visibility = if (
-            accessStatus != MediaAccessStatus.FULL && config.showPermissionUpgrade
-        ) View.VISIBLE else View.GONE
+            shouldShowPermissionUpgradeButton(
+                isAllowedByHost = config.showPermissionUpgrade,
+                accessStatus = accessStatus,
+            )
+        ) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
         permissionButton.text = when (accessStatus) {
-            MediaAccessStatus.PARTIAL -> getString(R.string.album_view_partial_permission)
-            MediaAccessStatus.DENIED -> getString(R.string.album_view_denied_permission)
+            MediaAccessStatus.PARTIAL -> getString(R.string.auv_partial_permission)
+            MediaAccessStatus.DENIED -> getString(R.string.auv_denied_permission)
             MediaAccessStatus.FULL -> ""
         }
         val feed = api.getMediaFeed(
@@ -272,18 +308,20 @@ class ViewAlbumPickerActivity : ComponentActivity() {
     private fun renderSession(updated: AlbumPickerSessionSnapshot) {
         session = updated
         cameraAdapter.selectedUris = updated.selectedUris
-        cameraAdapter.submit(updated.cameraItems)
+        cameraAdapter.submit(
+            if (accessStatus == MediaAccessStatus.FULL) updated.cameraItems else emptyList(),
+        )
         mediaAdapter.selectedUris = updated.selectedUris
         mediaAdapter.notifyDataSetChanged()
         previewButton.text = if (updated.selectedItems.isEmpty()) {
-            getString(R.string.album_view_preview)
+            getString(R.string.auv_preview)
         } else {
-            getString(R.string.album_view_preview_count, updated.selectedItems.size)
+            getString(R.string.auv_preview_count, updated.selectedItems.size)
         }
         doneButton.text = if (updated.selectedItems.isEmpty()) {
-            getString(R.string.album_view_please_select)
+            getString(R.string.auv_please_select)
         } else {
-            getString(R.string.album_view_done_count, updated.selectedItems.size)
+            getString(R.string.auv_done_count, updated.selectedItems.size)
         }
     }
 
@@ -293,7 +331,7 @@ class ViewAlbumPickerActivity : ComponentActivity() {
                 renderSession(updated)
                 maybeAutoConfirm()
             }.onFailure {
-                showMessage(it.message ?: getString(R.string.album_view_selection_failed))
+                showMessage(it.message ?: getString(R.string.auv_selection_failed))
             }
         }
     }
@@ -310,7 +348,7 @@ class ViewAlbumPickerActivity : ComponentActivity() {
 
     private fun confirmSelection() {
         if (session.selectedItems.isEmpty()) {
-            showMessage(getString(R.string.album_view_select_first))
+            showMessage(getString(R.string.auv_select_first))
             return
         }
         doneButton.isEnabled = false
@@ -322,8 +360,8 @@ class ViewAlbumPickerActivity : ComponentActivity() {
                 doneButton.isEnabled = true
                 showMessage(
                     getString(
-                        R.string.album_view_process_failed,
-                        failure.message ?: getString(R.string.album_view_retry),
+                        R.string.auv_process_failed,
+                        failure.message ?: getString(R.string.auv_retry),
                     ),
                 )
             }
@@ -365,29 +403,50 @@ class ViewAlbumPickerActivity : ComponentActivity() {
     }
 
     private fun onMediaPreview(media: AlbumMedia) {
-        Dialog(this, R.style.Theme_AlbumUiView_Preview).apply {
-            setContentView(R.layout.dialog_album_preview)
-            findViewById<ImageView>(R.id.album_preview_image).apply {
-                setBackgroundColor(appearance.previewBackgroundColor ?: color(android.R.color.black))
-                load(media.uri)
-            }
-            show()
-            window?.apply {
-                setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                setBackgroundDrawable(ColorDrawable(appearance.previewBackgroundColor ?: color(android.R.color.black)))
-            }
-        }
+        val loadedFeedItems = mediaAdapter.snapshot().items
+        val initialItems = (cameraAdapter.currentItems() + loadedFeedItems).distinctBy { it.uri }
+        openPreview(
+            items = initialItems,
+            initialIndex = initialItems.indexOfFirst { it.uri == media.uri }.coerceAtLeast(0),
+            nextOffset = loadedFeedItems.size,
+        )
     }
 
     private fun showPreview() {
-        session.selectedItems.firstOrNull()?.let(::onMediaPreview)
+        if (session.selectedItems.isEmpty()) return
+        openPreview(session.selectedItems, initialIndex = 0, nextOffset = null)
+    }
+
+    private fun openPreview(
+        items: List<AlbumMedia>,
+        initialIndex: Int,
+        nextOffset: Int?,
+    ) {
+        if (items.isEmpty()) return
+        AlbumPreviewDialog(
+            activity = this,
+            appearance = appearance,
+            imageLoader = imageLoader,
+            scope = lifecycleScope,
+            initialItems = items,
+            initialIndex = initialIndex,
+            nextOffset = nextOffset,
+            loadMore = { offset, limit ->
+                api.loadMediaPage(
+                    mediaFilter = config.mediaFilter,
+                    bucketId = session.bucketId,
+                    offset = offset,
+                    limit = limit,
+                )
+            },
+        )
     }
 
     private fun showDirectories() {
         if (accessStatus != MediaAccessStatus.FULL) return
         lifecycleScope.launch {
-            val popup = PopupMenu(this@ViewAlbumPickerActivity, title)
-            popup.menu.add(R.string.album_view_all_media).setOnMenuItemClickListener {
+            val popup = PopupMenu(this@AlbumPickerActivity, title)
+            popup.menu.add(R.string.auv_all_media).setOnMenuItemClickListener {
                 lifecycleScope.launch {
                     client.setBucket(session.sessionId, Long.MIN_VALUE)
                     refreshContent()
@@ -397,7 +456,7 @@ class ViewAlbumPickerActivity : ComponentActivity() {
             api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty().forEach { directory ->
                 popup.menu.add(
                     directory.bucketName ?: getString(
-                        R.string.album_view_unnamed_directory,
+                        R.string.auv_unnamed_directory,
                         directory.mediaCount,
                     ),
                 ).setOnMenuItemClickListener {
@@ -416,7 +475,8 @@ class ViewAlbumPickerActivity : ComponentActivity() {
 
     /** XML 单元格的功能入口适配器。 */
     private class ActionAdapter(
-        private val appearance: ViewAlbumPickerAppearance,
+        private val appearance: AlbumPickerAppearance,
+        private val gridMetrics: GridMetrics,
         private val onClick: (Action) -> Unit,
     ) : RecyclerView.Adapter<ActionHolder>() {
         private var items: List<Action> = emptyList()
@@ -429,9 +489,9 @@ class ViewAlbumPickerActivity : ComponentActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ActionHolder =
             ActionHolder(
-                LayoutInflater.from(parent.context).inflate(R.layout.item_album_action, parent, false),
+                LayoutInflater.from(parent.context).inflate(R.layout.auv_item_album_action, parent, false),
                 appearance,
-                parent.context.gridCellSize(),
+                parent.gridCellSize(gridMetrics),
             )
 
         override fun onBindViewHolder(holder: ActionHolder, position: Int) {
@@ -443,11 +503,11 @@ class ViewAlbumPickerActivity : ComponentActivity() {
 
     private class ActionHolder(
         itemView: View,
-        private val appearance: ViewAlbumPickerAppearance,
+        private val appearance: AlbumPickerAppearance,
         cellSize: Int,
     ) : RecyclerView.ViewHolder(itemView) {
-        private val icon: ImageView = itemView.findViewById(R.id.album_action_icon)
-        private val label: TextView = itemView.findViewById(R.id.album_action_label)
+        private val icon: ImageView = itemView.findViewById(R.id.auv_action_icon)
+        private val label: TextView = itemView.findViewById(R.id.auv_action_label)
 
         init {
             itemView.layoutParams = RecyclerView.LayoutParams(
@@ -459,10 +519,10 @@ class ViewAlbumPickerActivity : ComponentActivity() {
         fun bind(action: Action, onClick: (Action) -> Unit) {
             val context = itemView.context
             label.text = when (action) {
-                Action.CAMERA -> context.getString(R.string.album_view_capture)
-                Action.ADD -> context.getString(R.string.album_view_add_more)
+                Action.CAMERA -> context.getString(R.string.auv_capture)
+                Action.ADD -> context.getString(R.string.auv_add_more)
             }
-            val primary = appearance.primaryTextColor ?: context.color(R.color.album_view_primary)
+            val primary = appearance.primaryTextColor ?: context.color(R.color.auv_primary)
             label.setTextColor(primary)
             val customIcon = when (action) {
                 Action.CAMERA -> appearance.cameraIconRes
@@ -470,8 +530,8 @@ class ViewAlbumPickerActivity : ComponentActivity() {
             }
             icon.setImageResource(
                 customIcon ?: when (action) {
-                    Action.CAMERA -> R.drawable.ic_album_camera
-                    Action.ADD -> R.drawable.ic_album_add
+                    Action.CAMERA -> R.drawable.auv_ic_album_camera
+                    Action.ADD -> R.drawable.auv_ic_album_add
                 },
             )
             if (customIcon == null) icon.setColorFilter(primary) else icon.clearColorFilter()
@@ -480,7 +540,9 @@ class ViewAlbumPickerActivity : ComponentActivity() {
     }
 
     private class CameraAdapter(
-        private val appearance: ViewAlbumPickerAppearance,
+        private val appearance: AlbumPickerAppearance,
+        private val gridMetrics: GridMetrics,
+        private val imageLoader: AlbumImageLoader,
         private val onPreview: (AlbumMedia) -> Unit,
         private val onToggle: (AlbumMedia) -> Unit,
     ) : RecyclerView.Adapter<MediaHolder>() {
@@ -492,22 +554,31 @@ class ViewAlbumPickerActivity : ComponentActivity() {
             notifyDataSetChanged()
         }
 
+        fun currentItems(): List<AlbumMedia> = items
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaHolder =
             MediaHolder(
-                LayoutInflater.from(parent.context).inflate(R.layout.item_album_media, parent, false),
+                LayoutInflater.from(parent.context).inflate(R.layout.auv_item_album_media, parent, false),
                 appearance,
-                parent.context.gridCellSize(),
+                imageLoader,
+                parent.gridCellSize(gridMetrics),
             )
 
         override fun onBindViewHolder(holder: MediaHolder, position: Int) {
             holder.bind(items[position], selectedUris, onPreview, onToggle)
         }
 
+        override fun onViewRecycled(holder: MediaHolder) {
+            holder.clear()
+        }
+
         override fun getItemCount(): Int = items.size
     }
 
     private class GalleryAdapter(
-        private val appearance: ViewAlbumPickerAppearance,
+        private val appearance: AlbumPickerAppearance,
+        private val gridMetrics: GridMetrics,
+        private val imageLoader: AlbumImageLoader,
         private val onPreview: (AlbumMedia) -> Unit,
         private val onToggle: (AlbumMedia) -> Unit,
     ) : PagingDataAdapter<AlbumMedia, MediaHolder>(DIFF) {
@@ -515,13 +586,18 @@ class ViewAlbumPickerActivity : ComponentActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaHolder =
             MediaHolder(
-                LayoutInflater.from(parent.context).inflate(R.layout.item_album_media, parent, false),
+                LayoutInflater.from(parent.context).inflate(R.layout.auv_item_album_media, parent, false),
                 appearance,
-                parent.context.gridCellSize(),
+                imageLoader,
+                parent.gridCellSize(gridMetrics),
             )
 
         override fun onBindViewHolder(holder: MediaHolder, position: Int) {
             getItem(position)?.let { holder.bind(it, selectedUris, onPreview, onToggle) }
+        }
+
+        override fun onViewRecycled(holder: MediaHolder) {
+            holder.clear()
         }
 
         companion object {
@@ -537,11 +613,12 @@ class ViewAlbumPickerActivity : ComponentActivity() {
 
     private class MediaHolder(
         itemView: View,
-        private val appearance: ViewAlbumPickerAppearance,
+        private val appearance: AlbumPickerAppearance,
+        private val imageLoader: AlbumImageLoader,
         cellSize: Int,
     ) : RecyclerView.ViewHolder(itemView) {
-        private val image: ImageView = itemView.findViewById(R.id.album_media_image)
-        private val check: TextView = itemView.findViewById(R.id.album_media_check)
+        private val image: ImageView = itemView.findViewById(R.id.auv_media_image)
+        private val check: ImageView = itemView.findViewById(R.id.auv_media_check)
 
         init {
             itemView.layoutParams = RecyclerView.LayoutParams(
@@ -556,28 +633,79 @@ class ViewAlbumPickerActivity : ComponentActivity() {
             onPreview: (AlbumMedia) -> Unit,
             onToggle: (AlbumMedia) -> Unit,
         ) {
-            image.load(media.uri)
+            imageLoader.clear(image)
+            imageLoader.load(image, media, AlbumImageTarget.GRID_THUMBNAIL)
             val checked = media.uri in selected
-            val checkIcon = if (checked) appearance.checkedIconRes else appearance.uncheckedIconRes
-            if (checkIcon != null) {
-                check.text = ""
-                check.setCompoundDrawablesWithIntrinsicBounds(checkIcon, 0, 0, 0)
+            val checkIcon = if (checked) {
+                appearance.checkedIconRes ?: R.drawable.auv_ic_album_checked
             } else {
-                check.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-                check.text = if (checked) "✓" else "○"
+                appearance.uncheckedIconRes ?: R.drawable.auv_ic_album_unchecked
             }
-            check.setBackgroundColor(appearance.scrimColor ?: itemView.context.color(android.R.color.transparent))
+//            check.text = ""
+//            check.setCompoundDrawablesWithIntrinsicBounds(checkIcon, 0, 0, 0)
+            check.setImageResource(checkIcon)
+            check.setBackgroundColor(appearance.scrimColor ?: Color.TRANSPARENT)
             check.setOnClickListener { onToggle(media) }
             itemView.setOnClickListener { onPreview(media) }
+        }
+
+        fun clear() {
+            imageLoader.clear(image)
+            check.setOnClickListener(null)
+            itemView.setOnClickListener(null)
         }
     }
 
     private fun color(resourceId: Int): Int = ContextCompat.getColor(this, resourceId)
+
+    private fun dpToPx(value: Int): Int =
+        (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
 }
 
-private const val GRID_SPAN_COUNT = 4
 private const val LIGHT_COLOR_LUMINANCE = 0.5
 
-private fun Context.gridCellSize(): Int = resources.displayMetrics.widthPixels / GRID_SPAN_COUNT
+internal fun shouldShowPermissionUpgradeButton(
+    isAllowedByHost: Boolean,
+    accessStatus: MediaAccessStatus,
+): Boolean = isAllowedByHost && accessStatus != MediaAccessStatus.FULL
+
+private data class GridMetrics(
+    val spanCount: Int,
+    val spacingPx: Int,
+)
+
+/** 仅在 item 之间增加间距，不给 RecyclerView 外边缘增加额外留白。 */
+private class GridSpacingItemDecoration(
+    private val metrics: GridMetrics,
+) : RecyclerView.ItemDecoration() {
+    override fun getItemOffsets(
+        outRect: Rect,
+        view: View,
+        parent: RecyclerView,
+        state: RecyclerView.State,
+    ) {
+        outRect.set(0, 0, 0, 0)
+        if (metrics.spacingPx == 0) return
+
+        val position = parent.getChildAdapterPosition(view)
+        if (position == RecyclerView.NO_POSITION) return
+
+        val column = position % metrics.spanCount
+        outRect.left = ((column.toLong() * metrics.spacingPx) / metrics.spanCount).toInt()
+        val nextColumnOffset = (((column + 1L) * metrics.spacingPx) / metrics.spanCount).toInt()
+        outRect.right = metrics.spacingPx - nextColumnOffset
+        if (position >= metrics.spanCount) outRect.top = metrics.spacingPx
+    }
+}
+
+private fun View.gridCellSize(metrics: GridMetrics): Int {
+    val gridWidth = measuredWidth.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+    val contentWidth = gridWidth.toLong() - paddingLeft - paddingRight
+    val totalSpacing = metrics.spacingPx.toLong() * (metrics.spanCount - 1)
+    return ((contentWidth - totalSpacing) / metrics.spanCount)
+        .coerceAtLeast(1L)
+        .coerceAtMost(Int.MAX_VALUE.toLong())
+        .toInt()
+}
 
 private fun Context.color(resourceId: Int): Int = ContextCompat.getColor(this, resourceId)

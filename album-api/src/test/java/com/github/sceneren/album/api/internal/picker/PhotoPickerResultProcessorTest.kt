@@ -277,6 +277,12 @@ class PhotoPickerResultProcessorTest {
                 ): Int? = null
             }
 
+        override suspend fun loadPage(
+            filter: AlbumMediaFilter,
+            offset: Int,
+            limit: Int,
+        ): List<PickedMediaEntity> = rows.values.drop(offset).take(limit)
+
         override suspend fun upsertBatch(
             drafts: List<PickedMediaDraft>,
         ): List<PickedMediaEntity> {

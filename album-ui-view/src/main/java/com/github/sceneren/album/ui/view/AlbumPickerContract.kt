@@ -5,20 +5,26 @@ import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
+import androidx.annotation.IntRange
 import androidx.annotation.StyleRes
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerResult
 
 /** View 相册选择器的一次启动请求。 */
-data class ViewAlbumPickerRequest(
+data class AlbumPickerRequest(
     val config: AlbumPickerConfig,
     @StyleRes val themeResId: Int = 0,
-    val appearance: ViewAlbumPickerAppearance = ViewAlbumPickerAppearance(),
+    val appearance: AlbumPickerAppearance = AlbumPickerAppearance(),
 )
 
-/** View 实现的颜色和图标覆盖项；未设置的值从 Theme 属性读取。 */
-data class ViewAlbumPickerAppearance(
+/**
+ * View 实现的外观和网格布局配置；未设置的颜色、图标从 Theme 属性读取。
+ *
+ * @property gridItemSpacingDp RecyclerView item 之间的间距，单位 dp，不包含网格外边缘，默认 1dp。
+ * @property gridSpanCount RecyclerView 每行展示的 item 数量，范围为 1..100，默认 4 个。
+ */
+data class AlbumPickerAppearance(
     @ColorInt val toolbarColor: Int? = null,
     @ColorInt val bottomBarColor: Int? = null,
     @ColorInt val previewBackgroundColor: Int? = null,
@@ -34,16 +40,29 @@ data class ViewAlbumPickerAppearance(
     @DrawableRes val folderIconRes: Int? = null,
     @DrawableRes val doneIconRes: Int? = null,
     @DrawableRes val videoIconRes: Int? = null,
-)
+    @IntRange(from = 0) val gridItemSpacingDp: Int = 1,
+    @IntRange(from = 1, to = 100) val gridSpanCount: Int = 4,
+) {
+    init {
+        require(gridItemSpacingDp >= 0) { "gridItemSpacingDp 不能小于 0" }
+        require(gridSpanCount in 1..MAX_GRID_SPAN_COUNT) {
+            "gridSpanCount 必须在 1..$MAX_GRID_SPAN_COUNT 之间"
+        }
+    }
+
+    companion object {
+        const val MAX_GRID_SPAN_COUNT: Int = 100
+    }
+}
 
 /** 以全屏 View Activity 打开相册选择器。 */
-class ViewAlbumPickerContract : ActivityResultContract<ViewAlbumPickerRequest, AlbumPickerResult?>() {
-    override fun createIntent(context: Context, input: ViewAlbumPickerRequest): Intent =
-        Intent(context, ViewAlbumPickerActivity::class.java)
+class AlbumPickerContract : ActivityResultContract<AlbumPickerRequest, AlbumPickerResult?>() {
+    override fun createIntent(context: Context, input: AlbumPickerRequest): Intent =
+        Intent(context, AlbumPickerActivity::class.java)
             .also { intent ->
                 AlbumPickerIntentCodec.putConfig(intent, input.config)
-                intent.putExtra(ViewAlbumPickerExtras.THEME, input.themeResId)
-                ViewAlbumPickerExtras.putAppearance(intent, input.appearance)
+                intent.putExtra(AlbumPickerExtras.THEME, input.themeResId)
+                AlbumPickerExtras.putAppearance(intent, input.appearance)
                 intent.putExtra(
                     AlbumPickerIntentCodec.EXTRA_SESSION_ID,
                     AlbumPickerIntentCodec.newSessionId(),
@@ -58,11 +77,11 @@ class ViewAlbumPickerContract : ActivityResultContract<ViewAlbumPickerRequest, A
         }
 }
 
-internal object ViewAlbumPickerExtras {
+internal object AlbumPickerExtras {
     const val THEME = "album_view.theme"
     private const val PREFIX = "album_view.appearance."
 
-    fun putAppearance(intent: Intent, appearance: ViewAlbumPickerAppearance) {
+    fun putAppearance(intent: Intent, appearance: AlbumPickerAppearance) {
         intent.putExtra(PREFIX + "toolbar", appearance.toolbarColor ?: Int.MIN_VALUE)
         intent.putExtra(PREFIX + "bottom", appearance.bottomBarColor ?: Int.MIN_VALUE)
         intent.putExtra(PREFIX + "preview", appearance.previewBackgroundColor ?: Int.MIN_VALUE)
@@ -78,9 +97,11 @@ internal object ViewAlbumPickerExtras {
         intent.putExtra(PREFIX + "folder", appearance.folderIconRes ?: 0)
         intent.putExtra(PREFIX + "done", appearance.doneIconRes ?: 0)
         intent.putExtra(PREFIX + "video", appearance.videoIconRes ?: 0)
+        intent.putExtra(PREFIX + "grid_item_spacing_dp", appearance.gridItemSpacingDp)
+        intent.putExtra(PREFIX + "grid_span_count", appearance.gridSpanCount)
     }
 
-    fun readAppearance(intent: Intent) = ViewAlbumPickerAppearance(
+    fun readAppearance(intent: Intent) = AlbumPickerAppearance(
         toolbarColor = intent.intOrNull(PREFIX + "toolbar"),
         bottomBarColor = intent.intOrNull(PREFIX + "bottom"),
         previewBackgroundColor = intent.intOrNull(PREFIX + "preview"),
@@ -96,6 +117,8 @@ internal object ViewAlbumPickerExtras {
         folderIconRes = intent.intOrNull(PREFIX + "folder", zeroIsNull = true),
         doneIconRes = intent.intOrNull(PREFIX + "done", zeroIsNull = true),
         videoIconRes = intent.intOrNull(PREFIX + "video", zeroIsNull = true),
+        gridItemSpacingDp = intent.getIntExtra(PREFIX + "grid_item_spacing_dp", 1),
+        gridSpanCount = intent.getIntExtra(PREFIX + "grid_span_count", 4),
     )
 
     private fun Intent.intOrNull(key: String, zeroIsNull: Boolean = false): Int? {

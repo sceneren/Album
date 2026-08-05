@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.compose.viewmodel)
 
     implementation(libs.coil.compose)
+    implementation(libs.coil)
     implementation(libs.coil.gif)
     implementation(libs.androidx.paging.compose)
     implementation(libs.coil.video)

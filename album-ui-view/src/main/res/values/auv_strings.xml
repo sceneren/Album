@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auv_toggle_selection">切换选择状态</string>
+    <string name="auv_video_play">播放视频</string>
+    <string name="auv_preview_load_failed">预览加载失败</string>
+    <string name="auv_back">返回</string>
+    <string name="auv_title">相机胶卷</string>
+    <string name="auv_cancel">取消</string>
+    <string name="auv_preview">预览</string>
+    <string name="auv_preview_count">预览(%1$d)</string>
+    <string name="auv_please_select">请选择</string>
+    <string name="auv_done_count">完成(%1$d)</string>
+    <string name="auv_capture">拍摄</string>
+    <string name="auv_add_more">添加更多</string>
+    <string name="auv_partial_permission">当前只能访问部分媒体，点击申请全部访问</string>
+    <string name="auv_denied_permission">尚未获得相册权限，点击申请访问</string>
+    <string name="auv_added_count">已添加 %1$d 项，可在网格中手动选择</string>
+    <string name="auv_add_cancelled">已取消添加</string>
+    <string name="auv_add_failed">添加失败：%1$s</string>
+    <string name="auv_camera_failed">拍摄失败</string>
+    <string name="auv_select_first">请先选择媒体</string>
+    <string name="auv_process_failed">处理失败：%1$s</string>
+    <string name="auv_retry">请重试</string>
+    <string name="auv_selection_failed">选择失败</string>
+    <string name="auv_all_media">全部媒体</string>
+    <string name="auv_unnamed_directory">未命名 (%1$d)</string>
+</resources>

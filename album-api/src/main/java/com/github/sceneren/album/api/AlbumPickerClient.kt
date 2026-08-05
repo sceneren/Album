@@ -8,6 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.github.sceneren.album.api.internal.database.PickedMediaDraft
+import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import com.github.sceneren.album.api.internal.file.AlbumFileMaterializer
 import com.github.sceneren.album.api.internal.session.AlbumPendingCameraCapture
 import com.github.sceneren.album.api.internal.session.AlbumPickerItemSource
@@ -76,6 +78,7 @@ class AlbumCameraLauncher internal constructor(
 class AlbumPickerClient internal constructor(
     private val context: Context,
     private val externalRootOverride: File? = null,
+    private val pickedStore: PickedMediaStore? = null,
 ) {
     private val appContext = context.applicationContext
     private val store = AlbumPickerSessionStore(appContext)
@@ -87,7 +90,7 @@ class AlbumPickerClient internal constructor(
     fun openSession(config: AlbumPickerConfig, sessionId: String? = null): AlbumPickerSessionSnapshot {
         val state = sessionId?.let(store::load)
             ?.takeIf { it.config == config }
-            ?: store.create(config)
+            ?: store.create(config, sessionId ?: UUID.randomUUID().toString())
         return state.toSnapshot()
     }
 
@@ -194,6 +197,22 @@ class AlbumPickerClient internal constructor(
                 previewUri = item.uri,
             )
             store.save(next)
+            pickedStore?.upsertBatch(
+                listOf(
+                    PickedMediaDraft(
+                        uri = item.uri.toString(),
+                        mediaType = item.mediaType.name,
+                        displayName = item.displayName,
+                        mimeType = item.mimeType,
+                        sizeBytes = item.sizeBytes,
+                        width = item.width,
+                        height = item.height,
+                        durationMillis = item.durationMillis,
+                        selectedAtEpochMillis = System.currentTimeMillis(),
+                        ownsPersistableGrant = false,
+                    ),
+                ),
+            )
             next.toSnapshot()
         }
     }
@@ -229,9 +248,6 @@ class AlbumPickerClient internal constructor(
                         filePath = resultFile.absolutePath,
                     )
                 }
-                state.cameraItems
-                    .filterNot { item -> state.selected.any { it.uri == item.uri } }
-                    .forEach { item -> cameraFileFor(item)?.delete() }
                 store.remove(sessionId)
                 AlbumPickerResult(items)
             } catch (failure: Throwable) {
@@ -242,9 +258,9 @@ class AlbumPickerClient internal constructor(
         }
     }
 
+    /** 取消本次选择会话；已完成拍摄保留在持久列表中，仅删除尚未完成的拍摄文件。 */
     suspend fun cancel(sessionId: String) = withContext(Dispatchers.IO) {
         store.load(sessionId)?.let { state ->
-            state.cameraItems.forEach { item -> cameraFileFor(item)?.delete() }
             state.pendingCamera?.let { File(it.filePath).delete() }
         }
         store.remove(sessionId)
@@ -311,8 +327,6 @@ class AlbumPickerClient internal constructor(
     private fun externalRoot(): File = externalRootOverride
         ?: appContext.getExternalFilesDir(null)
         ?: throw IOException("应用专属外部存储不可用")
-
-    private fun cameraFileFor(item: AlbumPickerSelection): File? = item.filePath?.let(::File)
 
     private fun AlbumPickerSessionState.toSnapshot() = AlbumPickerSessionSnapshot(
         sessionId = sessionId,

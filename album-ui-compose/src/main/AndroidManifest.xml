@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <activity
-            android:name="com.github.sceneren.album.ui.compose.ComposeAlbumPickerActivity"
+            android:name="com.github.sceneren.album.ui.compose.AlbumPickerActivity"
             android:exported="false"
-            android:theme="@style/Theme.AlbumUiCompose" />
+            android:theme="@style/auc_theme_album_picker" />
     </application>
 </manifest>

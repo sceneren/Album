@@ -24,8 +24,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.recyclerview)
-    implementation(libs.coil)
-    implementation(libs.coil.video)
+    implementation(libs.androidx.viewpager2)
+    implementation(libs.zoomimage.view)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core.ktx)

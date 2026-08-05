@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/album_picker_root"
+    android:id="@+id/auv_picker_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/album_view_toolbar"
+    android:background="@color/auv_toolbar"
     android:orientation="vertical">
 
-    <LinearLayout
-        android:id="@+id/album_picker_toolbar"
+    <RelativeLayout
+        android:id="@+id/auv_picker_toolbar"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="@color/album_view_toolbar"
+        android:background="@color/auv_toolbar"
         android:gravity="center_vertical"
         android:paddingStart="8dp"
         android:paddingTop="4dp"
@@ -18,37 +18,56 @@
         android:paddingBottom="4dp">
 
         <ImageButton
-            android:id="@+id/album_picker_back"
+            android:id="@+id/auv_picker_back"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@android:color/transparent"
-            android:contentDescription="@string/album_view_back"
-            android:src="@drawable/ic_album_back" />
+            android:contentDescription="@string/auv_back"
+            android:src="@drawable/auv_ic_album_back" />
+
+        <LinearLayout
+            android:id="@+id/auv_picker_title_action"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="100dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/auv_picker_title"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/auv_title"
+                android:textColor="@color/auv_primary"
+                android:textSize="18sp" />
+
+            <ImageView
+                android:id="@+id/auv_picker_title_arrow"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="2dp"
+                android:contentDescription="@null"
+                android:src="@drawable/auv_ic_album_expand_more" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/album_picker_title"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/album_view_title"
-            android:textColor="@color/album_view_primary"
-            android:textSize="18sp" />
-
-        <TextView
-            android:id="@+id/album_picker_cancel"
-            android:layout_width="64dp"
+            android:id="@+id/auv_picker_cancel"
+            android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:gravity="center"
+            android:layout_alignParentEnd="true"
             android:paddingStart="12dp"
             android:paddingEnd="8dp"
-            android:text="@string/album_view_cancel"
-            android:textColor="@color/album_view_primary"
+            android:text="@string/auv_cancel"
+            android:textColor="@color/auv_primary"
             android:textSize="15sp" />
-    </LinearLayout>
+    </RelativeLayout>
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/album_picker_grid"
+        android:id="@+id/auv_picker_grid"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -56,26 +75,26 @@
         android:clipToPadding="false" />
 
     <Button
-        android:id="@+id/album_picker_permission"
+        android:id="@+id/auv_picker_permission"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:backgroundTint="@color/album_view_permission_background"
-        android:textColor="@color/album_view_permission_text"
+        android:backgroundTint="@color/auv_permission_background"
+        android:textColor="@color/auv_permission_text"
         android:textSize="15sp"
         android:visibility="gone" />
 
     <LinearLayout
-        android:id="@+id/album_picker_bottom"
+        android:id="@+id/auv_picker_bottom"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="@color/album_view_bottom"
+        android:background="@color/auv_bottom"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingTop="4dp"
         android:paddingBottom="4dp">
 
         <Button
-            android:id="@+id/album_picker_preview"
+            android:id="@+id/auv_picker_preview"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:paddingHorizontal="10dp"
@@ -83,9 +102,9 @@
             android:minHeight="0dp"
             android:minWidth="70dp"
             android:stateListAnimator="@null"
-            android:text="@string/album_view_preview"
+            android:text="@string/auv_preview"
             android:textAllCaps="false"
-            android:textColor="@color/album_view_primary" />
+            android:textColor="@color/auv_primary" />
 
         <View
             android:layout_width="0dp"
@@ -93,7 +112,7 @@
             android:layout_weight="1" />
 
         <Button
-            android:id="@+id/album_picker_done"
+            android:id="@+id/auv_picker_done"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:paddingHorizontal="10dp"
@@ -101,8 +120,8 @@
             android:minHeight="0dp"
             android:minWidth="70dp"
             android:stateListAnimator="@null"
-            android:text="@string/album_view_please_select"
+            android:text="@string/auv_please_select"
             android:textAllCaps="false"
-            android:textColor="@color/album_view_accent" />
+            android:textColor="@color/auv_accent" />
     </LinearLayout>
 </LinearLayout>

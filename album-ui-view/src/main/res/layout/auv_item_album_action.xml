@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/album_action_tile"
+    android:id="@+id/auv_action_tile"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/album_view_action"
+    android:background="@color/auv_action"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="4dp">
 
     <ImageView
-        android:id="@+id/album_action_icon"
+        android:id="@+id/auv_action_icon"
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:contentDescription="@null"
-        android:src="@drawable/ic_album_camera" />
+        android:src="@drawable/auv_ic_album_camera" />
 
     <TextView
-        android:id="@+id/album_action_label"
+        android:id="@+id/auv_action_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:gravity="center"
-        android:textColor="@color/album_view_primary"
+        android:textColor="@color/auv_primary"
         android:textSize="14sp" />
 </LinearLayout>

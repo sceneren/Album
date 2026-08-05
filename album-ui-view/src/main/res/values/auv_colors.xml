@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="auv_toolbar">#FF303136</color>
+    <color name="auv_bottom">#FF303136</color>
+    <color name="auv_action">#FF5A5A5E</color>
+    <color name="auv_accent">#FF00C853</color>
+    <color name="auv_primary">#FFFFFFFF</color>
+    <color name="auv_secondary">#FFD3D3D3</color>
+    <color name="auv_permission_background">#FFE0E0E0</color>
+    <color name="auv_permission_text">#FF303136</color>
+</resources>
