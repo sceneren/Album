@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep these values aligned with album-ui-view/src/main/res/values/auv_colors.xml. -->
+    <color name="auc_toolbar">#FF303136</color>
+    <color name="auc_bottom">#FF303136</color>
+    <color name="auc_action">#FF5A5A5E</color>
+    <color name="auc_accent">#FF00C853</color>
+    <color name="auc_primary">#FFFFFFFF</color>
+    <color name="auc_secondary">#FFD3D3D3</color>
+    <color name="auc_permission_background">#FFE0E0E0</color>
+    <color name="auc_permission_text">#FF303136</color>
+</resources>

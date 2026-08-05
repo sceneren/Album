@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
+import androidx.annotation.DimenRes
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -14,10 +16,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,7 +40,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,12 +61,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.paging.compose.LazyPagingItems
@@ -90,9 +103,10 @@ class AlbumPickerActivity : ComponentActivity() {
     private var accessStatus by mutableStateOf(MediaAccessStatus.DENIED)
     private var feed by mutableStateOf<com.github.sceneren.album.api.AlbumMediaFeed?>(null)
     private var directories by mutableStateOf<List<AlbumDirectory>>(emptyList())
-    private var message by mutableStateOf("")
     private var preview by mutableStateOf<PreviewState?>(null)
     private var previewLoadJob: Job? = null
+    private var messageToast: Toast? = null
+    private var isPhotoPickerInFlight = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -124,19 +138,30 @@ class AlbumPickerActivity : ComponentActivity() {
         val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
         session = client.openSession(config, sessionId)
         photoPicker = api.registerPhotoPicker(this, config.mediaFilter, config.maxSelectionCount) { result ->
-            message = when (result) {
-                is PhotoPickResult.Selected -> "已添加 ${result.media.size} 项，可在网格中手动选择"
-                PhotoPickResult.Cancelled -> "已取消添加"
-                is PhotoPickResult.Failed -> "添加失败：${result.reason.name}"
-            }
-            refreshContent()
+            isPhotoPickerInFlight = false
+            showMessage(
+                when (result) {
+                    is PhotoPickResult.Selected -> getString(
+                        R.string.auc_added_count,
+                        result.media.size,
+                    )
+                    PhotoPickResult.Cancelled -> getString(R.string.auc_add_cancelled)
+                    is PhotoPickResult.Failed -> getString(
+                        R.string.auc_add_failed,
+                        result.reason.name,
+                    )
+                },
+            )
+            if (result is PhotoPickResult.Selected) refreshContent()
         }
         cameraLauncher = client.registerCamera(this, currentSession().sessionId) { result ->
             result.onSuccess { updated ->
                 renderSession(updated)
                 if (accessStatus != MediaAccessStatus.FULL) refreshContent()
                 maybeAutoConfirm()
-            }.onFailure { message = it.message ?: "拍摄失败" }
+            }.onFailure { failure ->
+                showMessage(failure.message ?: getString(R.string.auc_camera_failed))
+            }
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -159,7 +184,6 @@ class AlbumPickerActivity : ComponentActivity() {
                 accessStatus = accessStatus,
                 directories = directories,
                 feed = feed,
-                message = message,
                 preview = preview,
                 imageLoader = imageLoader,
                 onBack = { onBackPressedDispatcher.onBackPressed() },
@@ -172,7 +196,7 @@ class AlbumPickerActivity : ComponentActivity() {
                 onRequestPermission = {
                     permissionLauncher.launch(AlbumMediaPermissionRequestFactory.create(config.mediaFilter))
                 },
-                onAddMore = { photoPicker?.launch() },
+                onAddMore = ::launchPhotoPicker,
                 onCamera = { cameraLauncher?.launch(cameraMediaType()) },
                 onToggle = ::toggleMedia,
                 onGridPreview = ::showGridPreview,
@@ -188,11 +212,12 @@ class AlbumPickerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshContent()
+        if (!isPhotoPickerInFlight) refreshContent()
     }
 
     override fun onDestroy() {
         previewLoadJob?.cancel()
+        messageToast?.cancel()
         super.onDestroy()
     }
 
@@ -217,12 +242,30 @@ class AlbumPickerActivity : ComponentActivity() {
     private fun currentSession(): AlbumPickerSessionSnapshot =
         requireNotNull(session) { "相册选择会话尚未初始化" }
 
+    private fun showMessage(message: CharSequence) {
+        messageToast?.cancel()
+        messageToast = Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).also(Toast::show)
+    }
+
+    private fun launchPhotoPicker() {
+        val launcher = photoPicker ?: return
+        isPhotoPickerInFlight = true
+        try {
+            launcher.launch()
+        } catch (failure: RuntimeException) {
+            isPhotoPickerInFlight = false
+            throw failure
+        }
+    }
+
     private fun toggleMedia(media: AlbumMedia) {
         lifecycleScope.launch {
             client.toggleSelection(currentSession().sessionId, media).onSuccess { updated ->
                 renderSession(updated)
                 maybeAutoConfirm()
-            }.onFailure { message = it.message ?: "选择失败" }
+            }.onFailure { failure ->
+                showMessage(failure.message ?: getString(R.string.auc_selection_failed))
+            }
         }
     }
 
@@ -236,14 +279,21 @@ class AlbumPickerActivity : ComponentActivity() {
 
     private fun confirmSelection() {
         if (currentSession().selectedItems.isEmpty()) {
-            message = "请先选择媒体"
+            showMessage(getString(R.string.auc_select_first))
             return
         }
         lifecycleScope.launch {
             client.confirm(currentSession().sessionId).onSuccess { result ->
                 setResult(Activity.RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
                 finish()
-            }.onFailure { message = "处理失败：${it.message ?: "请重试"}" }
+            }.onFailure { failure ->
+                showMessage(
+                    getString(
+                        R.string.auc_process_failed,
+                        failure.message ?: getString(R.string.auc_retry),
+                    ),
+                )
+            }
         }
     }
 
@@ -301,7 +351,7 @@ class AlbumPickerActivity : ComponentActivity() {
             }.onFailure { failure ->
                 val latest = preview?.takeIf { it.id == current.id } ?: return@onFailure
                 preview = latest.copy(loading = false, endReached = true)
-                message = failure.message ?: getString(R.string.auc_preview_load_failed)
+                showMessage(failure.message ?: getString(R.string.auc_preview_load_failed))
             }
         }
     }
@@ -343,7 +393,6 @@ private fun AlbumPickerScreen(
     accessStatus: MediaAccessStatus,
     directories: List<AlbumDirectory>,
     feed: com.github.sceneren.album.api.AlbumMediaFeed?,
-    message: String,
     preview: PreviewState?,
     imageLoader: AlbumImageLoader,
     onBack: () -> Unit,
@@ -358,11 +407,10 @@ private fun AlbumPickerScreen(
     onClosePreview: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val toolbar = (appearance.toolbarColor ?: DEFAULT_TOOLBAR_COLOR).toColor()
-    val bottom = (appearance.bottomBarColor ?: DEFAULT_BOTTOM_BAR_COLOR).toColor()
-    val accent = (appearance.accentColor ?: 0xFF00C853.toInt()).toColor()
-    val primary = (appearance.primaryTextColor ?: 0xFFFFFFFF.toInt()).toColor()
-    val secondary = (appearance.secondaryTextColor ?: 0xFFD3D3D3.toInt()).toColor()
+    val toolbar = appearance.toolbarColor?.toColor() ?: colorResource(R.color.auc_toolbar)
+    val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
+    val accent = appearance.accentColor?.toColor() ?: colorResource(R.color.auc_accent)
+    val primary = appearance.primaryTextColor?.toColor() ?: colorResource(R.color.auc_primary)
     var directoryMenu by remember { mutableStateOf(false) }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
 
@@ -370,15 +418,21 @@ private fun AlbumPickerScreen(
         Scaffold(
             containerColor = Color.Black,
             topBar = {
-                Row(
+                Box(
                     Modifier
                         .fillMaxWidth()
                         .background(toolbar)
                         .statusBarsPadding()
-                        .height(56.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .height(dimensionResource(R.dimen.auc_toolbar_height))
+                        .padding(
+                            horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                            vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                        ),
                 ) {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.align(Alignment.CenterStart),
+                    ) {
                         Icon(
                             painter = painterResource(
                                 appearance.backIconRes ?: R.drawable.auc_ic_album_back,
@@ -387,27 +441,59 @@ private fun AlbumPickerScreen(
                             tint = Color.Unspecified,
                         )
                     }
-                    Box(Modifier.weight(1f)) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = dimensionResource(
+                                    R.dimen.auc_toolbar_title_margin_horizontal,
+                                ),
+                            )
+                            .align(Alignment.Center),
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { directoryMenu = true },
+                                .height(dimensionResource(R.dimen.auc_toolbar_back_size))
+                                .clickable(enabled = accessStatus == MediaAccessStatus.FULL) {
+                                    directoryMenu = true
+                                },
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "相机胶卷",
+                                text = stringResource(R.string.auc_title),
                                 color = primary,
                                 textAlign = TextAlign.Center,
+                                fontSize = dimensionSp(R.dimen.auc_toolbar_title_text_size),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                            Icon(
-                                painter = painterResource(
-                                    appearance.folderIconRes ?: R.drawable.auc_ic_album_expand_more,
-                                ),
-                                contentDescription = null,
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(20.dp),
-                            )
+                            if (accessStatus == MediaAccessStatus.FULL) {
+                                Icon(
+                                    painter = painterResource(
+                                        appearance.folderIconRes
+                                            ?: R.drawable.auc_ic_album_expand_more,
+                                    ),
+                                    contentDescription = null,
+                                    tint = if (appearance.folderIconRes == null) {
+                                        primary
+                                    } else {
+                                        Color.Unspecified
+                                    },
+                                    modifier = Modifier
+                                        .padding(
+                                            start = dimensionResource(
+                                                R.dimen.auc_toolbar_title_arrow_margin_start,
+                                            ),
+                                        )
+                                        .size(
+                                            dimensionResource(
+                                                R.dimen.auc_toolbar_title_arrow_size,
+                                            ),
+                                        ),
+                                )
+                            }
                         }
                         DropdownMenu(
                             expanded = directoryMenu,
@@ -415,7 +501,7 @@ private fun AlbumPickerScreen(
                         ) {
                             if (accessStatus == MediaAccessStatus.FULL) {
                                 DropdownMenuItem(
-                                    text = { Text("全部媒体") },
+                                    text = { Text(stringResource(R.string.auc_all_media)) },
                                     onClick = {
                                         directoryMenu = false
                                         onDirectory(Long.MIN_VALUE)
@@ -426,7 +512,10 @@ private fun AlbumPickerScreen(
                                         text = {
                                             Text(
                                                 directory.bucketName
-                                                    ?: "未命名 (${directory.mediaCount})",
+                                                    ?: stringResource(
+                                                        R.string.auc_unnamed_directory,
+                                                        directory.mediaCount,
+                                                    ),
                                             )
                                         },
                                         onClick = {
@@ -438,7 +527,27 @@ private fun AlbumPickerScreen(
                             }
                         }
                     }
-                    TextButton(onClick = onBack) { Text("取消", color = primary) }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .height(dimensionResource(R.dimen.auc_toolbar_back_size))
+                            .clickable(onClick = onBack)
+                            .padding(
+                                start = dimensionResource(
+                                    R.dimen.auc_toolbar_cancel_padding_start,
+                                ),
+                                end = dimensionResource(
+                                    R.dimen.auc_toolbar_cancel_padding_end,
+                                ),
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.auc_cancel),
+                            color = primary,
+                            fontSize = dimensionSp(R.dimen.auc_toolbar_cancel_text_size),
+                        )
+                    }
                 }
             },
             bottomBar = {
@@ -449,45 +558,71 @@ private fun AlbumPickerScreen(
                         .navigationBarsPadding(),
                 ) {
                     if (accessStatus != MediaAccessStatus.FULL && config.showPermissionUpgrade) {
-                        Button(onClick = onRequestPermission, Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = onRequestPermission,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(dimensionResource(R.dimen.auc_permission_height))
+                                .padding(dimensionResource(R.dimen.auc_permission_inset)),
+                            shape = RoundedCornerShape(
+                                dimensionResource(R.dimen.auc_permission_corner_radius),
+                            ),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colorResource(R.color.auc_permission_background),
+                                contentColor = colorResource(R.color.auc_permission_text),
+                            ),
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
                             Text(
-                                if (accessStatus == MediaAccessStatus.PARTIAL) {
-                                    "当前只能访问部分媒体，申请全部访问"
+                                text = if (accessStatus == MediaAccessStatus.PARTIAL) {
+                                    stringResource(R.string.auc_partial_permission)
                                 } else {
-                                    "申请相册权限"
+                                    stringResource(R.string.auc_denied_permission)
                                 },
+                                fontSize = dimensionSp(R.dimen.auc_permission_text_size),
                             )
                         }
-                    }
-                    if (message.isNotBlank()) {
-                        Text(
-                            message,
-                            color = secondary,
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                        )
                     }
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 8.dp),
+                            .height(dimensionResource(R.dimen.auc_bottom_height))
+                            .padding(
+                                top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                                bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                            ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TextButton(onClick = onSelectedPreview) {
+                        TextButton(
+                            onClick = onSelectedPreview,
+                            modifier = Modifier
+                                .height(dimensionResource(R.dimen.auc_bottom_button_height))
+                                .defaultMinSize(
+                                    minWidth = dimensionResource(
+                                        R.dimen.auc_bottom_min_button_width,
+                                    ),
+                                ),
+                            shape = RectangleShape,
+                            contentPadding = PaddingValues(
+                                horizontal = dimensionResource(
+                                    R.dimen.auc_bottom_padding_horizontal,
+                                ),
+                            ),
+                        ) {
                             Text(
                                 text = if (session.selectedItems.isEmpty()) {
-                                    "预览"
+                                    stringResource(R.string.auc_preview)
                                 } else {
-                                    "预览(${session.selectedItems.size})"
+                                    stringResource(
+                                        R.string.auc_preview_count,
+                                        session.selectedItems.size,
+                                    )
                                 },
                                 color = primary,
+                                fontSize = dimensionSp(R.dimen.auc_bottom_done_text_size),
                             )
                         }
-                        Text(
-                            "已选 ${session.selectedItems.size}",
-                            color = secondary,
-                            modifier = Modifier.weight(1f),
-                        )
+                        Spacer(Modifier.weight(1f))
                         SelectionFinishAction(
                             selectedCount = session.selectedItems.size,
                             appearance = appearance,
@@ -498,21 +633,33 @@ private fun AlbumPickerScreen(
             },
         ) { padding ->
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(88.dp),
+                columns = GridCells.Fixed(appearance.gridSpanCount),
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-                horizontalArrangement = Arrangement.spacedBy(1.dp),
+                verticalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
+                horizontalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
             ) {
                 if (config.camera.enabled) {
                     item(key = "action_camera") {
-                        ActionTile("拍摄", appearance.cameraIconRes, onCamera)
+                        ActionTile(
+                            label = stringResource(R.string.auc_capture),
+                            customIconRes = appearance.cameraIconRes,
+                            defaultIconRes = R.drawable.auc_ic_album_camera,
+                            appearance = appearance,
+                            onClick = onCamera,
+                        )
                     }
                 }
                 if (accessStatus != MediaAccessStatus.FULL) {
                     item(key = "action_add") {
-                        ActionTile("添加更多", appearance.addIconRes, onAddMore)
+                        ActionTile(
+                            label = stringResource(R.string.auc_add_more),
+                            customIconRes = appearance.addIconRes,
+                            defaultIconRes = R.drawable.auc_ic_album_add,
+                            appearance = appearance,
+                            onClick = onAddMore,
+                        )
                     }
                 }
                 if (accessStatus == MediaAccessStatus.FULL) {
@@ -557,7 +704,7 @@ private fun AlbumPickerScreen(
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .height(160.dp),
+                                .height(dimensionResource(R.dimen.auc_loading_box_height)),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(color = accent)
@@ -595,10 +742,11 @@ private fun AlbumPreviewScreen(
     onClose: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val toolbar = (appearance.toolbarColor ?: DEFAULT_TOOLBAR_COLOR).toColor()
-    val bottom = (appearance.bottomBarColor ?: DEFAULT_BOTTOM_BAR_COLOR).toColor()
-    val previewBackground = appearance.previewBackgroundColor?.toColor() ?: Color.Black
-    val primary = (appearance.primaryTextColor ?: 0xFFFFFFFF.toInt()).toColor()
+    val toolbar = appearance.toolbarColor?.toColor() ?: colorResource(R.color.auc_toolbar)
+    val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
+    val previewBackground = appearance.previewBackgroundColor?.toColor()
+        ?: colorResource(android.R.color.black)
+    val primary = appearance.primaryTextColor?.toColor() ?: colorResource(R.color.auc_primary)
     val pagerState = rememberPagerState(
         initialPage = state.initialIndex.coerceIn(0, (state.items.size - 1).coerceAtLeast(0)),
         pageCount = { state.items.size },
@@ -623,8 +771,11 @@ private fun AlbumPreviewScreen(
                 .fillMaxWidth()
                 .background(toolbar)
                 .statusBarsPadding()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
+                .height(dimensionResource(R.dimen.auc_toolbar_height))
+                .padding(
+                    horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                    vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                ),
         ) {
             IconButton(
                 onClick = onClose,
@@ -645,7 +796,7 @@ private fun AlbumPreviewScreen(
                     state.items.size,
                 ),
                 color = primary,
-                fontSize = 18.sp,
+                fontSize = dimensionSp(R.dimen.auc_preview_page_counter_text_size),
                 modifier = Modifier.align(Alignment.Center),
             )
             IconButton(
@@ -663,6 +814,9 @@ private fun AlbumPreviewScreen(
                     ),
                     contentDescription = stringResource(R.string.auc_toggle_selection),
                     tint = Color.Unspecified,
+                    modifier = Modifier.size(
+                        dimensionResource(R.dimen.auc_preview_selection_icon_size),
+                    ),
                 )
             }
         }
@@ -703,7 +857,7 @@ private fun AlbumPreviewScreen(
                         contentDescription = stringResource(R.string.auc_video_play),
                         tint = Color.Unspecified,
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(dimensionResource(R.dimen.auc_preview_video_play_size))
                             .clickable {
                                 // 视频预览仅显示封面，点击图标不在选择器内播放。
                             },
@@ -716,8 +870,13 @@ private fun AlbumPreviewScreen(
                 .fillMaxWidth()
                 .background(bottom)
                 .navigationBarsPadding()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
+                .height(dimensionResource(R.dimen.auc_bottom_height))
+                .padding(
+                    start = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                    top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                    end = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                    bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                ),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -737,72 +896,101 @@ private fun SelectionFinishAction(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = (appearance.accentColor ?: 0xFF00C853.toInt()).toColor()
-    val primary = (appearance.primaryTextColor ?: 0xFFFFFFFF.toInt()).toColor()
-    val secondary = (appearance.secondaryTextColor ?: 0xFFD3D3D3.toInt()).toColor()
-    if (selectedCount == 0) {
-        Text(
-            text = stringResource(R.string.auc_please_select),
-            color = secondary,
-            fontSize = 14.sp,
-            modifier = modifier.padding(horizontal = 8.dp),
-        )
-        return
-    }
+    val accent = appearance.accentColor?.toColor() ?: colorResource(R.color.auc_accent)
+    val primary = appearance.primaryTextColor?.toColor() ?: colorResource(R.color.auc_primary)
+    val secondary = appearance.secondaryTextColor?.toColor() ?: colorResource(R.color.auc_secondary)
+    val hasSelection = selectedCount > 0
 
     Row(
         modifier = modifier
-            .clickable(onClick = onConfirm)
-            .padding(horizontal = 8.dp),
+            .height(dimensionResource(R.dimen.auc_bottom_button_height))
+            .clickable(enabled = hasSelection, onClick = onConfirm)
+            .padding(
+                start = dimensionResource(R.dimen.auc_preview_done_action_padding_start),
+                end = dimensionResource(R.dimen.auc_preview_done_action_padding_end),
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        appearance.doneIconRes?.let { iconRes ->
+        if (hasSelection) {
+            Box(
+                modifier = Modifier
+                    .background(accent, CircleShape)
+                    .height(dimensionResource(R.dimen.auc_preview_selected_count_size))
+                    .widthIn(min = dimensionResource(R.dimen.auc_preview_selected_count_size)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = selectedCount.toString(),
+                    color = primary,
+                    fontSize = dimensionSp(R.dimen.auc_preview_count_text_size),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        if (hasSelection && appearance.doneIconRes != null) {
+            Spacer(Modifier.width(dimensionResource(R.dimen.auc_preview_done_icon_gap)))
             Icon(
-                painter = painterResource(iconRes),
+                painter = painterResource(appearance.doneIconRes),
                 contentDescription = null,
                 tint = Color.Unspecified,
                 modifier = Modifier
-                    .height(18.dp)
+                    .height(dimensionResource(R.dimen.auc_preview_selected_count_size))
                     .wrapContentHeight()
-                    .widthIn(min = 18.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-        }
-        Box(
-            modifier = Modifier
-                .background(accent, CircleShape)
-                .height(18.dp)
-                .wrapContentHeight()
-                .widthIn(min = 18.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = selectedCount.toString(),
-                color = primary,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
+                    .widthIn(min = dimensionResource(R.dimen.auc_preview_selected_count_size)),
             )
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(
+            Modifier.width(
+                dimensionResource(R.dimen.auc_preview_done_text_margin_start),
+            ),
+        )
         Text(
-            text = stringResource(R.string.auc_done),
-            color = accent,
-            fontSize = 14.sp
+            text = if (hasSelection) {
+                stringResource(R.string.auc_done)
+            } else {
+                stringResource(R.string.auc_please_select)
+            },
+            color = if (hasSelection) accent else secondary,
+            fontSize = dimensionSp(R.dimen.auc_bottom_done_text_size),
         )
     }
 }
 
 @Composable
-private fun ActionTile(label: String, iconRes: Int?, onClick: () -> Unit) {
-    Box(
+private fun ActionTile(
+    label: String,
+    customIconRes: Int?,
+    defaultIconRes: Int,
+    appearance: AlbumPickerAppearance,
+    onClick: () -> Unit,
+) {
+    val primary = appearance.primaryTextColor?.toColor() ?: colorResource(R.color.auc_primary)
+    Column(
         Modifier
-            .size(88.dp)
-            .background(Color.DarkGray)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .background(colorResource(R.color.auc_action))
+            .clickable(onClick = onClick)
+            .padding(dimensionResource(R.dimen.auc_action_padding)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        if (iconRes != null) Icon(painterResource(iconRes), contentDescription = label, tint = Color.White)
-        else Text(label, color = Color.White, textAlign = TextAlign.Center)
+        Icon(
+            painter = painterResource(customIconRes ?: defaultIconRes),
+            contentDescription = null,
+            tint = if (customIconRes == null) primary else Color.Unspecified,
+            modifier = Modifier.size(dimensionResource(R.dimen.auc_action_icon_size)),
+        )
+        Spacer(Modifier.height(dimensionResource(R.dimen.auc_action_label_margin_top)))
+        Text(
+            text = label,
+            color = primary,
+            fontSize = dimensionSp(R.dimen.auc_action_label_text_size),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -815,9 +1003,13 @@ private fun MediaTile(
     onPreview: (AlbumMedia) -> Unit,
     onToggle: (AlbumMedia) -> Unit,
 ) {
-    Box(Modifier
-        .size(88.dp)
-        .clickable { onPreview(media) }) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .background(Color.Black)
+            .clickable { onPreview(media) },
+    ) {
         Image(
             painter = imageLoader.painter(media, AlbumImageTarget.GRID_THUMBNAIL),
             contentDescription = media.displayName,
@@ -827,8 +1019,8 @@ private fun MediaTile(
         Box(
             Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .size(26.dp)
+                .padding(dimensionResource(R.dimen.auc_media_check_margin))
+                .size(dimensionResource(R.dimen.auc_media_check_size))
                 .background(appearance.scrimColor?.toColor() ?: Color.Transparent)
                 .clickable { onToggle(media) },
             contentAlignment = Alignment.Center,
@@ -844,6 +1036,13 @@ private fun MediaTile(
 }
 
 private fun Int.toColor() = Color(this)
+
+/** Converts an XML sp resource to Compose sp without applying the font scale twice. */
+@Composable
+private fun dimensionSp(@DimenRes resourceId: Int): TextUnit {
+    val dimension = dimensionResource(resourceId)
+    return (dimension.value / LocalDensity.current.fontScale).sp
+}
 
 private fun systemBarStyle(color: Int): SystemBarStyle =
     if (ColorUtils.calculateLuminance(color) > LIGHT_COLOR_LUMINANCE) {

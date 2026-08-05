@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -13,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
@@ -66,7 +68,9 @@ class AlbumPickerActivity : ComponentActivity() {
     private lateinit var titleArrow: ImageView
     private lateinit var cancelButton: TextView
     private lateinit var previewButton: Button
-    private lateinit var doneButton: Button
+    private lateinit var doneAction: LinearLayout
+    private lateinit var selectedCount: TextView
+    private lateinit var doneText: TextView
     private lateinit var permissionButton: Button
     private lateinit var actionAdapter: ActionAdapter
     private lateinit var cameraAdapter: CameraAdapter
@@ -161,7 +165,9 @@ class AlbumPickerActivity : ComponentActivity() {
         titleArrow = findViewById(R.id.auv_picker_title_arrow)
         cancelButton = findViewById(R.id.auv_picker_cancel)
         previewButton = findViewById(R.id.auv_picker_preview)
-        doneButton = findViewById(R.id.auv_picker_done)
+        doneAction = findViewById(R.id.auv_picker_done_action)
+        selectedCount = findViewById(R.id.auv_picker_selected_count)
+        doneText = findViewById(R.id.auv_picker_done_text)
         permissionButton = findViewById(R.id.auv_picker_permission)
 
         findViewById<ImageButton>(R.id.auv_picker_back).setOnClickListener {
@@ -170,7 +176,7 @@ class AlbumPickerActivity : ComponentActivity() {
         titleAction.setOnClickListener { showDirectories() }
         cancelButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         previewButton.setOnClickListener { showPreview() }
-        doneButton.setOnClickListener { confirmSelection() }
+        doneAction.setOnClickListener { confirmSelection() }
         permissionButton.setOnClickListener { requestMediaPermission() }
 
         val gridMetrics = GridMetrics(
@@ -215,7 +221,13 @@ class AlbumPickerActivity : ComponentActivity() {
         title.setTextColor(primaryColor)
         cancelButton.setTextColor(primaryColor)
         previewButton.setTextColor(primaryColor)
-        doneButton.setTextColor(accentColor)
+        doneText.setTextColor(color(R.color.auv_secondary))
+        selectedCount.setTextColor(primaryColor)
+        selectedCount.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(accentColor)
+        }
+        doneText.compoundDrawablePadding = dpToPx(4)
         appearance.backIconRes?.let { findViewById<ImageButton>(R.id.auv_picker_back).setImageResource(it) }
         val customFolderIcon = appearance.folderIconRes
         titleArrow.setImageResource(customFolderIcon ?: R.drawable.auv_ic_album_expand_more)
@@ -224,7 +236,6 @@ class AlbumPickerActivity : ComponentActivity() {
         } else {
             titleArrow.clearColorFilter()
         }
-        appearance.doneIconRes?.let { doneButton.setCompoundDrawablesWithIntrinsicBounds(it, 0, 0, 0) }
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -281,6 +292,9 @@ class AlbumPickerActivity : ComponentActivity() {
 
     private fun refreshContent() {
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
+        val canBrowseDirectories = accessStatus == MediaAccessStatus.FULL
+        titleArrow.visibility = if (canBrowseDirectories) View.VISIBLE else View.GONE
+        titleAction.isEnabled = canBrowseDirectories
         renderActions()
         permissionButton.visibility = if (
             shouldShowPermissionUpgradeButton(
@@ -326,11 +340,26 @@ class AlbumPickerActivity : ComponentActivity() {
         } else {
             getString(R.string.auv_preview_count, updated.selectedItems.size)
         }
-        doneButton.text = if (updated.selectedItems.isEmpty()) {
-            getString(R.string.auv_please_select)
-        } else {
-            getString(R.string.auv_done_count, updated.selectedItems.size)
-        }
+        val hasSelection = updated.selectedItems.isNotEmpty()
+        selectedCount.visibility = if (hasSelection) View.VISIBLE else View.GONE
+        selectedCount.text = updated.selectedItems.size.toString()
+        doneText.text = getString(
+            if (hasSelection) R.string.auv_done else R.string.auv_please_select,
+        )
+        doneText.setTextColor(
+            if (hasSelection) {
+                appearance.accentColor ?: color(R.color.auv_accent)
+            } else {
+                appearance.secondaryTextColor ?: color(R.color.auv_secondary)
+            },
+        )
+        doneText.setCompoundDrawablesWithIntrinsicBounds(
+            if (hasSelection) appearance.doneIconRes ?: 0 else 0,
+            0,
+            0,
+            0,
+        )
+        doneAction.isEnabled = hasSelection
     }
 
     private fun toggleMedia(media: AlbumMedia) {
@@ -359,13 +388,13 @@ class AlbumPickerActivity : ComponentActivity() {
             showMessage(getString(R.string.auv_select_first))
             return
         }
-        doneButton.isEnabled = false
+        doneAction.isEnabled = false
         lifecycleScope.launch {
             client.confirm(session.sessionId).onSuccess { result ->
                 setResult(Activity.RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
                 finish()
             }.onFailure { failure ->
-                doneButton.isEnabled = true
+                doneAction.isEnabled = true
                 showMessage(
                     getString(
                         R.string.auv_process_failed,

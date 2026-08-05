@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
+import androidx.annotation.IntRange
 import androidx.annotation.StyleRes
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
@@ -34,7 +35,24 @@ data class AlbumPickerAppearance(
     @DrawableRes val folderIconRes: Int? = null,
     @DrawableRes val doneIconRes: Int? = null,
     @DrawableRes val videoIconRes: Int? = null,
+    /** RecyclerView/XML implementation-compatible spacing between grid cells, in dp. */
+    @IntRange(from = 0) val gridItemSpacingDp: Int = 1,
+    /** RecyclerView/XML implementation-compatible number of cells per row. */
+    @IntRange(from = 1, to = 100) val gridSpanCount: Int = 4,
 )
+
+{
+    init {
+        require(gridItemSpacingDp >= 0) { "gridItemSpacingDp must be >= 0" }
+        require(gridSpanCount in 1..MAX_GRID_SPAN_COUNT) {
+            "gridSpanCount must be in 1..$MAX_GRID_SPAN_COUNT"
+        }
+    }
+
+    companion object {
+        const val MAX_GRID_SPAN_COUNT: Int = 100
+    }
+}
 
 /** 以全屏 Compose Activity 打开相册选择器。 */
 class AlbumPickerContract :
@@ -78,6 +96,8 @@ internal object AlbumPickerExtras {
         intent.putExtra(PREFIX + "folder", appearance.folderIconRes ?: 0)
         intent.putExtra(PREFIX + "done", appearance.doneIconRes ?: 0)
         intent.putExtra(PREFIX + "video", appearance.videoIconRes ?: 0)
+        intent.putExtra(PREFIX + "grid_item_spacing_dp", appearance.gridItemSpacingDp)
+        intent.putExtra(PREFIX + "grid_span_count", appearance.gridSpanCount)
     }
 
     fun readAppearance(intent: Intent) = AlbumPickerAppearance(
@@ -96,6 +116,8 @@ internal object AlbumPickerExtras {
         folderIconRes = intent.intOrNull(PREFIX + "folder", true),
         doneIconRes = intent.intOrNull(PREFIX + "done", true),
         videoIconRes = intent.intOrNull(PREFIX + "video", true),
+        gridItemSpacingDp = intent.getIntExtra(PREFIX + "grid_item_spacing_dp", 1),
+        gridSpanCount = intent.getIntExtra(PREFIX + "grid_span_count", 4),
     )
 
     private fun Intent.intOrNull(key: String, zeroIsNull: Boolean = false): Int? {

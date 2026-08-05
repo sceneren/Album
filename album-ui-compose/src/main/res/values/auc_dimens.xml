@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep these values aligned with the XML picker dimensions. -->
+    <dimen name="auc_toolbar_height">56dp</dimen>
+    <dimen name="auc_toolbar_padding_horizontal">8dp</dimen>
+    <dimen name="auc_toolbar_padding_vertical">4dp</dimen>
+    <dimen name="auc_toolbar_back_size">48dp</dimen>
+    <dimen name="auc_toolbar_title_margin_horizontal">100dp</dimen>
+    <dimen name="auc_toolbar_title_arrow_size">16dp</dimen>
+    <dimen name="auc_toolbar_title_arrow_margin_start">2dp</dimen>
+    <dimen name="auc_toolbar_title_text_size">18sp</dimen>
+    <dimen name="auc_toolbar_cancel_padding_start">12dp</dimen>
+    <dimen name="auc_toolbar_cancel_padding_end">8dp</dimen>
+    <dimen name="auc_toolbar_cancel_text_size">15sp</dimen>
+    <dimen name="auc_permission_height">56dp</dimen>
+    <dimen name="auc_permission_inset">4dp</dimen>
+    <dimen name="auc_permission_corner_radius">4dp</dimen>
+    <dimen name="auc_permission_text_size">15sp</dimen>
+    <dimen name="auc_action_padding">4dp</dimen>
+    <dimen name="auc_action_icon_size">24dp</dimen>
+    <dimen name="auc_action_label_margin_top">6dp</dimen>
+    <dimen name="auc_action_label_text_size">14sp</dimen>
+    <dimen name="auc_loading_box_height">160dp</dimen>
+    <dimen name="auc_media_check_size">24dp</dimen>
+    <dimen name="auc_media_check_margin">4dp</dimen>
+    <dimen name="auc_bottom_height">56dp</dimen>
+    <dimen name="auc_bottom_padding_horizontal">10dp</dimen>
+    <dimen name="auc_bottom_min_button_width">70dp</dimen>
+    <dimen name="auc_bottom_button_height">48dp</dimen>
+    <dimen name="auc_bottom_done_text_size">14sp</dimen>
+    <dimen name="auc_preview_selected_count_size">18dp</dimen>
+    <dimen name="auc_preview_count_text_size">13sp</dimen>
+    <dimen name="auc_preview_page_counter_text_size">18sp</dimen>
+    <dimen name="auc_preview_selection_icon_size">16dp</dimen>
+    <dimen name="auc_preview_video_play_size">64dp</dimen>
+    <dimen name="auc_preview_done_action_padding_start">10dp</dimen>
+    <dimen name="auc_preview_done_action_padding_end">8dp</dimen>
+    <dimen name="auc_preview_done_icon_gap">4dp</dimen>
+    <dimen name="auc_preview_done_text_margin_start">8dp</dimen>
+</resources>
