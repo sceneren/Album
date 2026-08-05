@@ -35,6 +35,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.paging)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.luban)
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)

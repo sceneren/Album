@@ -36,6 +36,8 @@ android {
 
 dependencies {
     implementation(project(":album-api"))
+    implementation(project(":album-ui-view"))
+    implementation(project(":album-ui-compose"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

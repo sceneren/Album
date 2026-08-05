@@ -12,6 +12,7 @@ enum class AlbumMediaType {
 enum class AlbumMediaSource {
     MEDIA_STORE,
     PHOTO_PICKER,
+    CAMERA,
 }
 
 /** Metadata for one image or video URI; nullable fields were unavailable from its source. */

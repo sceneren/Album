@@ -3,6 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.album.api.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/album_api_file_paths" />
+        </provider>
         <service
             android:name="com.google.android.gms.metadata.ModuleDependencies"
             android:enabled="false"

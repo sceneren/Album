@@ -4,8 +4,8 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-04 12:57:54",
-  "module_count": 2,
+  "scan_time": "2026-08-05 09:53:54",
+  "module_count": 4,
   "modules": [
     {
       "name": "app",
@@ -16,14 +16,10 @@
       "source_dirs": [
         {
           "root": "app\\src\\main\\java",
-          "file_count": 9,
+          "file_count": 5,
           "file_list": [
-            "com\\github\\sceneren\\album\\AlbumDataClient.kt",
-            "com\\github\\sceneren\\album\\AlbumScreen.kt",
-            "com\\github\\sceneren\\album\\AlbumViewModel.kt",
             "com\\github\\sceneren\\album\\App.kt",
             "com\\github\\sceneren\\album\\MainActivity.kt",
-            "com\\github\\sceneren\\album\\MediaPermissionRequestFactory.kt",
             "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
             "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
             "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
@@ -33,14 +29,10 @@
           ]
         }
       ],
-      "file_count": 9,
+      "file_count": 5,
       "file_list": [
-        "com\\github\\sceneren\\album\\AlbumDataClient.kt",
-        "com\\github\\sceneren\\album\\AlbumScreen.kt",
-        "com\\github\\sceneren\\album\\AlbumViewModel.kt",
         "com\\github\\sceneren\\album\\App.kt",
         "com\\github\\sceneren\\album\\MainActivity.kt",
-        "com\\github\\sceneren\\album\\MediaPermissionRequestFactory.kt",
         "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
         "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
         "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
@@ -120,10 +112,18 @@
         }
       ],
       "asset_files": [],
-      "tree": "app\\src\\main\\java/\n└── com/  (9个文件)\n    └── github/  (9个文件)\n        └── sceneren/  (9个文件)\n            └── album/  (9个文件)",
+      "tree": "app\\src\\main\\java/\n└── com/  (5个文件)\n    └── github/  (5个文件)\n        └── sceneren/  (5个文件)\n            └── album/  (5个文件)",
       "dependencies": [
         {
           "name": "album-api",
+          "type": "implementation"
+        },
+        {
+          "name": "album-ui-view",
+          "type": "implementation"
+        },
+        {
+          "name": "album-ui-compose",
           "type": "implementation"
         },
         {
@@ -241,6 +241,14 @@
         "dependencies": [
           {
             "name": "album-api",
+            "type": "implementation"
+          },
+          {
+            "name": "album-ui-view",
+            "type": "implementation"
+          },
+          {
+            "name": "album-ui-compose",
             "type": "implementation"
           },
           {
@@ -373,20 +381,26 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 25,
+          "file_count": 33,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCompressionPolicy.kt",
             "com\\github\\sceneren\\album\\api\\AlbumDirectory.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMedia.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaFeed.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPhotoPickerLauncher.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerIntentCodec.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerModels.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabase.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabaseFactory.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDao.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaEntity.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaStore.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\RoomPickedMediaStore.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
@@ -399,27 +413,35 @@
             "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerRegistrar.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerResultProcessor.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\UriAccessChecker.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\picker\\UriMetadataReader.kt"
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\UriMetadataReader.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelectionReducer.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 25,
+      "file_count": 33,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCompressionPolicy.kt",
         "com\\github\\sceneren\\album\\api\\AlbumDirectory.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMedia.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaFeed.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPhotoPickerLauncher.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerIntentCodec.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerModels.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabase.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabaseFactory.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDao.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaEntity.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaStore.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\RoomPickedMediaStore.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
@@ -432,11 +454,21 @@
         "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerRegistrar.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerResultProcessor.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\UriAccessChecker.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\picker\\UriMetadataReader.kt"
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\UriMetadataReader.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelectionReducer.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt"
       ],
-      "resource_dirs": [],
+      "resource_dirs": [
+        {
+          "dir": "xml",
+          "count": 1,
+          "files": [
+            "album_api_file_paths.xml"
+          ]
+        }
+      ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (25个文件)\n    └── github/  (25个文件)\n        └── sceneren/  (25个文件)\n            └── album/  (25个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (33个文件)\n    └── github/  (33个文件)\n        └── sceneren/  (33个文件)\n            └── album/  (33个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",
@@ -470,6 +502,11 @@
         },
         {
           "name": "libs.kotlinx.coroutines.android",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.luban",
           "type": "implementation",
           "external": true
         },
@@ -542,6 +579,11 @@
             "external": true
           },
           {
+            "name": "libs.luban",
+            "type": "implementation",
+            "external": true
+          },
+          {
             "name": "libs.junit",
             "type": "testImplementation",
             "external": true
@@ -577,6 +619,389 @@
         "compile_sdk": "37",
         "min_sdk": "24",
         "compose": false,
+        "view_binding": false
+      }
+    },
+    {
+      "name": "album-ui-view",
+      "path": "album-ui-view",
+      "is_aar": false,
+      "is_application": false,
+      "has_source": true,
+      "source_dirs": [
+        {
+          "root": "album-ui-view\\src\\main\\java",
+          "file_count": 2,
+          "file_list": [
+            "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerActivity.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerContract.kt"
+          ],
+          "top_packages": [
+            "com.github.sceneren"
+          ]
+        }
+      ],
+      "file_count": 2,
+      "file_list": [
+        "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerActivity.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\ViewAlbumPickerContract.kt"
+      ],
+      "resource_dirs": [
+        {
+          "dir": "drawable",
+          "count": 3,
+          "files": [
+            "ic_album_add.xml",
+            "ic_album_back.xml",
+            "ic_album_camera.xml"
+          ]
+        },
+        {
+          "dir": "layout",
+          "count": 4,
+          "files": [
+            "activity_view_album_picker.xml",
+            "dialog_album_preview.xml",
+            "item_album_action.xml",
+            "item_album_media.xml"
+          ]
+        },
+        {
+          "dir": "values",
+          "count": 3,
+          "files": [
+            "colors.xml",
+            "strings.xml",
+            "styles.xml"
+          ]
+        }
+      ],
+      "asset_files": [],
+      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (2个文件)\n    └── github/  (2个文件)\n        └── sceneren/  (2个文件)\n            └── album/  (2个文件)",
+      "dependencies": [
+        {
+          "name": "album-api",
+          "type": "implementation"
+        },
+        {
+          "name": "libs.androidx.activity.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.core.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.lifecycle.runtime.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.recyclerview",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.coil",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.coil.video",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.junit",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.test.core.ktx",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.robolectric",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.kotlinx.coroutines.test",
+          "type": "testImplementation",
+          "external": true
+        }
+      ],
+      "build_config": {
+        "dependencies": [
+          {
+            "name": "album-api",
+            "type": "implementation"
+          },
+          {
+            "name": "libs.androidx.activity.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.core.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.lifecycle.runtime.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.recyclerview",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.coil",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.coil.video",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.junit",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.test.core.ktx",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.robolectric",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.kotlinx.coroutines.test",
+            "type": "testImplementation",
+            "external": true
+          }
+        ],
+        "plugin_type": "library",
+        "namespace": "com.github.sceneren.album.ui.view",
+        "compile_sdk": "37",
+        "min_sdk": "24",
+        "compose": false,
+        "view_binding": false
+      }
+    },
+    {
+      "name": "album-ui-compose",
+      "path": "album-ui-compose",
+      "is_aar": false,
+      "is_application": false,
+      "has_source": true,
+      "source_dirs": [
+        {
+          "root": "album-ui-compose\\src\\main\\java",
+          "file_count": 2,
+          "file_list": [
+            "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerActivity.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerContract.kt"
+          ],
+          "top_packages": [
+            "com.github.sceneren"
+          ]
+        }
+      ],
+      "file_count": 2,
+      "file_list": [
+        "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerActivity.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\ComposeAlbumPickerContract.kt"
+      ],
+      "resource_dirs": [
+        {
+          "dir": "values",
+          "count": 1,
+          "files": [
+            "styles.xml"
+          ]
+        }
+      ],
+      "asset_files": [],
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (2个文件)\n    └── github/  (2个文件)\n        └── sceneren/  (2个文件)\n            └── album/  (2个文件)",
+      "dependencies": [
+        {
+          "name": "album-api",
+          "type": "implementation"
+        },
+        {
+          "name": "libs.androidx.activity.compose",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.activity.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.core.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.lifecycle.runtime.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.bom",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.graphics",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.material3",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.paging.compose",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.coil.compose",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.coil.video",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.junit",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.test.core.ktx",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.robolectric",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.kotlinx.coroutines.test",
+          "type": "testImplementation",
+          "external": true
+        }
+      ],
+      "build_config": {
+        "dependencies": [
+          {
+            "name": "album-api",
+            "type": "implementation"
+          },
+          {
+            "name": "libs.androidx.activity.compose",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.activity.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.core.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.lifecycle.runtime.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.bom",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.graphics",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.material3",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.paging.compose",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.coil.compose",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.coil.video",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.junit",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.test.core.ktx",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.robolectric",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.kotlinx.coroutines.test",
+            "type": "testImplementation",
+            "external": true
+          }
+        ],
+        "plugin_type": "library",
+        "namespace": "com.github.sceneren.album.ui.compose",
+        "compile_sdk": "37",
+        "min_sdk": "24",
+        "compose": true,
         "view_binding": false
       }
     }

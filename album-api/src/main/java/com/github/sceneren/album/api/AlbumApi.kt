@@ -115,7 +115,7 @@ class AlbumApi internal constructor(
                 )
             }.flow
 
-            AlbumMediaSource.PHOTO_PICKER -> Pager(config) {
+            else -> Pager(config) {
                 pickedStore.pagingSource(mediaFilter)
             }.flow.map { pagingData ->
                 pagingData.map(PickedMediaEntity::toAlbumMedia)
@@ -204,6 +204,43 @@ class AlbumApi internal constructor(
             }
         }
         removedCount
+    }
+
+    /** 创建由 View/Compose 相册页面共用的选择会话客户端。 */
+    fun createPickerClient(context: Context): AlbumPickerClient =
+        AlbumPickerClient(context.applicationContext)
+
+    /** 删除本库生成且位于应用专属目录中的文件。 */
+    suspend fun deleteGeneratedMedia(context: Context, filePath: String): Result<Boolean> =
+        resultOnIo {
+            val file = generatedFile(context, filePath)
+            if (file == null) false else !file.exists() || file.delete()
+        }
+
+    /** 清理应用专属相册复制、压缩和相机文件，原始媒体不会被删除。 */
+    suspend fun clearGeneratedMedia(context: Context): Result<Int> = resultOnIo {
+        val root = context.applicationContext.getExternalFilesDir(null)
+            ?: return@resultOnIo 0
+        val directories = listOf("photo_picker", "luban", "camera")
+            .map { java.io.File(root, it) }
+        directories.sumOf { directory ->
+            directory.walkTopDown()
+                .filter { it.isFile }
+                .onEach { it.delete() }
+                .count()
+        }
+    }
+
+    private fun generatedFile(context: Context, path: String): java.io.File? {
+        val root = context.applicationContext.getExternalFilesDir(null) ?: return null
+        val candidate = java.io.File(path).canonicalFile
+        val allowedRoots = listOf("photo_picker", "luban", "camera")
+            .map { java.io.File(root, it).canonicalFile }
+        return candidate.takeIf { file ->
+            allowedRoots.any { allowed ->
+                file.path == allowed.path || file.path.startsWith(allowed.path + java.io.File.separator)
+            }
+        }
     }
 
     private suspend fun <T> resultOnIo(block: suspend () -> T): Result<T> = try {

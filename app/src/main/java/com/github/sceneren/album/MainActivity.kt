@@ -1,109 +1,140 @@
 package com.github.sceneren.album
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.paging.compose.collectAsLazyPagingItems
-import coil3.ImageLoader
-import coil3.gif.AnimatedImageDecoder
-import coil3.gif.GifDecoder
-import coil3.video.VideoFrameDecoder
-import com.github.sceneren.album.api.AlbumApi
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.github.sceneren.album.api.AlbumCameraCaptureType
+import com.github.sceneren.album.api.AlbumCameraConfig
+import com.github.sceneren.album.api.AlbumCompressionConfig
 import com.github.sceneren.album.api.AlbumMediaFilter
-import com.github.sceneren.album.api.AlbumPhotoPickerLauncher
+import com.github.sceneren.album.api.AlbumPickerConfig
+import com.github.sceneren.album.api.AlbumPickerResult
+import com.github.sceneren.album.api.SingleSelectionFinishMode
+import com.github.sceneren.album.ui.compose.ComposeAlbumPickerContract
+import com.github.sceneren.album.ui.compose.ComposeAlbumPickerRequest
 import com.github.sceneren.album.ui.theme.AlbumTheme
+import com.github.sceneren.album.ui.view.ViewAlbumPickerContract
+import com.github.sceneren.album.ui.view.ViewAlbumPickerRequest
 
+/** 仅用于演示两个可复用 UI 模块，媒体查询和选择状态均由模块负责。 */
 class MainActivity : ComponentActivity() {
-    private lateinit var albumApi: AlbumApi
-    private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
-    private lateinit var imagePicker: AlbumPhotoPickerLauncher
-    private lateinit var videoPicker: AlbumPhotoPickerLauncher
-    private lateinit var mixedPicker: AlbumPhotoPickerLauncher
+    private var selectedFilter by mutableStateOf(AlbumMediaFilter.IMAGES)
+    private var compressionEnabled by mutableStateOf(false)
+    private var lastResult by mutableStateOf<AlbumPickerResult?>(null)
 
-    private val viewModel: AlbumViewModel by viewModels {
-        AlbumViewModel.Factory(AlbumApiDataClient(albumApi))
+    private val viewPicker = registerForActivityResult(ViewAlbumPickerContract()) { result ->
+        lastResult = result
+    }
+
+    private val composePicker = registerForActivityResult(ComposeAlbumPickerContract()) { result ->
+        lastResult = result
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        albumApi = AlbumApi.create(applicationContext)
-        val hostViewModel = viewModel
-
-        permissionLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions(),
-        ) {
-            hostViewModel.refresh()
-        }
-        imagePicker = registerPicker(AlbumMediaFilter.IMAGES)
-        videoPicker = registerPicker(AlbumMediaFilter.VIDEOS)
-        mixedPicker = registerPicker(AlbumMediaFilter.IMAGES_AND_VIDEOS)
-
-        val imageLoader = createImageLoader()
-        enableEdgeToEdge()
         setContent {
             AlbumTheme {
-                val state by hostViewModel.uiState.collectAsStateWithLifecycle()
-                val media = hostViewModel.mediaPagingData.collectAsLazyPagingItems()
-                AlbumScreen(
-                    state = state,
-                    media = media,
-                    onFilterChanged = hostViewModel::setMediaFilter,
-                    onRequestPermission = {
-                        permissionLauncher.launch(
-                            MediaPermissionRequestFactory.create(
-                                filter = hostViewModel.uiState.value.mediaFilter,
-                                sdkInt = Build.VERSION.SDK_INT,
-                            ),
-                        )
-                    },
-                    onOpenPicker = {
-                        launcherFor(hostViewModel.uiState.value.mediaFilter).launch()
-                    },
-                    onDirectorySelected = hostViewModel::selectDirectory,
-                    onRetry = media::retry,
-                    imageLoader = imageLoader,
+                Scaffold { paddingValues ->
+                    DemoScreen(
+                        filter = selectedFilter,
+                        compressionEnabled = compressionEnabled,
+                        result = lastResult,
+                        onFilter = { selectedFilter = it },
+                        onCompression = { compressionEnabled = it },
+                        onOpenView = { viewPicker.launch(ViewAlbumPickerRequest(buildRequest())) },
+                        onOpenCompose = { composePicker.launch(ComposeAlbumPickerRequest(buildRequest())) },
+                        modifier = Modifier.padding(paddingValues),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun buildRequest(): AlbumPickerConfig = AlbumPickerConfig(
+        mediaFilter = selectedFilter,
+        maxSelectionCount = 20,
+        singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
+        camera = AlbumCameraConfig(
+            enabled = true,
+            mixedMediaCaptureType = AlbumCameraCaptureType.PHOTO,
+        ),
+        compression = AlbumCompressionConfig(enabled = compressionEnabled),
+    )
+}
+
+@Composable
+private fun DemoScreen(
+    filter: AlbumMediaFilter,
+    compressionEnabled: Boolean,
+    result: AlbumPickerResult?,
+    onFilter: (AlbumMediaFilter) -> Unit,
+    onCompression: (Boolean) -> Unit,
+    onOpenView: () -> Unit,
+    onOpenCompose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Album UI 演示", style = MaterialTheme.typography.headlineSmall)
+        Text("相册页面由 album-ui-view / album-ui-compose 提供，app 只负责启动和接收结果。")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AlbumMediaFilter.entries.forEach { option ->
+                FilterChip(
+                    selected = filter == option,
+                    onClick = { onFilter(option) },
+                    label = { Text(option.label()) },
                 )
             }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        viewModel.refresh()
-    }
-
-    private fun registerPicker(
-        filter: AlbumMediaFilter,
-    ): AlbumPhotoPickerLauncher = albumApi.registerPhotoPicker(
-        activity = this,
-        mediaFilter = filter,
-        maxSelectionCount = null,
-        onResult = viewModel::onPhotoPickResult,
-    )
-
-    private fun launcherFor(
-        filter: AlbumMediaFilter,
-    ): AlbumPhotoPickerLauncher = when (filter) {
-        AlbumMediaFilter.IMAGES -> imagePicker
-        AlbumMediaFilter.VIDEOS -> videoPicker
-        AlbumMediaFilter.IMAGES_AND_VIDEOS -> mixedPicker
-    }
-
-    private fun createImageLoader(): ImageLoader = ImageLoader.Builder(applicationContext)
-        .components {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                add(AnimatedImageDecoder.Factory())
-            } else {
-                add(GifDecoder.Factory())
-            }
-            add(VideoFrameDecoder.Factory())
+        FilterChip(
+            selected = compressionEnabled,
+            onClick = { onCompression(!compressionEnabled) },
+            label = { Text("启用图片压缩（100KB 以下跳过）") },
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onOpenView) { Text("打开 View 相册") }
+            Button(onClick = onOpenCompose) { Text("打开 Compose 相册") }
         }
-        .build()
+        Spacer(Modifier.height(8.dp))
+        result?.let { pickerResult ->
+            Text("已返回 ${pickerResult.items.size} 项", style = MaterialTheme.typography.titleMedium)
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(pickerResult.items) { item ->
+                    Text("${item.mediaType}: ${item.filePath}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+private fun AlbumMediaFilter.label(): String = when (this) {
+    AlbumMediaFilter.IMAGES -> "图片"
+    AlbumMediaFilter.VIDEOS -> "视频"
+    AlbumMediaFilter.IMAGES_AND_VIDEOS -> "图片和视频"
 }

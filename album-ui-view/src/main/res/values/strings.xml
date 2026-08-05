@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="album_view_back">返回</string>
+    <string name="album_view_title">相机胶卷⌄</string>
+    <string name="album_view_cancel">取消</string>
+    <string name="album_view_preview">预览</string>
+    <string name="album_view_preview_count">预览(%1$d)</string>
+    <string name="album_view_please_select">请选择</string>
+    <string name="album_view_done_count">完成(%1$d)</string>
+    <string name="album_view_capture">拍摄</string>
+    <string name="album_view_add_more">添加更多</string>
+    <string name="album_view_partial_permission">当前只能访问部分媒体，点击申请全部访问</string>
+    <string name="album_view_denied_permission">尚未获得相册权限，点击申请访问</string>
+    <string name="album_view_added_count">已添加 %1$d 项，可在网格中手动选择</string>
+    <string name="album_view_add_cancelled">已取消添加</string>
+    <string name="album_view_add_failed">添加失败：%1$s</string>
+    <string name="album_view_camera_failed">拍摄失败</string>
+    <string name="album_view_select_first">请先选择媒体</string>
+    <string name="album_view_process_failed">处理失败：%1$s</string>
+    <string name="album_view_retry">请重试</string>
+    <string name="album_view_selection_failed">选择失败</string>
+    <string name="album_view_all_media">全部媒体</string>
+    <string name="album_view_unnamed_directory">未命名 (%1$d)</string>
+</resources>

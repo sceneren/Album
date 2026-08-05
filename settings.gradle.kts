@@ -26,3 +26,5 @@ dependencyResolutionManagement {
 rootProject.name = "Album"
 include(":app")
 include(":album-api")
+include(":album-ui-view")
+include(":album-ui-compose")

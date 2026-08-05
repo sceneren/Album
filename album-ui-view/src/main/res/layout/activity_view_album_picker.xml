@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/album_picker_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/album_view_toolbar"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/album_picker_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/album_view_toolbar"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="4dp">
+
+        <ImageButton
+            android:id="@+id/album_picker_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/album_view_back"
+            android:src="@drawable/ic_album_back" />
+
+        <TextView
+            android:id="@+id/album_picker_title"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/album_view_title"
+            android:textColor="@color/album_view_primary"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/album_picker_cancel"
+            android:layout_width="64dp"
+            android:layout_height="48dp"
+            android:gravity="center"
+            android:paddingStart="12dp"
+            android:paddingEnd="8dp"
+            android:text="@string/album_view_cancel"
+            android:textColor="@color/album_view_primary"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/album_picker_grid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/black"
+        android:clipToPadding="false" />
+
+    <Button
+        android:id="@+id/album_picker_permission"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:backgroundTint="@color/album_view_permission_background"
+        android:textColor="@color/album_view_permission_text"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/album_picker_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/album_view_bottom"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <Button
+            android:id="@+id/album_picker_preview"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:paddingHorizontal="10dp"
+            android:background="@android:color/transparent"
+            android:minHeight="0dp"
+            android:minWidth="70dp"
+            android:stateListAnimator="@null"
+            android:text="@string/album_view_preview"
+            android:textAllCaps="false"
+            android:textColor="@color/album_view_primary" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/album_picker_done"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:paddingHorizontal="10dp"
+            android:background="@android:color/transparent"
+            android:minHeight="0dp"
+            android:minWidth="70dp"
+            android:stateListAnimator="@null"
+            android:text="@string/album_view_please_select"
+            android:textAllCaps="false"
+            android:textColor="@color/album_view_accent" />
+    </LinearLayout>
+</LinearLayout>
