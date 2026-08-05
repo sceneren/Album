@@ -2,14 +2,17 @@ package com.github.sceneren.album.ui.compose
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,22 +21,26 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,8 +59,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.unit.sp
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -69,8 +76,8 @@ import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.MediaAccessStatus
 import com.github.sceneren.album.api.PhotoPickResult
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /** Compose 全屏相册选择页。 */
 class AlbumPickerActivity : ComponentActivity() {
@@ -104,6 +111,13 @@ class AlbumPickerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         config = AlbumPickerIntentCodec.readConfig(intent)
         appearance = AlbumPickerExtras.readAppearance(intent)
+        enableEdgeToEdge(
+            statusBarStyle = systemBarStyle(appearance.toolbarColor ?: DEFAULT_TOOLBAR_COLOR),
+            navigationBarStyle = systemBarStyle(appearance.bottomBarColor ?: DEFAULT_BOTTOM_BAR_COLOR),
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         imageLoader = AlbumUi.requireImageLoader()
         api = AlbumApi.create(this)
         client = api.createPickerClient(this)
@@ -126,6 +140,10 @@ class AlbumPickerActivity : ComponentActivity() {
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (preview != null) {
+                    closePreview()
+                    return
+                }
                 lifecycleScope.launch {
                     client.cancel(currentSession().sessionId)
                     setResult(Activity.RESULT_CANCELED)
@@ -164,10 +182,14 @@ class AlbumPickerActivity : ComponentActivity() {
                 onConfirm = ::confirmSelection,
             )
         }
-        refreshContent()
     }
 
     private var cameraLauncher: com.github.sceneren.album.api.AlbumCameraLauncher? = null
+
+    override fun onResume() {
+        super.onResume()
+        refreshContent()
+    }
 
     override fun onDestroy() {
         previewLoadJob?.cancel()
@@ -310,6 +332,8 @@ private data class PreviewState(
 
 private const val PREVIEW_PAGE_SIZE = 30
 private const val PREVIEW_PREFETCH_DISTANCE = 3
+private val DEFAULT_TOOLBAR_COLOR = 0xFF303136.toInt()
+private val DEFAULT_BOTTOM_BAR_COLOR = 0xFF303136.toInt()
 
 @Composable
 private fun AlbumPickerScreen(
@@ -334,162 +358,247 @@ private fun AlbumPickerScreen(
     onClosePreview: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val toolbar = (appearance.toolbarColor ?: 0xFF303136.toInt()).toColor()
-    val bottom = (appearance.bottomBarColor ?: 0xFF303136.toInt()).toColor()
+    val toolbar = (appearance.toolbarColor ?: DEFAULT_TOOLBAR_COLOR).toColor()
+    val bottom = (appearance.bottomBarColor ?: DEFAULT_BOTTOM_BAR_COLOR).toColor()
     val accent = (appearance.accentColor ?: 0xFF00C853.toInt()).toColor()
+    val primary = (appearance.primaryTextColor ?: 0xFFFFFFFF.toInt()).toColor()
+    val secondary = (appearance.secondaryTextColor ?: 0xFFD3D3D3.toInt()).toColor()
     var directoryMenu by remember { mutableStateOf(false) }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
 
-    Scaffold(
-        containerColor = Color.Black,
-        topBar = {
-            Row(
-                Modifier.fillMaxWidth().background(toolbar).padding(top = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        painter = painterResource(
-                            appearance.backIconRes ?: R.drawable.auc_ic_album_back,
-                        ),
-                        contentDescription = stringResource(R.string.auc_back),
-                        tint = Color.Unspecified,
-                    )
-                }
-                Box(Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { directoryMenu = true },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "相机胶卷",
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                        )
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Black,
+            topBar = {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(toolbar)
+                        .statusBarsPadding()
+                        .height(56.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             painter = painterResource(
-                                appearance.folderIconRes ?: R.drawable.auc_ic_album_expand_more,
+                                appearance.backIconRes ?: R.drawable.auc_ic_album_back,
                             ),
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.auc_back),
                             tint = Color.Unspecified,
-                            modifier = Modifier.size(20.dp),
                         )
                     }
-                    DropdownMenu(expanded = directoryMenu, onDismissRequest = { directoryMenu = false }) {
-                        if (accessStatus == MediaAccessStatus.FULL) {
-                            DropdownMenuItem(
-                                text = { Text("全部媒体") },
-                                onClick = { directoryMenu = false; onDirectory(Long.MIN_VALUE) },
+                    Box(Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { directoryMenu = true },
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "相机胶卷",
+                                color = primary,
+                                textAlign = TextAlign.Center,
                             )
-                            directories.forEach { directory ->
+                            Icon(
+                                painter = painterResource(
+                                    appearance.folderIconRes ?: R.drawable.auc_ic_album_expand_more,
+                                ),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = directoryMenu,
+                            onDismissRequest = { directoryMenu = false },
+                        ) {
+                            if (accessStatus == MediaAccessStatus.FULL) {
                                 DropdownMenuItem(
-                                    text = { Text(directory.bucketName ?: "未命名 (${directory.mediaCount})") },
-                                    onClick = { directoryMenu = false; onDirectory(directory.bucketId) },
+                                    text = { Text("全部媒体") },
+                                    onClick = {
+                                        directoryMenu = false
+                                        onDirectory(Long.MIN_VALUE)
+                                    },
                                 )
+                                directories.forEach { directory ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                directory.bucketName
+                                                    ?: "未命名 (${directory.mediaCount})",
+                                            )
+                                        },
+                                        onClick = {
+                                            directoryMenu = false
+                                            onDirectory(directory.bucketId)
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
+                    TextButton(onClick = onBack) { Text("取消", color = primary) }
                 }
-                TextButton(onClick = onBack) { Text("取消", color = Color.White) }
-            }
-        },
-        bottomBar = {
-            Column(Modifier.fillMaxWidth().background(bottom)) {
-                if (accessStatus != MediaAccessStatus.FULL && config.showPermissionUpgrade) {
-                    Button(onClick = onRequestPermission, Modifier.fillMaxWidth()) {
-                        Text(if (accessStatus == MediaAccessStatus.PARTIAL) "当前只能访问部分媒体，申请全部访问" else "申请相册权限")
+            },
+            bottomBar = {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(bottom)
+                        .navigationBarsPadding(),
+                ) {
+                    if (accessStatus != MediaAccessStatus.FULL && config.showPermissionUpgrade) {
+                        Button(onClick = onRequestPermission, Modifier.fillMaxWidth()) {
+                            Text(
+                                if (accessStatus == MediaAccessStatus.PARTIAL) {
+                                    "当前只能访问部分媒体，申请全部访问"
+                                } else {
+                                    "申请相册权限"
+                                },
+                            )
+                        }
                     }
-                }
-                if (message.isNotBlank()) Text(message, color = Color.LightGray, modifier = Modifier.padding(horizontal = 12.dp))
-                Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onSelectedPreview) {
+                    if (message.isNotBlank()) {
                         Text(
-                            text = if (session.selectedItems.isEmpty()) "预览" else "预览(${session.selectedItems.size})",
-                            color = Color.White,
+                            message,
+                            color = secondary,
+                            modifier = Modifier.padding(horizontal = 12.dp),
                         )
                     }
-                    Text("已选 ${session.selectedItems.size}", color = Color.LightGray, modifier = Modifier.weight(1f))
-                    Button(onClick = onConfirm) { Text("完成(${session.selectedItems.size})", color = accent) }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = onSelectedPreview) {
+                            Text(
+                                text = if (session.selectedItems.isEmpty()) {
+                                    "预览"
+                                } else {
+                                    "预览(${session.selectedItems.size})"
+                                },
+                                color = primary,
+                            )
+                        }
+                        Text(
+                            "已选 ${session.selectedItems.size}",
+                            color = secondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        SelectionFinishAction(
+                            selectedCount = session.selectedItems.size,
+                            appearance = appearance,
+                            onConfirm = onConfirm,
+                        )
+                    }
                 }
-            }
-        },
-    ) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(88.dp),
-            modifier = Modifier.fillMaxSize().padding(padding),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            if (config.camera.enabled) {
-                item(key = "action_camera") { ActionTile("拍摄", appearance.cameraIconRes, onCamera) }
-            }
-            if (accessStatus != MediaAccessStatus.FULL) {
-                item(key = "action_add") { ActionTile("添加更多", appearance.addIconRes, onAddMore) }
-            }
-            if (accessStatus == MediaAccessStatus.FULL) {
-                items(session.cameraItems, key = { "camera:${it.uri}" }) { item ->
-                    MediaTile(
-                        item,
-                        item.uri in session.selectedUris,
-                        appearance,
-                        imageLoader,
-                        onPreview = { selected ->
-                            onGridPreview(selected, pagingItems?.itemSnapshotList?.items.orEmpty())
-                        },
-                        onToggle = onToggle,
-                    )
+            },
+        ) { padding ->
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(88.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                if (config.camera.enabled) {
+                    item(key = "action_camera") {
+                        ActionTile("拍摄", appearance.cameraIconRes, onCamera)
+                    }
                 }
-            }
-            if (pagingItems != null) {
-                items(
-                    count = pagingItems.itemCount,
-                    key = { index -> pagingItems[index]?.uri?.toString() ?: "placeholder:$index" },
-                ) { index ->
-                    pagingItems[index]?.let { item ->
+                if (accessStatus != MediaAccessStatus.FULL) {
+                    item(key = "action_add") {
+                        ActionTile("添加更多", appearance.addIconRes, onAddMore)
+                    }
+                }
+                if (accessStatus == MediaAccessStatus.FULL) {
+                    items(session.cameraItems, key = { "camera:${it.uri}" }) { item ->
                         MediaTile(
                             item,
                             item.uri in session.selectedUris,
                             appearance,
                             imageLoader,
                             onPreview = { selected ->
-                                onGridPreview(selected, pagingItems.itemSnapshotList.items)
+                                onGridPreview(
+                                    selected,
+                                    pagingItems?.itemSnapshotList?.items.orEmpty(),
+                                )
                             },
                             onToggle = onToggle,
                         )
                     }
                 }
-            } else {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = accent)
+                if (pagingItems != null) {
+                    items(
+                        count = pagingItems.itemCount,
+                        key = { index ->
+                            pagingItems[index]?.uri?.toString() ?: "placeholder:$index"
+                        },
+                    ) { index ->
+                        pagingItems[index]?.let { item ->
+                            MediaTile(
+                                item,
+                                item.uri in session.selectedUris,
+                                appearance,
+                                imageLoader,
+                                onPreview = { selected ->
+                                    onGridPreview(selected, pagingItems.itemSnapshotList.items)
+                                },
+                                onToggle = onToggle,
+                            )
+                        }
+                    }
+                } else {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(color = accent)
+                        }
                     }
                 }
             }
         }
-    }
 
-    preview?.let { state ->
-        key(state.id) {
-            AlbumPreviewDialog(
-                state = state,
-                appearance = appearance,
-                imageLoader = imageLoader,
-                onLoadMore = onPreviewLoadMore,
-                onClose = onClosePreview,
-            )
+        preview?.let { state ->
+            key(state.id) {
+                AlbumPreviewScreen(
+                    state = state,
+                    session = session,
+                    appearance = appearance,
+                    imageLoader = imageLoader,
+                    onToggle = onToggle,
+                    onLoadMore = onPreviewLoadMore,
+                    onClose = onClosePreview,
+                    onConfirm = onConfirm,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun AlbumPreviewDialog(
+private fun AlbumPreviewScreen(
     state: PreviewState,
+    session: AlbumPickerSessionSnapshot,
     appearance: AlbumPickerAppearance,
     imageLoader: AlbumImageLoader,
+    onToggle: (AlbumMedia) -> Unit,
     onLoadMore: () -> Unit,
     onClose: () -> Unit,
+    onConfirm: () -> Unit,
 ) {
+    val toolbar = (appearance.toolbarColor ?: DEFAULT_TOOLBAR_COLOR).toColor()
+    val bottom = (appearance.bottomBarColor ?: DEFAULT_BOTTOM_BAR_COLOR).toColor()
+    val previewBackground = appearance.previewBackgroundColor?.toColor() ?: Color.Black
+    val primary = (appearance.primaryTextColor ?: 0xFFFFFFFF.toInt()).toColor()
     val pagerState = rememberPagerState(
         initialPage = state.initialIndex.coerceIn(0, (state.items.size - 1).coerceAtLeast(0)),
         pageCount = { state.items.size },
@@ -504,67 +613,192 @@ private fun AlbumPreviewDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Column(
+    val currentMedia = state.items.getOrNull(pagerState.currentPage)
+    val currentSelected = currentMedia?.uri in session.selectedUris
+    Column(Modifier
+        .fillMaxSize()
+        .background(previewBackground)) {
+        Box(
             Modifier
-                .fillMaxSize()
-                .background(appearance.previewBackgroundColor?.toColor() ?: Color.Black),
+                .fillMaxWidth()
+                .background(toolbar)
+                .statusBarsPadding()
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                beyondViewportPageCount = 1,
-                key = { index -> state.items[index].uri.toString() },
-            ) { index ->
-                val media = state.items[index]
-                if (media.mediaType == AlbumMediaType.IMAGE) {
-                    ZoomImage(
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        appearance.backIconRes ?: R.drawable.auc_ic_album_back,
+                    ),
+                    contentDescription = stringResource(R.string.auc_back),
+                    tint = Color.Unspecified,
+                )
+            }
+            Text(
+                text = stringResource(
+                    R.string.auc_preview_position,
+                    pagerState.currentPage + 1,
+                    state.items.size,
+                ),
+                color = primary,
+                fontSize = 18.sp,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            IconButton(
+                onClick = { currentMedia?.let(onToggle) },
+                enabled = currentMedia != null,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (currentSelected) {
+                            appearance.checkedIconRes ?: R.drawable.auc_ic_album_checked
+                        } else {
+                            appearance.uncheckedIconRes ?: R.drawable.auc_ic_album_unchecked
+                        },
+                    ),
+                    contentDescription = stringResource(R.string.auc_toggle_selection),
+                    tint = Color.Unspecified,
+                )
+            }
+        }
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            beyondViewportPageCount = 1,
+            key = { index -> state.items[index].uri.toString() },
+        ) { index ->
+            val media = state.items[index]
+            if (media.mediaType == AlbumMediaType.IMAGE) {
+                ZoomImage(
+                    painter = imageLoader.painter(
+                        media,
+                        AlbumImageTarget.PREVIEW_IMAGE,
+                    ),
+                    contentDescription = media.displayName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Image(
                         painter = imageLoader.painter(
                             media,
-                            AlbumImageTarget.PREVIEW_IMAGE,
+                            AlbumImageTarget.VIDEO_COVER,
                         ),
                         contentDescription = media.displayName,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                     )
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = imageLoader.painter(
-                                media,
-                                AlbumImageTarget.VIDEO_COVER,
-                            ),
-                            contentDescription = media.displayName,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit,
-                        )
-                        Icon(
-                            painter = painterResource(
-                                appearance.videoIconRes ?: R.drawable.auc_ic_album_play,
-                            ),
-                            contentDescription = stringResource(R.string.auc_video_play),
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(64.dp).clickable {
+                    Icon(
+                        painter = painterResource(
+                            appearance.videoIconRes ?: R.drawable.auc_ic_album_play,
+                        ),
+                        contentDescription = stringResource(R.string.auc_video_play),
+                        tint = Color.Unspecified,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clickable {
                                 // 视频预览仅显示封面，点击图标不在选择器内播放。
                             },
-                        )
-                    }
+                    )
                 }
             }
-            Button(onClick = onClose, Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.auc_back))
-            }
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(bottom)
+                .navigationBarsPadding()
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SelectionFinishAction(
+                selectedCount = session.selectedItems.size,
+                appearance = appearance,
+                onConfirm = onConfirm,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionFinishAction(
+    selectedCount: Int,
+    appearance: AlbumPickerAppearance,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accent = (appearance.accentColor ?: 0xFF00C853.toInt()).toColor()
+    val primary = (appearance.primaryTextColor ?: 0xFFFFFFFF.toInt()).toColor()
+    val secondary = (appearance.secondaryTextColor ?: 0xFFD3D3D3.toInt()).toColor()
+    if (selectedCount == 0) {
+        Text(
+            text = stringResource(R.string.auc_please_select),
+            color = secondary,
+            fontSize = 14.sp,
+            modifier = modifier.padding(horizontal = 8.dp),
+        )
+        return
+    }
+
+    Row(
+        modifier = modifier
+            .clickable(onClick = onConfirm)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        appearance.doneIconRes?.let { iconRes ->
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier
+                    .height(18.dp)
+                    .wrapContentHeight()
+                    .widthIn(min = 18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Box(
+            modifier = Modifier
+                .background(accent, CircleShape)
+                .height(18.dp)
+                .wrapContentHeight()
+                .widthIn(min = 18.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = selectedCount.toString(),
+                color = primary,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = stringResource(R.string.auc_done),
+            color = accent,
+            fontSize = 14.sp
+        )
     }
 }
 
 @Composable
 private fun ActionTile(label: String, iconRes: Int?, onClick: () -> Unit) {
     Box(
-        Modifier.size(88.dp).background(Color.DarkGray).clickable(onClick = onClick),
+        Modifier
+            .size(88.dp)
+            .background(Color.DarkGray)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (iconRes != null) Icon(painterResource(iconRes), contentDescription = label, tint = Color.White)
@@ -581,7 +815,9 @@ private fun MediaTile(
     onPreview: (AlbumMedia) -> Unit,
     onToggle: (AlbumMedia) -> Unit,
 ) {
-    Box(Modifier.size(88.dp).clickable { onPreview(media) }) {
+    Box(Modifier
+        .size(88.dp)
+        .clickable { onPreview(media) }) {
         Image(
             painter = imageLoader.painter(media, AlbumImageTarget.GRID_THUMBNAIL),
             contentDescription = media.displayName,
@@ -589,7 +825,10 @@ private fun MediaTile(
             contentScale = ContentScale.Crop,
         )
         Box(
-            Modifier.align(Alignment.TopEnd).padding(4.dp).size(26.dp)
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(26.dp)
                 .background(appearance.scrimColor?.toColor() ?: Color.Transparent)
                 .clickable { onToggle(media) },
             contentAlignment = Alignment.Center,
@@ -605,3 +844,15 @@ private fun MediaTile(
 }
 
 private fun Int.toColor() = Color(this)
+
+private fun systemBarStyle(color: Int): SystemBarStyle =
+    if (ColorUtils.calculateLuminance(color) > LIGHT_COLOR_LUMINANCE) {
+        SystemBarStyle.light(
+            scrim = color,
+            darkScrim = ColorUtils.blendARGB(color, android.graphics.Color.BLACK, 0.6f),
+        )
+    } else {
+        SystemBarStyle.dark(color)
+    }
+
+private const val LIGHT_COLOR_LUMINANCE = 0.5

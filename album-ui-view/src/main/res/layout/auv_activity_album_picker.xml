@@ -119,6 +119,7 @@
             android:background="@android:color/transparent"
             android:minHeight="0dp"
             android:minWidth="70dp"
+            android:textSize="14sp"
             android:stateListAnimator="@null"
             android:text="@string/auv_please_select"
             android:textAllCaps="false"

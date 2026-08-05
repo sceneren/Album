@@ -76,6 +76,7 @@ class AlbumPickerActivity : ComponentActivity() {
     private var photoPicker: com.github.sceneren.album.api.AlbumPhotoPickerLauncher? = null
     private var feedJob: Job? = null
     private var messageToast: Toast? = null
+    private var previewDialog: AlbumPreviewDialog? = null
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
 
     private val permissionLauncher = registerForActivityResult(
@@ -133,10 +134,16 @@ class AlbumPickerActivity : ComponentActivity() {
                 }
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
         refreshContent()
     }
 
     override fun onDestroy() {
+        previewDialog?.dismiss()
+        previewDialog = null
         feedJob?.cancel()
         messageToast?.cancel()
         super.onDestroy()
@@ -313,6 +320,7 @@ class AlbumPickerActivity : ComponentActivity() {
         )
         mediaAdapter.selectedUris = updated.selectedUris
         mediaAdapter.notifyDataSetChanged()
+        previewDialog?.updateSelection(updated.selectedUris)
         previewButton.text = if (updated.selectedItems.isEmpty()) {
             getString(R.string.auv_preview)
         } else {
@@ -423,14 +431,21 @@ class AlbumPickerActivity : ComponentActivity() {
         nextOffset: Int?,
     ) {
         if (items.isEmpty()) return
-        AlbumPreviewDialog(
+        previewDialog?.dismiss()
+        previewDialog = AlbumPreviewDialog(
             activity = this,
             appearance = appearance,
             imageLoader = imageLoader,
             scope = lifecycleScope,
             initialItems = items,
             initialIndex = initialIndex,
+            initialSelectedUris = session.selectedUris,
             nextOffset = nextOffset,
+            onToggleSelection = ::toggleMedia,
+            onConfirm = ::confirmSelection,
+            onDismiss = { dismissed ->
+                if (previewDialog === dismissed) previewDialog = null
+            },
             loadMore = { offset, limit ->
                 api.loadMediaPage(
                     mediaFilter = config.mediaFilter,
@@ -439,7 +454,7 @@ class AlbumPickerActivity : ComponentActivity() {
                     limit = limit,
                 )
             },
-        )
+        ).also(AlbumPreviewDialog::show)
     }
 
     private fun showDirectories() {

@@ -78,6 +78,21 @@ class AlbumApiTest {
     }
 
     @Test
+    fun persistedPickerFeedRemovesDeletedMediaBeforePaging() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        pickedStore.seed(entity("keep", ownsGrant = false))
+        pickedStore.seed(entity("deleted", ownsGrant = false))
+        accessChecker.readable += uri("keep")
+
+        val items = api.getMediaFeed(AlbumMediaFilter.IMAGES)
+            .pagingData
+            .asSnapshot()
+
+        assertEquals(listOf(uri("keep")), items.map(AlbumMedia::uri))
+        assertEquals(listOf("content://picker/keep"), pickedStore.rows.keys.toList())
+    }
+
+    @Test
     fun `未授权拍摄结果持久化并可在新会话展示`() = runTest {
         permissions.result = MediaAccessStatus.DENIED
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -97,6 +112,7 @@ class AlbumApiTest {
             val completed = recoveredClient.completeCamera(sessionId, success = true).getOrThrow()
             assertEquals(listOf(capture.uri), completed.cameraItems.map(AlbumMedia::uri))
             assertEquals(listOf(capture.uri.toString()), pickedStore.rows.keys.toList())
+            accessChecker.readable += capture.uri
 
             recoveredClient.cancel(sessionId)
             assertTrue(cameraFile.isFile)

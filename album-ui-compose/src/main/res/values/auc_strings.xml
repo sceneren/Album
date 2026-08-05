@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="auc_back">返回</string>
+    <string name="auc_toggle_selection">切换选择状态</string>
+    <string name="auc_preview_position">%1$d/%2$d</string>
+    <string name="auc_please_select">请选择</string>
+    <string name="auc_done">已完成</string>
     <string name="auc_preview_load_failed">预览加载失败</string>
     <string name="auc_video_play">播放视频</string>
 </resources>

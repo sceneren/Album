@@ -8,7 +8,9 @@
     <string name="auv_cancel">取消</string>
     <string name="auv_preview">预览</string>
     <string name="auv_preview_count">预览(%1$d)</string>
+    <string name="auv_preview_position">%1$d/%2$d</string>
     <string name="auv_please_select">请选择</string>
+    <string name="auv_done">已完成</string>
     <string name="auv_done_count">完成(%1$d)</string>
     <string name="auv_capture">拍摄</string>
     <string name="auv_add_more">添加更多</string>
