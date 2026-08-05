@@ -37,6 +37,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
+import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
@@ -79,9 +80,11 @@ class AlbumPickerActivity : ComponentActivity() {
     private var cameraLauncher: com.github.sceneren.album.api.AlbumCameraLauncher? = null
     private var photoPicker: com.github.sceneren.album.api.AlbumPhotoPickerLauncher? = null
     private var feedJob: Job? = null
+    private var directoryJob: Job? = null
     private var messageToast: Toast? = null
     private var previewDialog: AlbumPreviewDialog? = null
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
+    private var directories: List<AlbumDirectory> = emptyList()
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -149,6 +152,7 @@ class AlbumPickerActivity : ComponentActivity() {
         previewDialog?.dismiss()
         previewDialog = null
         feedJob?.cancel()
+        directoryJob?.cancel()
         messageToast?.cancel()
         super.onDestroy()
     }
@@ -295,6 +299,12 @@ class AlbumPickerActivity : ComponentActivity() {
         val canBrowseDirectories = accessStatus == MediaAccessStatus.FULL
         titleArrow.visibility = if (canBrowseDirectories) View.VISIBLE else View.GONE
         titleAction.isEnabled = canBrowseDirectories
+        if (!canBrowseDirectories) {
+            directoryJob?.cancel()
+            directoryJob = null
+            directories = emptyList()
+        }
+        renderTitle()
         renderActions()
         permissionButton.visibility = if (
             shouldShowPermissionUpgradeButton(
@@ -324,10 +334,23 @@ class AlbumPickerActivity : ComponentActivity() {
         lifecycleScope.launch {
             renderSession(client.snapshot(session.sessionId))
         }
+        if (canBrowseDirectories) {
+            directoryJob?.cancel()
+            directoryJob = lifecycleScope.launch {
+                val updatedDirectories = api.getMediaDirectories(config.mediaFilter)
+                    .getOrNull()
+                    .orEmpty()
+                if (accessStatus == MediaAccessStatus.FULL) {
+                    directories = updatedDirectories
+                    renderTitle()
+                }
+            }
+        }
     }
 
     private fun renderSession(updated: AlbumPickerSessionSnapshot) {
         session = updated
+        renderTitle()
         cameraAdapter.selectedUris = updated.selectedUris
         cameraAdapter.submit(
             if (accessStatus == MediaAccessStatus.FULL) updated.cameraItems else emptyList(),
@@ -360,6 +383,17 @@ class AlbumPickerActivity : ComponentActivity() {
             0,
         )
         doneAction.isEnabled = hasSelection
+    }
+
+    private fun renderTitle() {
+        val directory = selectedTitleDirectory(
+            accessStatus = accessStatus,
+            bucketId = session.bucketId,
+            directories = directories,
+        )
+        title.text = directory?.bucketName?.takeIf(String::isNotBlank)
+            ?: directory?.let { getString(R.string.auv_unnamed_directory, it.mediaCount) }
+            ?: getString(R.string.auv_title)
     }
 
     private fun toggleMedia(media: AlbumMedia) {
@@ -489,29 +523,34 @@ class AlbumPickerActivity : ComponentActivity() {
     private fun showDirectories() {
         if (accessStatus != MediaAccessStatus.FULL) return
         lifecycleScope.launch {
+            directories = api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
+            renderTitle()
             val popup = PopupMenu(this@AlbumPickerActivity, title)
             popup.menu.add(R.string.auv_all_media).setOnMenuItemClickListener {
-                lifecycleScope.launch {
-                    client.setBucket(session.sessionId, Long.MIN_VALUE)
-                    refreshContent()
-                }
+                selectDirectory(AlbumDirectory.ALL_BUCKET_ID)
                 true
             }
-            api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty().forEach { directory ->
+            directories.filter { it.bucketId != AlbumDirectory.ALL_BUCKET_ID }.forEach { directory ->
                 popup.menu.add(
                     directory.bucketName ?: getString(
                         R.string.auv_unnamed_directory,
                         directory.mediaCount,
                     ),
                 ).setOnMenuItemClickListener {
-                    lifecycleScope.launch {
-                        client.setBucket(session.sessionId, directory.bucketId)
-                        refreshContent()
-                    }
+                    selectDirectory(directory.bucketId)
                     true
                 }
             }
             popup.show()
+        }
+    }
+
+    private fun selectDirectory(bucketId: Long) {
+        lifecycleScope.launch {
+            client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
+                renderSession(updated)
+                refreshContent()
+            }
         }
     }
 
@@ -637,7 +676,12 @@ class AlbumPickerActivity : ComponentActivity() {
             )
 
         override fun onBindViewHolder(holder: MediaHolder, position: Int) {
-            getItem(position)?.let { holder.bind(it, selectedUris, onPreview, onToggle) }
+            val item = getItem(position)
+            if (item != null) {
+                holder.bind(item, selectedUris, onPreview, onToggle)
+            } else {
+                holder.clear()
+            }
         }
 
         override fun onViewRecycled(holder: MediaHolder) {
@@ -663,6 +707,7 @@ class AlbumPickerActivity : ComponentActivity() {
     ) : RecyclerView.ViewHolder(itemView) {
         private val image: ImageView = itemView.findViewById(R.id.auv_media_image)
         private val check: ImageView = itemView.findViewById(R.id.auv_media_check)
+        private var boundMedia: AlbumMedia? = null
 
         init {
             itemView.layoutParams = RecyclerView.LayoutParams(
@@ -677,8 +722,11 @@ class AlbumPickerActivity : ComponentActivity() {
             onPreview: (AlbumMedia) -> Unit,
             onToggle: (AlbumMedia) -> Unit,
         ) {
-            imageLoader.clear(image)
-            imageLoader.load(image, media, AlbumImageTarget.GRID_THUMBNAIL)
+            if (boundMedia != media) {
+                imageLoader.clear(image)
+                imageLoader.load(image, media, AlbumImageTarget.GRID_THUMBNAIL)
+                boundMedia = media
+            }
             val checked = media.uri in selected
             val checkIcon = if (checked) {
                 appearance.checkedIconRes ?: R.drawable.auv_ic_album_checked
@@ -694,7 +742,10 @@ class AlbumPickerActivity : ComponentActivity() {
         }
 
         fun clear() {
+            boundMedia = null
             imageLoader.clear(image)
+            check.setImageDrawable(null)
+            check.setBackgroundColor(Color.TRANSPARENT)
             check.setOnClickListener(null)
             itemView.setOnClickListener(null)
         }
@@ -712,6 +763,17 @@ internal fun shouldShowPermissionUpgradeButton(
     isAllowedByHost: Boolean,
     accessStatus: MediaAccessStatus,
 ): Boolean = isAllowedByHost && accessStatus != MediaAccessStatus.FULL
+
+internal fun selectedTitleDirectory(
+    accessStatus: MediaAccessStatus,
+    bucketId: Long,
+    directories: List<AlbumDirectory>,
+): AlbumDirectory? {
+    if (accessStatus != MediaAccessStatus.FULL || bucketId == AlbumDirectory.ALL_BUCKET_ID) {
+        return null
+    }
+    return directories.firstOrNull { it.bucketId == bucketId }
+}
 
 private data class GridMetrics(
     val spanCount: Int,

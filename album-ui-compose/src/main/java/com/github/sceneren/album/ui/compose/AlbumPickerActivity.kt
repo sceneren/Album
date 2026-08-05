@@ -77,6 +77,8 @@ import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
 import com.github.panpf.zoomimage.ZoomImage
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
@@ -189,8 +191,10 @@ class AlbumPickerActivity : ComponentActivity() {
                 onBack = { onBackPressedDispatcher.onBackPressed() },
                 onDirectory = { bucketId ->
                     lifecycleScope.launch {
-                        client.setBucket(currentSession().sessionId, bucketId)
-                        refreshContent()
+                        client.setBucket(currentSession().sessionId, bucketId).onSuccess { updated ->
+                            renderSession(updated)
+                            refreshContent()
+                        }
                     }
                 },
                 onRequestPermission = {
@@ -371,6 +375,17 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 }
 
+internal fun selectedTitleDirectory(
+    accessStatus: MediaAccessStatus,
+    bucketId: Long,
+    directories: List<AlbumDirectory>,
+): AlbumDirectory? {
+    if (accessStatus != MediaAccessStatus.FULL || bucketId == AlbumDirectory.ALL_BUCKET_ID) {
+        return null
+    }
+    return directories.firstOrNull { it.bucketId == bucketId }
+}
+
 private data class PreviewState(
     val id: Long,
     val items: List<AlbumMedia>,
@@ -411,6 +426,13 @@ private fun AlbumPickerScreen(
     val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
     val accent = appearance.accentColor?.toColor() ?: colorResource(R.color.auc_accent)
     val primary = appearance.primaryTextColor?.toColor() ?: colorResource(R.color.auc_primary)
+    val titleDirectory = selectedTitleDirectory(accessStatus, session.bucketId, directories)
+    val directoryName = titleDirectory?.bucketName
+    val title = when {
+        titleDirectory == null -> stringResource(R.string.auc_title)
+        !directoryName.isNullOrBlank() -> directoryName
+        else -> stringResource(R.string.auc_unnamed_directory, titleDirectory.mediaCount)
+    }
     var directoryMenu by remember { mutableStateOf(false) }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
 
@@ -462,7 +484,7 @@ private fun AlbumPickerScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = stringResource(R.string.auc_title),
+                                text = title,
                                 color = primary,
                                 textAlign = TextAlign.Center,
                                 fontSize = dimensionSp(R.dimen.auc_toolbar_title_text_size),
@@ -504,10 +526,12 @@ private fun AlbumPickerScreen(
                                     text = { Text(stringResource(R.string.auc_all_media)) },
                                     onClick = {
                                         directoryMenu = false
-                                        onDirectory(Long.MIN_VALUE)
+                                        onDirectory(AlbumDirectory.ALL_BUCKET_ID)
                                     },
                                 )
-                                directories.forEach { directory ->
+                                directories
+                                    .filter { it.bucketId != AlbumDirectory.ALL_BUCKET_ID }
+                                    .forEach { directory ->
                                     DropdownMenuItem(
                                         text = {
                                             Text(
@@ -682,9 +706,8 @@ private fun AlbumPickerScreen(
                 if (pagingItems != null) {
                     items(
                         count = pagingItems.itemCount,
-                        key = { index ->
-                            pagingItems[index]?.uri?.toString() ?: "placeholder:$index"
-                        },
+                        key = pagingItems.itemKey { it.uri.toString() },
+                        contentType = pagingItems.itemContentType { "media" },
                     ) { index ->
                         pagingItems[index]?.let { item ->
                             MediaTile(

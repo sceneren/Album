@@ -5,7 +5,7 @@
     <string name="auc_video_play">播放视频</string>
     <string name="auc_preview_load_failed">预览加载失败</string>
     <string name="auc_back">返回</string>
-    <string name="auc_title">相机胶卷</string>
+    <string name="auc_title">全部</string>
     <string name="auc_cancel">取消</string>
     <string name="auc_preview">预览</string>
     <string name="auc_preview_count">预览(%1$d)</string>
