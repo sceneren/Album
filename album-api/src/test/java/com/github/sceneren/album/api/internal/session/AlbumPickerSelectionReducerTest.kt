@@ -12,8 +12,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumPickerSelectionReducerTest` 覆盖的行为。 */
 class AlbumPickerSelectionReducerTest {
     @Test
+    /** 验证 `cameraItemIsSelectedOnlyWhenCapacityRemains` 所描述的场景。 */
     fun cameraItemIsSelectedOnlyWhenCapacityRemains() {
         val config = AlbumPickerConfig(AlbumMediaFilter.IMAGES, maxSelectionCount = 1)
         val selected = listOf(selection("content://selected"))
@@ -31,6 +33,7 @@ class AlbumPickerSelectionReducerTest {
     }
 
     @Test
+    /** 验证 `togglingTheSameUriRemovesItAndReaddingAppendsIt` 所描述的场景。 */
     fun togglingTheSameUriRemovesItAndReaddingAppendsIt() {
         val item1 = selection("content://one")
         val item2 = selection("content://two")
@@ -42,6 +45,7 @@ class AlbumPickerSelectionReducerTest {
         assertEquals(listOf(item2, item1), readded)
     }
 
+    /** 执行 `selection` 方法定义的处理。 */
     private fun selection(uri: String, source: AlbumPickerItemSource = AlbumPickerItemSource.MEDIA_STORE) =
         AlbumPickerSelection(
             uri = Uri.parse(uri),

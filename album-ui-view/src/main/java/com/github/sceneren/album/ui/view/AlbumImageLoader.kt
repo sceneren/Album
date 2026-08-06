@@ -10,6 +10,7 @@ import com.github.sceneren.album.api.AlbumMedia
  * ZoomImageView，宿主仍按普通 ImageView 设置 Drawable 即可。
  */
 fun interface AlbumImageLoader {
+    /** 获取 `load` 所需的数据。 */
     fun load(
         imageView: ImageView,
         media: AlbumMedia,

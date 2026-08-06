@@ -28,8 +28,10 @@ import org.robolectric.shadows.ShadowContentResolver
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
 @OptIn(ExperimentalCoroutinesApi::class)
+/** 验证 `AndroidMediaStoreDataSourceTest` 覆盖的行为。 */
 class AndroidMediaStoreDataSourceTest {
     @Test
+    /** 验证 `api30UsesBundlePagingAndMapsMixedRows` 所描述的场景。 */
     fun api30UsesBundlePagingAndMapsMixedRows() = runTest {
         val provider = RecordingMediaProvider(
             rows = listOf(imageRow(id = 9), videoRow(id = 8, duration = 2_000)),
@@ -67,6 +69,7 @@ class AndroidMediaStoreDataSourceTest {
     }
 
     @Test
+    /** 验证 `loadAllOmitsPagingArgumentsAndKeepsFilterSelection` 所描述的场景。 */
     fun loadAllOmitsPagingArgumentsAndKeepsFilterSelection() = runTest {
         val provider = RecordingMediaProvider(
             rows = listOf(videoRow(id = 11, duration = 3_000)),
@@ -95,6 +98,7 @@ class AndroidMediaStoreDataSourceTest {
 
     @Test
     @Config(sdk = [29])
+    /** 验证 `api29UsesSqlLimitAndOffset` 所描述的场景。 */
     fun api29UsesSqlLimitAndOffset() = runTest {
         val provider = RecordingMediaProvider(rows = listOf(imageRow(id = 9)))
         ShadowContentResolver.registerProviderInternal("media", provider)
@@ -118,6 +122,7 @@ class AndroidMediaStoreDataSourceTest {
     }
 
     @Test
+    /** 验证 `directoriesIncludeVirtualAllAndMixedCovers` 所描述的场景。 */
     fun directoriesIncludeVirtualAllAndMixedCovers() = runTest {
         val provider = RecordingMediaProvider(
             rows = listOf(
@@ -157,6 +162,7 @@ class AndroidMediaStoreDataSourceTest {
         )
     }
 
+    /** 负责 `RecordingMediaProvider` 相关的数据与行为。 */
     private class RecordingMediaProvider(
         private val rows: List<Map<String, Any?>>,
     ) : ContentProvider() {
@@ -164,8 +170,10 @@ class AndroidMediaStoreDataSourceTest {
         var lastSortOrder: String? = null
         var lastProjection: Array<out String>? = null
 
+        /** 处理 `onCreate` 回调。 */
         override fun onCreate(): Boolean = true
 
+        /** 获取 `query` 所需的数据。 */
         override fun query(
             uri: Uri,
             projection: Array<out String>?,
@@ -177,6 +185,7 @@ class AndroidMediaStoreDataSourceTest {
             return cursor(projection)
         }
 
+        /** 获取 `query` 所需的数据。 */
         override fun query(
             uri: Uri,
             projection: Array<out String>?,
@@ -189,6 +198,7 @@ class AndroidMediaStoreDataSourceTest {
             return cursor(projection)
         }
 
+        /** 执行 `cursor` 方法定义的处理。 */
         private fun cursor(projection: Array<out String>?): Cursor {
             val columns = requireNotNull(projection)
             return MatrixCursor(columns).apply {
@@ -196,12 +206,16 @@ class AndroidMediaStoreDataSourceTest {
             }
         }
 
+        /** 获取 `getType` 所需的数据。 */
         override fun getType(uri: Uri): String? = null
 
+        /** 执行 `insert` 方法定义的处理。 */
         override fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
+        /** 清理 `delete` 对应的数据或资源。 */
         override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
 
+        /** 更新 `update` 对应的状态。 */
         override fun update(
             uri: Uri,
             values: ContentValues?,
@@ -210,9 +224,11 @@ class AndroidMediaStoreDataSourceTest {
         ): Int = 0
     }
 
+    /** 获取 `getIntOrNull` 所需的数据。 */
     private fun Bundle.getIntOrNull(key: String): Int? =
         if (containsKey(key)) getInt(key) else null
 
+    /** 执行 `imageRow` 方法定义的处理。 */
     private fun imageRow(
         id: Long,
         bucketId: Long = 1,
@@ -228,6 +244,7 @@ class AndroidMediaStoreDataSourceTest {
         duration = 0,
     )
 
+    /** 执行 `videoRow` 方法定义的处理。 */
     private fun videoRow(
         id: Long,
         duration: Long = 2_000,
@@ -244,6 +261,7 @@ class AndroidMediaStoreDataSourceTest {
         duration = duration,
     )
 
+    /** 执行 `mediaRow` 方法定义的处理。 */
     private fun mediaRow(
         id: Long,
         mediaType: Int,

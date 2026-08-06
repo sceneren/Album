@@ -6,6 +6,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
+/** 持有并绑定 `ActionHolder` 对应的列表项视图。 */
 internal class ActionHolder(
     itemView: View,
     private val appearance: AlbumPickerAppearance,
@@ -21,6 +22,7 @@ internal class ActionHolder(
         )
     }
 
+    /** 执行 `bind` 方法定义的处理。 */
     fun bind(action: Action, onClick: (Action) -> Unit) {
         val context = itemView.context
         label.text = when (action) {

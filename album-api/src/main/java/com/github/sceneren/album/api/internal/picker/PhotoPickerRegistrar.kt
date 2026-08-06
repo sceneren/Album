@@ -12,11 +12,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** 负责 `PhotoPickerRegistrar` 相关的数据与行为。 */
 internal class PhotoPickerRegistrar(
     private val processor: PhotoPickerResultProcessor,
     private val applicationScope: CoroutineScope,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : PickerRegistrar {
+    /** 创建或准备 `register` 对应的对象。 */
     override fun register(
         activity: ComponentActivity,
         mediaFilter: AlbumMediaFilter,
@@ -71,10 +73,12 @@ internal class PhotoPickerRegistrar(
         return object : AlbumPhotoPickerLauncher {
             override val mediaFilter: AlbumMediaFilter = mediaFilter
 
+            /** 执行 `launch` 方法定义的处理。 */
             override fun launch() = launchPicker()
         }
     }
 
+    /** 执行 `processResult` 方法定义的处理。 */
     private fun processResult(
         activity: ComponentActivity,
         uris: List<android.net.Uri>,

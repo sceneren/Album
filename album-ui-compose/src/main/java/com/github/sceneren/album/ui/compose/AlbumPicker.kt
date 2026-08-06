@@ -117,10 +117,10 @@ import java.util.UUID
 import androidx.compose.foundation.lazy.items as lazyListItems
 
 /**
- * Embeddable Compose album picker.
+ * 可嵌入宿主界面的 Compose 相册选择器。
  *
- * The host owns navigation and should remove this component after [onResult] or [onCancel]. When
- * [imageLoader] is null, the process-level loader configured through [AlbumUi] is used.
+ * 宿主负责导航，并应在 [onResult] 或 [onCancel] 回调后移除此组件。
+ * [imageLoader] 为 null 时，使用通过 [AlbumUi] 配置的进程级图片加载器。
  */
 @Composable
 fun AlbumPicker(
@@ -158,6 +158,7 @@ fun AlbumPicker(
     var previewLoadJob by remember { mutableStateOf<Job?>(null) }
     var messageToast by remember { mutableStateOf<Toast?>(null) }
 
+    /** 执行 `showMessage` 方法定义的处理。 */
     fun showMessage(message: CharSequence) {
         messageToast?.cancel()
         messageToast = Toast.makeText(
@@ -167,6 +168,7 @@ fun AlbumPicker(
         ).also(Toast::show)
     }
 
+    /** 更新 `refreshContentNow` 对应的状态。 */
     suspend fun refreshContentNow() {
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
         directories = if (accessStatus == MediaAccessStatus.FULL) {
@@ -179,10 +181,12 @@ fun AlbumPicker(
         session = client.snapshot(current.sessionId)
     }
 
+    /** 更新 `refreshContent` 对应的状态。 */
     fun refreshContent() {
         scope.launch { refreshContentNow() }
     }
 
+    /** 执行 `confirmSelection` 方法定义的处理。 */
     fun confirmSelection() {
         if (isConfirming) return
         if (session.selectedItems.isEmpty()) {
@@ -206,6 +210,7 @@ fun AlbumPicker(
         }
     }
 
+    /** 执行 `handlePhotoPickerResult` 方法定义的处理。 */
     fun handlePhotoPickerResult(uris: List<Uri>) {
         scope.launch {
             val result = api.processPhotoPickerResult(
@@ -297,6 +302,7 @@ fun AlbumPicker(
         }
     }
 
+    /** 执行 `launchPhotoPicker` 方法定义的处理。 */
     fun launchPhotoPicker() {
         isPhotoPickerInFlight = true
         try {
@@ -311,6 +317,7 @@ fun AlbumPicker(
         }
     }
 
+    /** 执行 `launchCamera` 方法定义的处理。 */
     fun launchCamera() {
         val mediaType = config.cameraMediaType()
         scope.launch {
@@ -328,6 +335,7 @@ fun AlbumPicker(
         }
     }
 
+    /** 执行 `showSelectionLimitMessage` 方法定义的处理。 */
     fun showSelectionLimitMessage() {
         val message = when (config.mediaFilter) {
             AlbumMediaFilter.IMAGES -> R.string.auc_selection_limit_images
@@ -337,6 +345,7 @@ fun AlbumPicker(
         showMessage(applicationContext.getString(message, config.maxSelectionCount))
     }
 
+    /** 更新 `toggleMedia` 对应的状态。 */
     fun toggleMedia(media: AlbumMedia) {
         if (
             media.uri !in session.selectedUris &&
@@ -357,6 +366,7 @@ fun AlbumPicker(
         }
     }
 
+    /** 执行 `showGridPreview` 方法定义的处理。 */
     fun showGridPreview(media: AlbumMedia, loadedFeedItems: List<AlbumMedia>) {
         val cameraItems = if (accessStatus == MediaAccessStatus.FULL) {
             session.cameraItems
@@ -374,6 +384,7 @@ fun AlbumPicker(
         )
     }
 
+    /** 执行 `showSelectedPreview` 方法定义的处理。 */
     fun showSelectedPreview() {
         val items = session.selectedItems
         if (items.isEmpty()) return
@@ -387,6 +398,7 @@ fun AlbumPicker(
         )
     }
 
+    /** 获取 `loadMorePreview` 所需的数据。 */
     fun loadMorePreview() {
         val current = preview ?: return
         val offset = current.nextOffset ?: return
@@ -419,12 +431,14 @@ fun AlbumPicker(
         }
     }
 
+    /** 执行 `closePreview` 方法定义的处理。 */
     fun closePreview() {
         previewLoadJob?.cancel()
         previewLoadJob = null
         preview = null
     }
 
+    /** 判断 `cancelPicker` 条件是否成立。 */
     fun cancelPicker() {
         if (isCancelling || isConfirming) return
         if (preview != null) {
@@ -509,12 +523,14 @@ fun AlbumPicker(
     )
 }
 
+/** 将当前对象转换为 `toVisualMediaType` 对应的结果。 */
 private fun AlbumMediaFilter.toVisualMediaType() = when (this) {
     AlbumMediaFilter.IMAGES -> ActivityResultContracts.PickVisualMedia.ImageOnly
     AlbumMediaFilter.VIDEOS -> ActivityResultContracts.PickVisualMedia.VideoOnly
     AlbumMediaFilter.IMAGES_AND_VIDEOS -> ActivityResultContracts.PickVisualMedia.ImageAndVideo
 }
 
+/** 执行 `cameraMediaType` 方法定义的处理。 */
 internal fun AlbumPickerConfig.cameraMediaType() = when (mediaFilter) {
     AlbumMediaFilter.IMAGES -> AlbumMediaType.IMAGE
     AlbumMediaFilter.VIDEOS -> AlbumMediaType.VIDEO
@@ -523,6 +539,7 @@ internal fun AlbumPickerConfig.cameraMediaType() = when (mediaFilter) {
     ) AlbumMediaType.IMAGE else AlbumMediaType.VIDEO
 }
 
+/** 执行 `maybeAutoConfirm` 方法定义的处理。 */
 private fun maybeAutoConfirm(
     config: AlbumPickerConfig,
     session: AlbumPickerSessionSnapshot,
@@ -533,6 +550,7 @@ private fun maybeAutoConfirm(
     }
 }
 
+/** 判断 `shouldAutoConfirm` 条件是否成立。 */
 internal fun shouldAutoConfirm(
     config: AlbumPickerConfig,
     session: AlbumPickerSessionSnapshot,
@@ -543,8 +561,10 @@ internal fun shouldAutoConfirm(
                     session.selectedItems.size == 1
             )
 
+/** 表示 `MIN_MULTIPLE_PICK_COUNT` 对应的数据。 */
 private const val MIN_MULTIPLE_PICK_COUNT = 2
 
+/** 执行 `selectedTitleDirectory` 方法定义的处理。 */
 internal fun selectedTitleDirectory(
     accessStatus: MediaAccessStatus,
     bucketId: Long,
@@ -556,13 +576,17 @@ internal fun selectedTitleDirectory(
     return directories.firstOrNull { it.bucketId == bucketId }
 }
 
+/** 判断 `shouldUpdateDirectory` 条件是否成立。 */
 internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
     currentBucketId != targetBucketId
 
+/** 表示 `PREVIEW_PAGE_SIZE` 对应的数据。 */
 private const val PREVIEW_PAGE_SIZE = 30
+/** 表示 `PREVIEW_PREFETCH_DISTANCE` 对应的数据。 */
 private const val PREVIEW_PREFETCH_DISTANCE = 3
 
 @Composable
+/** 执行 `AlbumPickerScreen` 方法定义的处理。 */
 private fun AlbumPickerScreen(
     modifier: Modifier,
     config: AlbumPickerConfig,
@@ -957,6 +981,7 @@ private fun AlbumPickerScreen(
 }
 
 @Composable
+/** 执行 `DirectoryPanel` 方法定义的处理。 */
 private fun DirectoryPanel(
     directories: List<AlbumDirectory>,
     selectedBucketId: Long,
@@ -989,6 +1014,7 @@ private fun DirectoryPanel(
 }
 
 @Composable
+/** 执行 `DirectoryRow` 方法定义的处理。 */
 private fun DirectoryRow(
     directory: AlbumDirectory,
     selected: Boolean,
@@ -1042,10 +1068,13 @@ private fun DirectoryRow(
     }
 }
 
+/** 表示 `DIRECTORY_PANEL_MAX_HEIGHT_RATIO` 对应的数据。 */
 private const val DIRECTORY_PANEL_MAX_HEIGHT_RATIO = 0.6f
+/** 表示 `DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS` 对应的数据。 */
 private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200
 
 @Composable
+/** 执行 `AlbumPreviewScreen` 方法定义的处理。 */
 private fun AlbumPreviewScreen(
     state: PreviewState,
     session: AlbumPickerSessionSnapshot,
@@ -1275,6 +1304,7 @@ private fun SelectionFinishAction(
 }
 
 @Composable
+/** 执行 `ActionTile` 方法定义的处理。 */
 private fun ActionTile(
     label: String,
     customIconRes: Int?,
@@ -1313,6 +1343,7 @@ private fun ActionTile(
 }
 
 @Composable
+/** 执行 `MediaTile` 方法定义的处理。 */
 private fun MediaTile(
     media: AlbumMedia,
     selected: Boolean,
@@ -1363,6 +1394,7 @@ private fun MediaTile(
 }
 
 @Composable
+/** 执行 `MediaThumbnail` 方法定义的处理。 */
 private fun MediaThumbnail(
     media: AlbumMedia,
     imageLoader: AlbumImageLoader,
@@ -1376,6 +1408,7 @@ private fun MediaThumbnail(
 }
 
 @Composable
+/** 执行 `ProcessingOverlay` 方法定义的处理。 */
 private fun ProcessingOverlay() {
     BackHandler { }
     val interactionSource = remember { MutableInteractionSource() }
@@ -1424,11 +1457,12 @@ private fun ProcessingOverlay() {
     }
 }
 
-/** Converts an XML sp resource to Compose sp without applying the font scale twice. */
+/** 将 XML 的 sp 资源转换为 Compose 的 sp 值，避免重复应用字体缩放。 */
 @Composable
 private fun dimensionSp(@DimenRes resourceId: Int): TextUnit {
     val dimension = dimensionResource(resourceId)
     return (dimension.value / LocalDensity.current.fontScale).sp
 }
 
+/** 表示 `PROCESSING_SPINNER_DURATION_MILLIS` 对应的数据。 */
 private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000

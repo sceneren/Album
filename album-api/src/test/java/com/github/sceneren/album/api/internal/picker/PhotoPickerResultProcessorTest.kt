@@ -22,6 +22,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `PhotoPickerResultProcessorTest` 覆盖的行为。 */
 class PhotoPickerResultProcessorTest {
     private lateinit var grants: FakeGrantManager
     private lateinit var metadata: FakeMetadataReader
@@ -29,6 +30,7 @@ class PhotoPickerResultProcessorTest {
     private lateinit var processor: PhotoPickerResultProcessor
 
     @Before
+    /** 更新 `setUp` 对应的状态。 */
     fun setUp() {
         grants = FakeGrantManager()
         metadata = FakeMetadataReader()
@@ -42,6 +44,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `explicitOverflowFailsBeforeTakingGrants` 所描述的场景。 */
     fun explicitOverflowFailsBeforeTakingGrants() = runTest {
         val result = processor.process(
             uris = listOf(uri("1"), uri("2"), uri("3")),
@@ -58,6 +61,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `databaseFailureReleasesOnlyNewGrants` 所描述的场景。 */
     fun databaseFailureReleasesOnlyNewGrants() = runTest {
         grants.persisted += uri("existing")
         store.failure = SQLiteException("write failed")
@@ -76,6 +80,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `emptyResultIsCancellation` 所描述的场景。 */
     fun emptyResultIsCancellation() = runTest {
         assertEquals(
             PhotoPickResult.Cancelled,
@@ -84,6 +89,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `duplicateUrisKeepFirstOccurrenceOrder` 所描述的场景。 */
     fun duplicateUrisKeepFirstOccurrenceOrder() = runTest {
         val result = processor.process(
             uris = listOf(uri("2"), uri("1"), uri("2")),
@@ -99,6 +105,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `disallowedMimeFailsBeforeTakingGrants` 所描述的场景。 */
     fun disallowedMimeFailsBeforeTakingGrants() = runTest {
         metadata.types[uri("image")] = AlbumMediaType.IMAGE
 
@@ -117,6 +124,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `singleVideoAndMixedSelectionsSucceed` 所描述的场景。 */
     fun singleVideoAndMixedSelectionsSucceed() = runTest {
         metadata.types[uri("video")] = AlbumMediaType.VIDEO
         val imageResult = processor.process(
@@ -144,6 +152,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `grantFailureReleasesEarlierNewGrantsInReverseOrder` 所描述的场景。 */
     fun grantFailureReleasesEarlierNewGrantsInReverseOrder() = runTest {
         grants.takeFailureFor = uri("3")
 
@@ -162,6 +171,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `metadataFailureReleasesAllNewGrants` 所描述的场景。 */
     fun metadataFailureReleasesAllNewGrants() = runTest {
         metadata.readFailureFor = uri("2")
 
@@ -180,6 +190,7 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test
+    /** 验证 `existingDatabaseGrantOwnershipIsPreserved` 所描述的场景。 */
     fun existingDatabaseGrantOwnershipIsPreserved() = runTest {
         val existingUri = uri("existing")
         grants.persisted += existingUri
@@ -196,37 +207,45 @@ class PhotoPickerResultProcessorTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    /** 验证 `nonPositiveLimitIsRejected` 所描述的场景。 */
     fun nonPositiveLimitIsRejected() = runTest {
         processor.process(listOf(uri("1")), AlbumMediaFilter.IMAGES, maxSelectionCount = 0)
     }
 
+    /** 负责 `FakeGrantManager` 相关的数据与行为。 */
     private class FakeGrantManager : PersistableGrantManager {
         val persisted = linkedSetOf<Uri>()
         val taken = mutableListOf<Uri>()
         val released = mutableListOf<Uri>()
         var takeFailureFor: Uri? = null
 
+        /** 执行 `persistedReadUris` 方法定义的处理。 */
         override fun persistedReadUris(): Set<Uri> = persisted.toSet()
 
+        /** 执行 `takeRead` 方法定义的处理。 */
         override fun takeRead(uri: Uri) {
             if (uri == takeFailureFor) error("grant failed")
             taken += uri
             persisted += uri
         }
 
+        /** 清理 `releaseRead` 对应的数据或资源。 */
         override fun releaseRead(uri: Uri) {
             released += uri
             persisted -= uri
         }
     }
 
+    /** 负责 `FakeMetadataReader` 相关的数据与行为。 */
     private class FakeMetadataReader : UriMetadataReader {
         val types = mutableMapOf<Uri, AlbumMediaType>()
         var readFailureFor: Uri? = null
 
+        /** 执行 `requiredType` 方法定义的处理。 */
         override fun requiredType(uri: Uri): AlbumMediaType =
             types[uri] ?: AlbumMediaType.IMAGE
 
+        /** 获取 `read` 所需的数据。 */
         override fun read(uri: Uri, type: AlbumMediaType): PickedUriMetadata {
             if (uri == readFailureFor) error("metadata failed")
             return PickedUriMetadata(
@@ -242,11 +261,13 @@ class PhotoPickerResultProcessorTest {
         }
     }
 
+    /** 负责 `FakePickedMediaStore` 管理数据的持久化读写。 */
     private class FakePickedMediaStore : PickedMediaStore {
         val upsertCalls = mutableListOf<List<PickedMediaDraft>>()
         var failure: Throwable? = null
         private val rows = linkedMapOf<String, PickedMediaEntity>()
 
+        /** 执行 `seed` 方法定义的处理。 */
         fun seed(uri: Uri, ownsPersistableGrant: Boolean) {
             rows[uri.toString()] = PickedMediaDraft(
                 uri = uri.toString(),
@@ -262,8 +283,10 @@ class PhotoPickerResultProcessorTest {
             ).toEntity(sortOrder = 1, ownsPersistableGrant = ownsPersistableGrant)
         }
 
+        /** 执行 `pagingSource` 方法定义的处理。 */
         override fun pagingSource(filter: AlbumMediaFilter) =
             object : PagingSource<Int, PickedMediaEntity>() {
+                /** 获取 `load` 所需的数据。 */
                 override suspend fun load(
                     params: LoadParams<Int>,
                 ): LoadResult<Int, PickedMediaEntity> = LoadResult.Page(
@@ -272,17 +295,20 @@ class PhotoPickerResultProcessorTest {
                     nextKey = null,
                 )
 
+                /** 获取 `getRefreshKey` 所需的数据。 */
                 override fun getRefreshKey(
                     state: PagingState<Int, PickedMediaEntity>,
                 ): Int? = null
             }
 
+        /** 获取 `loadPage` 所需的数据。 */
         override suspend fun loadPage(
             filter: AlbumMediaFilter,
             offset: Int,
             limit: Int,
         ): List<PickedMediaEntity> = rows.values.drop(offset).take(limit)
 
+        /** 执行 `upsertBatch` 方法定义的处理。 */
         override suspend fun upsertBatch(
             drafts: List<PickedMediaDraft>,
         ): List<PickedMediaEntity> {
@@ -298,16 +324,21 @@ class PhotoPickerResultProcessorTest {
             }
         }
 
+        /** 获取 `find` 所需的数据。 */
         override suspend fun find(uri: String): PickedMediaEntity? = rows[uri]
 
+        /** 清理 `remove` 对应的数据或资源。 */
         override suspend fun remove(uri: String): PickedMediaEntity? = rows.remove(uri)
 
+        /** 清理 `clear` 对应的数据或资源。 */
         override suspend fun clear(): List<PickedMediaEntity> = rows.values.toList().also {
             rows.clear()
         }
 
+        /** 执行 `all` 方法定义的处理。 */
         override suspend fun all(): List<PickedMediaEntity> = rows.values.toList()
     }
 
+    /** 执行 `uri` 方法定义的处理。 */
     private fun uri(value: String): Uri = Uri.parse("content://picker/$value")
 }

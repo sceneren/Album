@@ -10,6 +10,7 @@ import com.github.sceneren.album.api.internal.database.toAlbumMedia
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/** 负责 `PhotoPickerResultProcessor` 相关的数据与行为。 */
 internal class PhotoPickerResultProcessor(
     private val grantManager: PersistableGrantManager,
     private val metadataReader: UriMetadataReader,
@@ -18,6 +19,7 @@ internal class PhotoPickerResultProcessor(
 ) {
     private val mutex = Mutex()
 
+    /** 执行 `process` 方法定义的处理。 */
     suspend fun process(
         uris: List<Uri>,
         mediaFilter: AlbumMediaFilter,
@@ -26,6 +28,7 @@ internal class PhotoPickerResultProcessor(
         processLocked(uris, mediaFilter, maxSelectionCount)
     }
 
+    /** 执行 `processLocked` 方法定义的处理。 */
     private suspend fun processLocked(
         uris: List<Uri>,
         mediaFilter: AlbumMediaFilter,
@@ -123,12 +126,13 @@ internal class PhotoPickerResultProcessor(
         return PhotoPickResult.Selected(entities.map { it.toAlbumMedia() })
     }
 
+    /** 清理 `releaseNewGrants` 对应的数据或资源。 */
     private fun releaseNewGrants(newGrants: List<Uri>) {
         newGrants.asReversed().forEach { uri ->
             try {
                 grantManager.releaseRead(uri)
             } catch (_: Exception) {
-                // Best-effort rollback; the original failure remains authoritative.
+                // 尽力回滚新增授权，最终仍以原始失败原因作为结果。
             }
         }
     }

@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 internal class GridSpacingItemDecoration(
     private val metrics: GridMetrics,
 ) : RecyclerView.ItemDecoration() {
+    /** 获取 `getItemOffsets` 所需的数据。 */
     override fun getItemOffsets(
         outRect: Rect,
         view: View,

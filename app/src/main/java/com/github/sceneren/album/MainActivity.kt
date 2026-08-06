@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
         lastResult = result
     }
 
+    /** 处理 `onCreate` 回调。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -104,6 +105,7 @@ class MainActivity : ComponentActivity() {
 
 }
 
+/** 创建或准备 `buildRequest` 对应的对象。 */
 private fun buildRequest(
     mediaFilter: AlbumMediaFilter,
     compressionEnabled: Boolean,
@@ -122,6 +124,7 @@ private fun buildRequest(
 )
 
 @Composable
+/** 执行 `DemoScreen` 方法定义的处理。 */
 private fun DemoScreen(
     filter: AlbumMediaFilter,
     compressionEnabled: Boolean,

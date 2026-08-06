@@ -4,6 +4,7 @@ package com.github.sceneren.album.api
 internal class AlbumCompressionPolicy(
     private val config: AlbumCompressionConfig,
 ) {
+    /** 执行 `statusFor` 方法定义的处理。 */
     fun statusFor(mediaType: AlbumMediaType, sizeBytes: Long?): AlbumCompressionStatus {
         if (mediaType == AlbumMediaType.VIDEO) return AlbumCompressionStatus.NOT_APPLICABLE
         if (!config.enabled) return AlbumCompressionStatus.DISABLED

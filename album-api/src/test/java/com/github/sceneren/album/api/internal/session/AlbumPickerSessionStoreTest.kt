@@ -17,8 +17,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumPickerSessionStoreTest` 覆盖的行为。 */
 class AlbumPickerSessionStoreTest {
     @Test
+    /** 验证 `persistsSelectionOrderCameraItemAndPendingCaptureAcrossStoreInstances` 所描述的场景。 */
     fun persistsSelectionOrderCameraItemAndPendingCaptureAcrossStoreInstances() {
         val context = RuntimeEnvironment.getApplication()
         val config = AlbumPickerConfig(

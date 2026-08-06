@@ -4,11 +4,16 @@ import android.provider.MediaStore
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMediaFilter
 
+/** 描述 `MediaStoreQuerySpec` 数据。 */
 internal data class MediaStoreQuerySpec(
+    /** 查询使用的筛选表达式。 */
     val selection: String,
+    /** 筛选表达式对应的参数。 */
     val selectionArgs: List<String>,
 ) {
+    /** 提供类级共享常量与工厂能力。 */
     companion object {
+        /** 创建或准备 `create` 对应的对象。 */
         fun create(
             filter: AlbumMediaFilter,
             bucketId: Long,

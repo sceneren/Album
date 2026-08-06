@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.MediaAccessStatus
 
+/** 负责 `AndroidMediaAccessResolver` 相关的数据与行为。 */
 internal class AndroidMediaAccessResolver(
     context: Context,
     private val sdkInt: () -> Int = { Build.VERSION.SDK_INT },
@@ -18,6 +19,7 @@ internal class AndroidMediaAccessResolver(
     },
 ) : MediaAccessResolver {
     @SuppressLint("InlinedApi")
+    /** 执行 `resolve` 方法定义的处理。 */
     override fun resolve(filter: AlbumMediaFilter): MediaAccessStatus {
         val sdk = sdkInt()
         return MediaAccessPolicy.resolve(

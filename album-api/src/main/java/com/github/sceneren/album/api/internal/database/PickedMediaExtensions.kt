@@ -6,6 +6,7 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
 
+/** 将当前对象转换为 `toAlbumMedia` 对应的结果。 */
 internal fun PickedMediaEntity.toAlbumMedia(): AlbumMedia = AlbumMedia(
     uri = uri.toUri(),
     mediaType = when (mediaType) {
@@ -27,6 +28,7 @@ internal fun PickedMediaEntity.toAlbumMedia(): AlbumMedia = AlbumMedia(
     source = AlbumMediaSource.PHOTO_PICKER,
 )
 
+/** 执行 `databaseTypes` 方法定义的处理。 */
 internal fun AlbumMediaFilter.databaseTypes(): List<String> = when (this) {
     AlbumMediaFilter.IMAGES -> listOf(AlbumMediaType.IMAGE.name)
     AlbumMediaFilter.VIDEOS -> listOf(AlbumMediaType.VIDEO.name)

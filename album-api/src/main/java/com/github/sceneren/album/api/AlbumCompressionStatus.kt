@@ -1,6 +1,6 @@
 package com.github.sceneren.album.api
 
-/** Outcome of applying the configured image compression policy to one result item. */
+/** 表示单个结果项应用图片压缩策略后的状态。 */
 enum class AlbumCompressionStatus {
     DISABLED,
     SKIPPED_SIZE,

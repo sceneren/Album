@@ -38,6 +38,7 @@ class AlbumPickerClient internal constructor(
         appContext.contentResolver,
         externalRootOverride ?: appContext.getExternalFilesDir(null),
     )
+    /** 执行 `openSession` 方法定义的处理。 */
     fun openSession(config: AlbumPickerConfig, sessionId: String? = null): AlbumPickerSessionSnapshot {
         val state = sessionId?.let(store::load)
             ?.takeIf { it.config == config }
@@ -45,9 +46,11 @@ class AlbumPickerClient internal constructor(
         return state.toSnapshot()
     }
 
+    /** 执行 `snapshot` 方法定义的处理。 */
     fun snapshot(sessionId: String): AlbumPickerSessionSnapshot =
         requireNotNull(store.load(sessionId)) { "相册选择会话不存在: $sessionId" }.toSnapshot()
 
+    /** 更新 `toggleSelection` 对应的状态。 */
     suspend fun toggleSelection(
         sessionId: String,
         media: AlbumMedia,
@@ -68,6 +71,7 @@ class AlbumPickerClient internal constructor(
         }
     }
 
+    /** 更新 `setBucket` 对应的状态。 */
     suspend fun setBucket(sessionId: String, bucketId: Long): Result<AlbumPickerSessionSnapshot> =
         runCatching {
             withContext(Dispatchers.IO) {
@@ -77,6 +81,7 @@ class AlbumPickerClient internal constructor(
             }
         }
 
+    /** 创建或准备 `prepareCamera` 对应的对象。 */
     suspend fun prepareCamera(
         sessionId: String,
         mediaType: AlbumMediaType,
@@ -104,6 +109,7 @@ class AlbumPickerClient internal constructor(
         }
     }
 
+    /** 执行 `completeCamera` 方法定义的处理。 */
     suspend fun completeCamera(
         sessionId: String,
         success: Boolean,
@@ -168,6 +174,7 @@ class AlbumPickerClient internal constructor(
         }
     }
 
+    /** 执行 `confirm` 方法定义的处理。 */
     suspend fun confirm(sessionId: String): Result<AlbumPickerResult> = runCatching {
         withContext(Dispatchers.IO) {
             val state = requireState(sessionId)
@@ -217,6 +224,7 @@ class AlbumPickerClient internal constructor(
         store.remove(sessionId)
     }
 
+    /** 创建或准备 `registerCamera` 对应的对象。 */
     fun registerCamera(
         activity: ComponentActivity,
         sessionId: String,
@@ -254,9 +262,11 @@ class AlbumPickerClient internal constructor(
         )
     }
 
+    /** 执行 `requireState` 方法定义的处理。 */
     private fun requireState(sessionId: String): AlbumPickerSessionState =
         requireNotNull(store.load(sessionId)) { "相册选择会话不存在: $sessionId" }
 
+    /** 执行 `lubanDirectory` 方法定义的处理。 */
     private fun lubanDirectory(): File {
         val root = externalRoot()
         return File(root, LUBAN_DIRECTORY).apply {
@@ -264,9 +274,11 @@ class AlbumPickerClient internal constructor(
         }
     }
 
+    /** 执行 `fileProviderAuthority` 方法定义的处理。 */
     private fun fileProviderAuthority(): String =
         "${appContext.packageName}.album.api.fileprovider"
 
+    /** 执行 `fileUri` 方法定义的处理。 */
     private fun fileUri(file: File): Uri = try {
         FileProvider.getUriForFile(appContext, fileProviderAuthority(), file)
     } catch (failure: IllegalArgumentException) {
@@ -275,12 +287,16 @@ class AlbumPickerClient internal constructor(
         if (isDebuggable) Uri.fromFile(file) else throw failure
     }
 
+    /** 执行 `externalRoot` 方法定义的处理。 */
     private fun externalRoot(): File = externalRootOverride
         ?: appContext.getExternalFilesDir(null)
         ?: throw IOException("应用专属外部存储不可用")
 
+    /** 提供类级共享常量与工厂能力。 */
     private companion object {
+        /** 表示 `CAMERA_DIRECTORY` 对应的数据。 */
         const val CAMERA_DIRECTORY = "camera"
+        /** 表示 `LUBAN_DIRECTORY` 对应的数据。 */
         const val LUBAN_DIRECTORY = "luban"
     }
 }

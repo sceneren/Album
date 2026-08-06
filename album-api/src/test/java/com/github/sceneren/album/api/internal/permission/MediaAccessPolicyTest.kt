@@ -5,8 +5,10 @@ import com.github.sceneren.album.api.MediaAccessStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/** 验证 `MediaAccessPolicyTest` 覆盖的行为。 */
 class MediaAccessPolicyTest {
     @Test
+    /** 验证 `api34MixedRequiresBothFullPermissions` 所描述的场景。 */
     fun api34MixedRequiresBothFullPermissions() {
         val imageOnly = snapshot(sdk = 34, images = true)
         assertEquals(
@@ -23,6 +25,7 @@ class MediaAccessPolicyTest {
     }
 
     @Test
+    /** 验证 `api34VisualSelectionIsPartialForRequestedType` 所描述的场景。 */
     fun api34VisualSelectionIsPartialForRequestedType() {
         assertEquals(
             MediaAccessStatus.PARTIAL,
@@ -34,6 +37,7 @@ class MediaAccessPolicyTest {
     }
 
     @Test
+    /** 验证 `unrelatedPermissionIsDenied` 所描述的场景。 */
     fun unrelatedPermissionIsDenied() {
         assertEquals(
             MediaAccessStatus.DENIED,
@@ -45,6 +49,7 @@ class MediaAccessPolicyTest {
     }
 
     @Test
+    /** 验证 `legacyReadCoversEveryFilter` 所描述的场景。 */
     fun legacyReadCoversEveryFilter() {
         AlbumMediaFilter.entries.forEach { filter ->
             assertEquals(
@@ -54,6 +59,7 @@ class MediaAccessPolicyTest {
         }
     }
 
+    /** 执行 `snapshot` 方法定义的处理。 */
     private fun snapshot(
         sdk: Int,
         legacy: Boolean = false,

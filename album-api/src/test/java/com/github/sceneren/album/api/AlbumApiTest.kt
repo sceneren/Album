@@ -32,6 +32,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumApiTest` 覆盖的行为。 */
 class AlbumApiTest {
     private lateinit var permissions: FakeMediaAccessResolver
     private lateinit var mediaStore: FakeMediaStoreDataSource
@@ -41,6 +42,7 @@ class AlbumApiTest {
     private lateinit var api: AlbumApi
 
     @Before
+    /** 更新 `setUp` 对应的状态。 */
     fun setUp() {
         permissions = FakeMediaAccessResolver()
         mediaStore = FakeMediaStoreDataSource()
@@ -63,6 +65,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `fullRoutesToMediaStoreButPartialRoutesToRoom` 所描述的场景。 */
     fun fullRoutesToMediaStoreButPartialRoutesToRoom() = runTest {
         permissions.result = MediaAccessStatus.FULL
         val full = api.getMediaFeed(AlbumMediaFilter.VIDEOS, pageSize = 25)
@@ -76,6 +79,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `deniedAlsoRoutesToPersistedPickerFeed` 所描述的场景。 */
     fun deniedAlsoRoutesToPersistedPickerFeed() {
         permissions.result = MediaAccessStatus.DENIED
 
@@ -86,6 +90,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `hostManagedPhotoPickerResultUsesTheSharedPersistencePipeline` 所描述的场景。 */
     fun hostManagedPhotoPickerResultUsesTheSharedPersistencePipeline() = runTest {
         val pickedUri = uri("compose")
 
@@ -103,6 +108,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `persistedPickerFeedRemovesDeletedMediaBeforePaging` 所描述的场景。 */
     fun persistedPickerFeedRemovesDeletedMediaBeforePaging() = runTest {
         permissions.result = MediaAccessStatus.DENIED
         pickedStore.seed(entity("keep", ownsGrant = false))
@@ -118,6 +124,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `未授权拍摄结果持久化并可在新会话展示` 所描述的场景。 */
     fun `未授权拍摄结果持久化并可在新会话展示`() = runTest {
         permissions.result = MediaAccessStatus.DENIED
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -158,6 +165,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `partialDirectoriesAreEmptyWithoutMediaStoreQuery` 所描述的场景。 */
     fun partialDirectoriesAreEmptyWithoutMediaStoreQuery() = runTest {
         permissions.result = MediaAccessStatus.PARTIAL
 
@@ -166,6 +174,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `partialSyncPersistsVisibleMediaWithoutOwningGrant` 所描述的场景。 */
     fun partialSyncPersistsVisibleMediaWithoutOwningGrant() = runTest {
         permissions.result = MediaAccessStatus.PARTIAL
         mediaStore.allMedia = listOf(
@@ -188,6 +197,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `partialSyncDoesNotQueryWhenAccessIsFullOrDenied` 所描述的场景。 */
     fun partialSyncDoesNotQueryWhenAccessIsFullOrDenied() = runTest {
         mediaStore.allMedia = listOf(media("ignored", AlbumMediaType.IMAGE))
 
@@ -201,6 +211,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `partialSyncKeepsExistingPhotoPickerGrantOwnership` 所描述的场景。 */
     fun partialSyncKeepsExistingPhotoPickerGrantOwnership() = runTest {
         permissions.result = MediaAccessStatus.PARTIAL
         val persistedUri = uri("owned-partial")
@@ -213,6 +224,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `fullDirectoriesUseMediaStore` 所描述的场景。 */
     fun fullDirectoriesUseMediaStore() = runTest {
         permissions.result = MediaAccessStatus.FULL
 
@@ -223,6 +235,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `invalidPageSizeIsRejected` 所描述的场景。 */
     fun invalidPageSizeIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             api.getMediaFeed(pageSize = 0)
@@ -230,6 +243,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `fullBoundedPageRoutesToMediaStoreWithBucketAndOffset` 所描述的场景。 */
     fun fullBoundedPageRoutesToMediaStoreWithBucketAndOffset() = runTest {
         permissions.result = MediaAccessStatus.FULL
         mediaStore.pageMedia = listOf(media("page-image", AlbumMediaType.IMAGE))
@@ -250,6 +264,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `partialBoundedPageRoutesToPersistedPickerList` 所描述的场景。 */
     fun partialBoundedPageRoutesToPersistedPickerList() = runTest {
         permissions.result = MediaAccessStatus.PARTIAL
         pickedStore.seed(entity("first", ownsGrant = true))
@@ -270,12 +285,14 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `boundedPageRejectsInvalidRangeAsFailure` 所描述的场景。 */
     fun boundedPageRejectsInvalidRangeAsFailure() = runTest {
         assertTrue(api.loadMediaPage(offset = -1).isFailure)
         assertTrue(api.loadMediaPage(limit = 0).isFailure)
     }
 
     @Test
+    /** 验证 `removeReleasesOnlyLibraryOwnedGrant` 所描述的场景。 */
     fun removeReleasesOnlyLibraryOwnedGrant() = runTest {
         pickedStore.seed(entity("owned", ownsGrant = true))
         pickedStore.seed(entity("host", ownsGrant = false))
@@ -288,6 +305,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `clearReturnsCountAndReleasesOwnedGrants` 所描述的场景。 */
     fun clearReturnsCountAndReleasesOwnedGrants() = runTest {
         pickedStore.seed(entity("owned", ownsGrant = true))
         pickedStore.seed(entity("host", ownsGrant = false))
@@ -299,6 +317,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `clearAttemptsEveryOwnedGrantWhenOneReleaseFails` 所描述的场景。 */
     fun clearAttemptsEveryOwnedGrantWhenOneReleaseFails() = runTest {
         pickedStore.seed(entity("first", ownsGrant = true))
         pickedStore.seed(entity("second", ownsGrant = true))
@@ -311,6 +330,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `reconcileRemovesMissingAndUnreadableUris` 所描述的场景。 */
     fun reconcileRemovesMissingAndUnreadableUris() = runTest {
         pickedStore.seed(entity("keep", ownsGrant = true))
         pickedStore.seed(entity("missing", ownsGrant = true))
@@ -326,6 +346,7 @@ class AlbumApiTest {
     }
 
     @Test
+    /** 验证 `reconcileKeepsReadableNonOwnedPartialRecordWithoutPersistedGrant` 所描述的场景。 */
     fun reconcileKeepsReadableNonOwnedPartialRecordWithoutPersistedGrant() = runTest {
         pickedStore.seed(entity("partial", ownsGrant = false))
         accessChecker.readable += uri("partial")
@@ -334,12 +355,15 @@ class AlbumApiTest {
         assertTrue(pickedStore.rows.containsKey(uri("partial").toString()))
     }
 
+    /** 负责 `FakeMediaAccessResolver` 相关的数据与行为。 */
     private class FakeMediaAccessResolver : MediaAccessResolver {
         var result: MediaAccessStatus = MediaAccessStatus.DENIED
 
+        /** 执行 `resolve` 方法定义的处理。 */
         override fun resolve(filter: AlbumMediaFilter): MediaAccessStatus = result
     }
 
+    /** 负责 `FakeMediaStoreDataSource` 相关的数据与行为。 */
     private class FakeMediaStoreDataSource : MediaStoreDataSource {
         var directoryCalls = 0
         var lastDirectoryFilter: AlbumMediaFilter? = null
@@ -352,6 +376,7 @@ class AlbumApiTest {
         var lastPageOffset: Int? = null
         var lastPageLimit: Int? = null
 
+        /** 获取 `loadAll` 所需的数据。 */
         override suspend fun loadAll(
             mediaFilter: AlbumMediaFilter,
         ): List<AlbumMedia> {
@@ -360,6 +385,7 @@ class AlbumApiTest {
             return allMedia
         }
 
+        /** 获取 `loadPage` 所需的数据。 */
         override suspend fun loadPage(
             mediaFilter: AlbumMediaFilter,
             bucketId: Long,
@@ -373,6 +399,7 @@ class AlbumApiTest {
             return pageMedia
         }
 
+        /** 获取 `getDirectories` 所需的数据。 */
         override suspend fun getDirectories(
             mediaFilter: AlbumMediaFilter,
         ): List<AlbumDirectory> {
@@ -382,6 +409,7 @@ class AlbumApiTest {
         }
     }
 
+    /** 负责 `FakePickedMediaStore` 管理数据的持久化读写。 */
     private class FakePickedMediaStore : PickedMediaStore {
         val rows = linkedMapOf<String, PickedMediaEntity>()
         val upsertedDrafts = mutableListOf<PickedMediaDraft>()
@@ -391,13 +419,16 @@ class AlbumApiTest {
         var lastPageOffset: Int? = null
         var lastPageLimit: Int? = null
 
+        /** 执行 `seed` 方法定义的处理。 */
         fun seed(entity: PickedMediaEntity) {
             rows[entity.uri] = entity
         }
 
+        /** 执行 `pagingSource` 方法定义的处理。 */
         override fun pagingSource(filter: AlbumMediaFilter): PagingSource<Int, PickedMediaEntity> {
             lastPagingFilter = filter
             return object : PagingSource<Int, PickedMediaEntity>() {
+                /** 获取 `load` 所需的数据。 */
                 override suspend fun load(
                     params: LoadParams<Int>,
                 ): LoadResult<Int, PickedMediaEntity> = LoadResult.Page(
@@ -406,12 +437,14 @@ class AlbumApiTest {
                     nextKey = null,
                 )
 
+                /** 获取 `getRefreshKey` 所需的数据。 */
                 override fun getRefreshKey(
                     state: PagingState<Int, PickedMediaEntity>,
                 ): Int? = null
             }
         }
 
+        /** 获取 `loadPage` 所需的数据。 */
         override suspend fun loadPage(
             filter: AlbumMediaFilter,
             offset: Int,
@@ -433,6 +466,7 @@ class AlbumApiTest {
                 .take(limit)
         }
 
+        /** 执行 `upsertBatch` 方法定义的处理。 */
         override suspend fun upsertBatch(
             drafts: List<PickedMediaDraft>,
         ): List<PickedMediaEntity> {
@@ -449,18 +483,24 @@ class AlbumApiTest {
             }
         }
 
+        /** 获取 `find` 所需的数据。 */
         override suspend fun find(uri: String): PickedMediaEntity? = rows[uri]
 
+        /** 清理 `remove` 对应的数据或资源。 */
         override suspend fun remove(uri: String): PickedMediaEntity? = rows.remove(uri)
 
+        /** 清理 `clear` 对应的数据或资源。 */
         override suspend fun clear(): List<PickedMediaEntity> = rows.values.toList().also {
             rows.clear()
         }
 
+        /** 执行 `all` 方法定义的处理。 */
         override suspend fun all(): List<PickedMediaEntity> = rows.values.toList()
     }
 
+    /** 负责 `FakePickerRegistrar` 相关的数据与行为。 */
     private class FakePickerRegistrar : PickerRegistrar {
+        /** 创建或准备 `register` 对应的对象。 */
         override fun register(
             activity: ComponentActivity,
             mediaFilter: AlbumMediaFilter,
@@ -469,19 +509,24 @@ class AlbumApiTest {
         ): AlbumPhotoPickerLauncher = object : AlbumPhotoPickerLauncher {
             override val mediaFilter: AlbumMediaFilter = mediaFilter
 
+            /** 执行 `launch` 方法定义的处理。 */
             override fun launch() = Unit
         }
     }
 
+    /** 负责 `FakeGrantManager` 相关的数据与行为。 */
     private class FakeGrantManager : PersistableGrantManager {
         val persisted = linkedSetOf<Uri>()
         val released = mutableListOf<Uri>()
         var releaseFailureFor: Uri? = null
 
+        /** 执行 `persistedReadUris` 方法定义的处理。 */
         override fun persistedReadUris(): Set<Uri> = persisted.toSet()
 
+        /** 执行 `takeRead` 方法定义的处理。 */
         override fun takeRead(uri: Uri) = Unit
 
+        /** 清理 `releaseRead` 对应的数据或资源。 */
         override fun releaseRead(uri: Uri) {
             released += uri
             if (uri == releaseFailureFor) error("release failed")
@@ -489,15 +534,20 @@ class AlbumApiTest {
         }
     }
 
+    /** 负责 `FakeUriAccessChecker` 相关的数据与行为。 */
     private class FakeUriAccessChecker : UriAccessChecker {
         val readable = mutableSetOf<Uri>()
 
+        /** 判断 `canRead` 条件是否成立。 */
         override fun canRead(uri: Uri): Boolean = uri in readable
     }
 
+    /** 负责 `FakeUriMetadataReader` 相关的数据与行为。 */
     private class FakeUriMetadataReader : UriMetadataReader {
+        /** 执行 `requiredType` 方法定义的处理。 */
         override fun requiredType(uri: Uri): AlbumMediaType = AlbumMediaType.IMAGE
 
+        /** 获取 `read` 所需的数据。 */
         override fun read(uri: Uri, type: AlbumMediaType) = PickedUriMetadata(
             uri = uri,
             mediaType = type,
@@ -510,6 +560,7 @@ class AlbumApiTest {
         )
     }
 
+    /** 执行 `entity` 方法定义的处理。 */
     private fun entity(name: String, ownsGrant: Boolean) = PickedMediaEntity(
         uri = uri(name).toString(),
         mediaType = AlbumMediaType.IMAGE.name,
@@ -524,8 +575,10 @@ class AlbumApiTest {
         ownsPersistableGrant = ownsGrant,
     )
 
+    /** 执行 `uri` 方法定义的处理。 */
     private fun uri(name: String): Uri = Uri.parse("content://picker/$name")
 
+    /** 执行 `media` 方法定义的处理。 */
     private fun media(name: String, mediaType: AlbumMediaType) = AlbumMedia(
         uri = Uri.parse("content://media/$name"),
         mediaType = mediaType,

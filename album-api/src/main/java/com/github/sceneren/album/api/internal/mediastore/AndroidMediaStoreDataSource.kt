@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** 负责 `AndroidMediaStoreDataSource` 相关的数据与行为。 */
 internal class AndroidMediaStoreDataSource(
     context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -24,6 +25,7 @@ internal class AndroidMediaStoreDataSource(
     private val contentResolver = context.applicationContext.contentResolver
     private val filesUri = MediaStore.Files.getContentUri(EXTERNAL_VOLUME)
 
+    /** 获取 `loadAll` 所需的数据。 */
     override suspend fun loadAll(
         mediaFilter: AlbumMediaFilter,
     ): List<AlbumMedia> = withContext(ioDispatcher) {
@@ -34,6 +36,7 @@ internal class AndroidMediaStoreDataSource(
         )
     }
 
+    /** 获取 `loadPage` 所需的数据。 */
     override suspend fun loadPage(
         mediaFilter: AlbumMediaFilter,
         bucketId: Long,
@@ -47,6 +50,7 @@ internal class AndroidMediaStoreDataSource(
         query(spec, limit = limit, offset = offset)
     }
 
+    /** 获取 `getDirectories` 所需的数据。 */
     override suspend fun getDirectories(
         mediaFilter: AlbumMediaFilter,
     ): List<AlbumDirectory> = withContext(ioDispatcher) {
@@ -55,6 +59,7 @@ internal class AndroidMediaStoreDataSource(
         )
     }
 
+    /** 获取 `query` 所需的数据。 */
     private fun query(
         spec: MediaStoreQuerySpec,
         limit: Int?,
@@ -64,6 +69,7 @@ internal class AndroidMediaStoreDataSource(
         return cursor?.use(::readMedia) ?: emptyList()
     }
 
+    /** 获取 `queryDirectories` 所需的数据。 */
     private fun queryDirectories(spec: MediaStoreQuerySpec): List<AlbumDirectory> {
         val cursor = queryCursor(
             spec = spec,
@@ -74,6 +80,7 @@ internal class AndroidMediaStoreDataSource(
         return cursor?.use(::readDirectories) ?: emptyList()
     }
 
+    /** 获取 `queryCursor` 所需的数据。 */
     private fun queryCursor(
         spec: MediaStoreQuerySpec,
         projection: Array<String>,
@@ -106,6 +113,7 @@ internal class AndroidMediaStoreDataSource(
             )
         }
 
+    /** 获取 `readMedia` 所需的数据。 */
     private fun readMedia(cursor: Cursor): List<AlbumMedia> {
         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
         val mediaTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
@@ -151,6 +159,7 @@ internal class AndroidMediaStoreDataSource(
         }
     }
 
+    /** 获取 `readDirectories` 所需的数据。 */
     private fun readDirectories(cursor: Cursor): List<AlbumDirectory> {
         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
         val mediaTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
@@ -206,10 +215,14 @@ internal class AndroidMediaStoreDataSource(
             .map(MutableDirectory::toAlbumDirectory)
     }
 
+    /** 提供类级共享常量与工厂能力。 */
     private companion object {
+        /** 表示 `EXTERNAL_VOLUME` 对应的数据。 */
         const val EXTERNAL_VOLUME = "external"
+        /** 表示 `SORT_ORDER` 对应的数据。 */
         const val SORT_ORDER = "date_added DESC, _id DESC"
 
+        /** 表示 `PROJECTION` 对应的数据。 */
         val PROJECTION = arrayOf(
             MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.MEDIA_TYPE,
@@ -225,6 +238,7 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )
 
+        /** 表示 `DIRECTORY_PROJECTION` 对应的数据。 */
         val DIRECTORY_PROJECTION = arrayOf(
             MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.MEDIA_TYPE,

@@ -4,7 +4,9 @@ import android.os.Build
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.MediaAccessStatus
 
+/** 负责 `MediaAccessPolicy` 相关的数据与行为。 */
 internal object MediaAccessPolicy {
+    /** 执行 `resolve` 方法定义的处理。 */
     fun resolve(
         filter: AlbumMediaFilter,
         snapshot: MediaPermissionSnapshot,

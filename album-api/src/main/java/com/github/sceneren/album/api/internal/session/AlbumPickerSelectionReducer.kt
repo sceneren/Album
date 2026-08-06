@@ -2,7 +2,9 @@ package com.github.sceneren.album.api.internal.session
 
 import com.github.sceneren.album.api.AlbumPickerConfig
 
+/** 负责 `AlbumPickerSelectionReducer` 相关的数据与行为。 */
 internal object AlbumPickerSelectionReducer {
+    /** 更新 `toggle` 对应的状态。 */
     fun toggle(
         selected: List<AlbumPickerSelection>,
         item: AlbumPickerSelection,
@@ -16,6 +18,7 @@ internal object AlbumPickerSelectionReducer {
         return selected + item
     }
 
+    /** 执行 `addCamera` 方法定义的处理。 */
     fun addCamera(
         selected: List<AlbumPickerSelection>,
         cameraItems: List<AlbumPickerSelection>,

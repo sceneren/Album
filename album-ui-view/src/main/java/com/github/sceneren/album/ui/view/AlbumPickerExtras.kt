@@ -2,11 +2,16 @@ package com.github.sceneren.album.ui.view
 
 import android.content.Intent
 
+/** 负责 `AlbumPickerExtras` 相关的数据与行为。 */
 internal object AlbumPickerExtras {
+    /** 表示 `THEME` 对应的数据。 */
     const val THEME = "album_view.theme"
+    /** 表示 `PREFIX` 对应的数据。 */
     private const val PREFIX = "album_view.appearance."
+    /** 表示 `ANIMATION_PREFIX` 对应的数据。 */
     private const val ANIMATION_PREFIX = "album_view.animation."
 
+    /** 执行 `putAppearance` 方法定义的处理。 */
     fun putAppearance(intent: Intent, appearance: AlbumPickerAppearance) {
         intent.putExtra(PREFIX + "toolbar", appearance.toolbarColor ?: Int.MIN_VALUE)
         intent.putExtra(PREFIX + "bottom", appearance.bottomBarColor ?: Int.MIN_VALUE)
@@ -27,6 +32,7 @@ internal object AlbumPickerExtras {
         intent.putExtra(PREFIX + "grid_span_count", appearance.gridSpanCount)
     }
 
+    /** 获取 `readAppearance` 所需的数据。 */
     fun readAppearance(intent: Intent) = AlbumPickerAppearance(
         toolbarColor = intent.intOrNull(PREFIX + "toolbar"),
         bottomBarColor = intent.intOrNull(PREFIX + "bottom"),
@@ -47,6 +53,7 @@ internal object AlbumPickerExtras {
         gridSpanCount = intent.getIntExtra(PREFIX + "grid_span_count", 4),
     )
 
+    /** 执行 `putAnimation` 方法定义的处理。 */
     fun putAnimation(intent: Intent, animation: AlbumPickerAnimation?) {
         intent.putExtra(ANIMATION_PREFIX + "enabled", animation != null)
         if (animation == null) return
@@ -56,6 +63,7 @@ internal object AlbumPickerExtras {
         intent.putExtra(ANIMATION_PREFIX + "close_exit", animation.closeExitResId)
     }
 
+    /** 获取 `readAnimation` 所需的数据。 */
     fun readAnimation(intent: Intent): AlbumPickerAnimation? {
         if (!intent.getBooleanExtra(ANIMATION_PREFIX + "enabled", true)) return null
         val defaults = AlbumPickerAnimation()

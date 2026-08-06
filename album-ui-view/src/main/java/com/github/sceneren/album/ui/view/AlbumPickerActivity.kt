@@ -102,6 +102,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 处理 `onCreate` 回调。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         val theme = intent.getIntExtra(AlbumPickerExtras.THEME, 0)
         if (theme != 0) setTheme(theme)
@@ -142,6 +143,7 @@ class AlbumPickerActivity : ComponentActivity() {
         applyAppearance()
         applySystemBarInsets()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            /** 执行 `handleOnBackPressed` 方法定义的处理。 */
             override fun handleOnBackPressed() {
                 if (isDirectoryPanelVisible()) {
                     hideDirectoryPanel()
@@ -156,16 +158,19 @@ class AlbumPickerActivity : ComponentActivity() {
         })
     }
 
+    /** 处理 `onResume` 回调。 */
     override fun onResume() {
         super.onResume()
         refreshContent()
     }
 
+    /** 执行 `finish` 方法定义的处理。 */
     override fun finish() {
         super.finish()
         applyLegacyCloseTransition(activityAnimation)
     }
 
+    /** 处理 `onDestroy` 回调。 */
     override fun onDestroy() {
         previewDialog?.dismiss()
         previewDialog = null
@@ -328,6 +333,7 @@ class AlbumPickerActivity : ComponentActivity() {
         ViewCompat.requestApplyInsets(root)
     }
 
+    /** 更新 `refreshContent` 对应的状态。 */
     private fun refreshContent() {
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val canBrowseDirectories = accessStatus == MediaAccessStatus.FULL
@@ -384,6 +390,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `renderSession` 方法定义的处理。 */
     private fun renderSession(updated: AlbumPickerSessionSnapshot) {
         session = updated
         renderTitle()
@@ -421,6 +428,7 @@ class AlbumPickerActivity : ComponentActivity() {
         doneAction.isEnabled = hasSelection
     }
 
+    /** 执行 `renderTitle` 方法定义的处理。 */
     private fun renderTitle() {
         val directory = selectedTitleDirectory(
             accessStatus = accessStatus,
@@ -432,6 +440,7 @@ class AlbumPickerActivity : ComponentActivity() {
             ?: getString(R.string.auv_title)
     }
 
+    /** 更新 `toggleMedia` 对应的状态。 */
     private fun toggleMedia(media: AlbumMedia) {
         if (
             media.uri !in session.selectedUris &&
@@ -450,6 +459,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `maybeAutoConfirm` 方法定义的处理。 */
     private fun maybeAutoConfirm() {
         if (
             config.maxSelectionCount == 1 &&
@@ -460,6 +470,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `confirmSelection` 方法定义的处理。 */
     private fun confirmSelection() {
         if (isConfirming) return
         if (session.selectedItems.isEmpty()) {
@@ -487,6 +498,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `showProcessingDialog` 方法定义的处理。 */
     private fun showProcessingDialog() {
         processingSpinnerAnimator?.cancel()
         processingDialog = Dialog(this, R.style.auv_theme_album_picker_processing).apply {
@@ -512,6 +524,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `hideProcessingDialog` 方法定义的处理。 */
     private fun hideProcessingDialog() {
         processingSpinnerAnimator?.cancel()
         processingSpinnerAnimator = null
@@ -519,6 +532,7 @@ class AlbumPickerActivity : ComponentActivity() {
         processingDialog = null
     }
 
+    /** 执行 `showSelectionLimitMessage` 方法定义的处理。 */
     private fun showSelectionLimitMessage() {
         val message = when (config.mediaFilter) {
             AlbumMediaFilter.IMAGES -> R.string.auv_selection_limit_images
@@ -528,19 +542,23 @@ class AlbumPickerActivity : ComponentActivity() {
         showMessage(getString(message, config.maxSelectionCount))
     }
 
+    /** 执行 `showMessage` 方法定义的处理。 */
     private fun showMessage(message: CharSequence) {
         messageToast?.cancel()
         messageToast = Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).also(Toast::show)
     }
 
+    /** 执行 `requestMediaPermission` 方法定义的处理。 */
     private fun requestMediaPermission() {
         permissionLauncher.launch(AlbumMediaPermissionRequestFactory.create(config.mediaFilter))
     }
 
+    /** 执行 `photoPickerLaunch` 方法定义的处理。 */
     private fun photoPickerLaunch() {
         photoPicker?.launch()
     }
 
+    /** 执行 `cameraMediaType` 方法定义的处理。 */
     private fun cameraMediaType() = when (config.mediaFilter) {
         AlbumMediaFilter.IMAGES -> AlbumMediaType.IMAGE
         AlbumMediaFilter.VIDEOS -> AlbumMediaType.VIDEO
@@ -553,15 +571,18 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `actions` 方法定义的处理。 */
     private fun actions(): List<Action> = buildList {
         if (config.camera.enabled) add(Action.CAMERA)
         if (accessStatus != MediaAccessStatus.FULL) add(Action.ADD)
     }
 
+    /** 执行 `renderActions` 方法定义的处理。 */
     private fun renderActions() {
         if (::actionAdapter.isInitialized) actionAdapter.submit(actions())
     }
 
+    /** 处理 `onMediaPreview` 回调。 */
     private fun onMediaPreview(media: AlbumMedia) {
         val loadedFeedItems = mediaAdapter.snapshot().items
         val initialItems = (cameraAdapter.currentItems() + loadedFeedItems).distinctBy { it.uri }
@@ -572,11 +593,13 @@ class AlbumPickerActivity : ComponentActivity() {
         )
     }
 
+    /** 执行 `showPreview` 方法定义的处理。 */
     private fun showPreview() {
         if (session.selectedItems.isEmpty()) return
         openPreview(session.selectedItems, initialIndex = 0, nextOffset = null)
     }
 
+    /** 执行 `openPreview` 方法定义的处理。 */
     private fun openPreview(
         items: List<AlbumMedia>,
         initialIndex: Int,
@@ -609,6 +632,7 @@ class AlbumPickerActivity : ComponentActivity() {
         ).also(AlbumPreviewDialog::show)
     }
 
+    /** 执行 `showDirectories` 方法定义的处理。 */
     private fun showDirectories() {
         if (accessStatus != MediaAccessStatus.FULL) return
         if (isDirectoryPanelVisible()) {
@@ -629,6 +653,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `selectDirectory` 方法定义的处理。 */
     private fun selectDirectory(bucketId: Long) {
         hideDirectoryPanel()
         if (!shouldUpdateDirectory(session.bucketId, bucketId)) return
@@ -640,6 +665,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
     }
 
+    /** 执行 `showDirectoryPanel` 方法定义的处理。 */
     private fun showDirectoryPanel() {
         directoryAdapter.submit(directories, session.bucketId)
         val contentHeight = directories.size * resources.getDimensionPixelSize(
@@ -678,6 +704,7 @@ class AlbumPickerActivity : ComponentActivity() {
         titleArrow.animate().rotation(180f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
     }
 
+    /** 执行 `hideDirectoryPanel` 方法定义的处理。 */
     private fun hideDirectoryPanel() {
         cancelDirectoryPanelAnimations()
         if (!directoryScrim.isVisible && !directoryList.isVisible) {
@@ -707,30 +734,41 @@ class AlbumPickerActivity : ComponentActivity() {
         titleArrow.animate().rotation(0f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
     }
 
+    /** 判断 `cancelDirectoryPanelAnimations` 条件是否成立。 */
     private fun cancelDirectoryPanelAnimations() {
         directoryScrim.animate().cancel()
         directoryList.animate().cancel()
     }
 
+    /** 判断 `isDirectoryPanelVisible` 条件是否成立。 */
     private fun isDirectoryPanelVisible(): Boolean = directoryScrim.isVisible
 
+    /** 执行 `color` 方法定义的处理。 */
     private fun color(resourceId: Int): Int = ContextCompat.getColor(this, resourceId)
 
+    /** 执行 `dpToPx` 方法定义的处理。 */
     private fun dpToPx(value: Int): Int =
         (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
 }
 
+/** 表示 `LIGHT_COLOR_LUMINANCE` 对应的数据。 */
 private const val LIGHT_COLOR_LUMINANCE = 0.5
+/** 表示 `DIRECTORY_ARROW_DURATION_MILLIS` 对应的数据。 */
 private const val DIRECTORY_ARROW_DURATION_MILLIS = 150L
+/** 表示 `DIRECTORY_PANEL_MAX_HEIGHT_RATIO` 对应的数据。 */
 private const val DIRECTORY_PANEL_MAX_HEIGHT_RATIO = 0.6f
+/** 表示 `DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS` 对应的数据。 */
 private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200L
+/** 表示 `PROCESSING_SPINNER_DURATION_MILLIS` 对应的数据。 */
 private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000L
 
+/** 判断 `shouldShowPermissionUpgradeButton` 条件是否成立。 */
 internal fun shouldShowPermissionUpgradeButton(
     isAllowedByHost: Boolean,
     accessStatus: MediaAccessStatus,
 ): Boolean = isAllowedByHost && accessStatus != MediaAccessStatus.FULL
 
+/** 执行 `selectedTitleDirectory` 方法定义的处理。 */
 internal fun selectedTitleDirectory(
     accessStatus: MediaAccessStatus,
     bucketId: Long,
@@ -742,5 +780,6 @@ internal fun selectedTitleDirectory(
     return directories.firstOrNull { it.bucketId == bucketId }
 }
 
+/** 判断 `shouldUpdateDirectory` 条件是否成立。 */
 internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
     currentBucketId != targetBucketId

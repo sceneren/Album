@@ -10,9 +10,13 @@ import com.github.sceneren.album.api.AlbumPickerConfig
  * [animation] 默认使用组件自带的底部弹出动画；传入 `null` 会关闭全部 Activity 过渡动画。
  */
 data class AlbumPickerRequest(
+    /** 选择器会话配置。 */
     val config: AlbumPickerConfig,
+    /** 表示 `themeResId` 对应的数据。 */
     @StyleRes val themeResId: Int = 0,
+    /** 表示 `appearance` 对应的数据。 */
     val appearance: AlbumPickerAppearance = AlbumPickerAppearance(),
+    /** 页面打开和关闭时使用的动画配置。 */
     val animation: AlbumPickerAnimation? = AlbumPickerAnimation(),
 )
 
@@ -23,8 +27,12 @@ data class AlbumPickerRequest(
  * `0` 来关闭该阶段的动画。
  */
 data class AlbumPickerAnimation(
+    /** 表示 `openEnterResId` 对应的数据。 */
     @AnimRes val openEnterResId: Int = R.anim.auv_album_picker_enter,
+    /** 表示 `openExitResId` 对应的数据。 */
     @AnimRes val openExitResId: Int = R.anim.auv_album_picker_hold,
+    /** 表示 `closeEnterResId` 对应的数据。 */
     @AnimRes val closeEnterResId: Int = R.anim.auv_album_picker_hold,
+    /** 表示 `closeExitResId` 对应的数据。 */
     @AnimRes val closeExitResId: Int = R.anim.auv_album_picker_exit,
 )

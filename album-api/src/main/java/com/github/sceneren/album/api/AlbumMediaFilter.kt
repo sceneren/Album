@@ -1,6 +1,6 @@
 package com.github.sceneren.album.api
 
-/** Content filter applied consistently to Photo Picker and MediaStore feeds. */
+/** 定义同时应用于 Photo Picker 和 MediaStore 数据流的内容过滤条件。 */
 enum class AlbumMediaFilter {
     IMAGES,
     VIDEOS,

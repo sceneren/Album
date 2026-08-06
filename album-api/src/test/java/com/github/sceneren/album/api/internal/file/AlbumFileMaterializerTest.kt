@@ -15,8 +15,10 @@ import org.junit.runner.RunWith
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumFileMaterializerTest` 覆盖的行为。 */
 class AlbumFileMaterializerTest {
     @Test
+    /** 验证 `copiesSelectedUriToPhotoPickerDirectoryAndReturnsRealPath` 所描述的场景。 */
     fun copiesSelectedUriToPhotoPickerDirectoryAndReturnsRealPath() = runTest {
         val context = RuntimeEnvironment.getApplication()
         val source = File.createTempFile("album-source", ".jpg", context.cacheDir).apply {
@@ -39,6 +41,7 @@ class AlbumFileMaterializerTest {
     }
 
     @Test
+    /** 验证 `failedBatchRemovesEveryPartFileAndCommittedFile` 所描述的场景。 */
     fun failedBatchRemovesEveryPartFileAndCommittedFile() = runTest {
         val context = RuntimeEnvironment.getApplication()
         val first = File.createTempFile("album-first", ".jpg", context.cacheDir).apply {

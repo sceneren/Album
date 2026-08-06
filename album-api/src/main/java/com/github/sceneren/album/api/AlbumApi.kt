@@ -37,10 +37,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 /**
- * Data-only entry point for permission-aware media paging and persistent Photo Picker selections.
+ * 提供支持权限状态的媒体分页与 Photo Picker 持久化选择能力。
  *
- * Hosts own permission requests and UI. A full media permission routes reads to MediaStore;
- * partial or denied access routes reads to the library's persisted Photo Picker database.
+ * 宿主负责权限请求和界面展示。完整媒体权限从 MediaStore 读取数据；部分授权或未授权时，
+ * 从库内持久化的 Photo Picker 数据库读取数据。
  */
 class AlbumApi internal constructor(
     private val accessResolver: MediaAccessResolver,
@@ -52,17 +52,16 @@ class AlbumApi internal constructor(
     private val uriAccessChecker: UriAccessChecker,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    /** Returns the effective media-library access for [mediaFilter]. */
+    /** 返回 [mediaFilter] 对应的有效媒体库访问状态。 */
     fun getMediaAccessStatus(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
     ): MediaAccessStatus = accessResolver.resolve(mediaFilter)
 
     /**
-     * Persists media currently visible under PARTIAL system access for [mediaFilter].
+     * 持久化系统在部分授权状态下允许 [mediaFilter] 访问的媒体。
      *
-     * The records do not own persistable URI grants because their access is controlled by the
-     * system selected-media permission. FULL and DENIED access return zero without querying
-     * MediaStore.
+     * 这些记录的访问权由系统“选中的照片和视频”权限控制，因此不持有可持久化 URI 授权。
+     * 完整授权和未授权状态直接返回零，不查询 MediaStore。
      */
     suspend fun syncPartialSelections(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -91,8 +90,8 @@ class AlbumApi internal constructor(
     }
 
     /**
-     * Creates a cold paged media feed for [mediaFilter] and, for MediaStore, [bucketId].
-     * Persisted picker feeds discard unavailable URI records before paging starts.
+     * 为 [mediaFilter] 创建冷启动分页媒体流；使用 MediaStore 时同时应用 [bucketId]。
+     * 持久化选择器数据流会在分页开始前移除不可访问的 URI 记录。
      */
     fun getMediaFeed(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -162,7 +161,7 @@ class AlbumApi internal constructor(
         }
     }
 
-    /** Returns MediaStore directories when access is full, otherwise an empty list. */
+    /** 完整授权时返回 MediaStore 目录，否则返回空列表。 */
     suspend fun getMediaDirectories(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
     ): Result<List<AlbumDirectory>> = resultOnIo {
@@ -174,10 +173,10 @@ class AlbumApi internal constructor(
     }
 
     /**
-     * Registers a lifecycle-bound Photo Picker launcher before [activity] is started.
+     * 在 [activity] 启动前注册与其生命周期绑定的 Photo Picker 启动器。
      *
-     * A null [maxSelectionCount] applies no library-defined cap; the platform picker may still
-     * impose its own limit. Successful selections are persisted for later paging.
+     * [maxSelectionCount] 为 null 时，本库不施加数量上限，但系统选择器仍可能限制数量。
+     * 成功选择的媒体会持久化，以供后续分页读取。
      */
     fun registerPhotoPicker(
         activity: ComponentActivity,
@@ -192,11 +191,10 @@ class AlbumApi internal constructor(
     )
 
     /**
-     * Validates and persists URIs returned by a host-managed system Photo Picker launcher.
+     * 验证并持久化由宿主管理的系统 Photo Picker 启动器返回的 URI。
      *
-     * This entry point lets non-Activity UI integrations own Activity Result registration while
-     * retaining the same grant, metadata, validation, and atomic persistence behavior as
-     * [registerPhotoPicker].
+     * 此入口允许非 Activity 界面集成自行注册 Activity Result，同时保持与
+     * [registerPhotoPicker] 相同的授权、元数据读取、验证和原子持久化行为。
      */
     suspend fun processPhotoPickerResult(
         uris: List<Uri>,
@@ -210,7 +208,7 @@ class AlbumApi internal constructor(
         )
     }
 
-    /** Removes one persisted picker selection and releases a grant owned by this library. */
+    /** 删除一条持久化选择记录，并释放由本库持有的对应授权。 */
     suspend fun removePersistedSelection(uri: Uri): Result<Boolean> = resultOnIo {
         val removed = pickedStore.remove(uri.toString()) ?: return@resultOnIo false
         if (removed.ownsPersistableGrant) {
@@ -219,7 +217,7 @@ class AlbumApi internal constructor(
         true
     }
 
-    /** Clears persisted picker selections and releases all grants owned by this library. */
+    /** 清空持久化选择记录，并释放由本库持有的全部授权。 */
     suspend fun clearPersistedSelections(): Result<Int> = resultOnIo {
         val removed = pickedStore.clear()
         var firstFailure: Exception? = null
@@ -238,11 +236,12 @@ class AlbumApi internal constructor(
         removed.size
     }
 
-    /** Removes picker records whose persisted URI access is no longer usable. */
+    /** 删除持久化 URI 已无法访问的选择器记录。 */
     suspend fun reconcilePersistedSelections(): Result<Int> = resultOnIo {
         reconcilePersistedSelectionsInternal()
     }
 
+    /** 执行 `reconcilePersistedSelectionsInternal` 方法定义的处理。 */
     private suspend fun reconcilePersistedSelectionsInternal(): Int {
         val persistedUris = grantManager.persistedReadUris()
         var removedCount = 0
@@ -298,6 +297,7 @@ class AlbumApi internal constructor(
         deletedCount
     }
 
+    /** 执行 `generatedFile` 方法定义的处理。 */
     private fun generatedFile(context: Context, path: String): java.io.File? {
         val root = context.applicationContext.getExternalFilesDir(null) ?: return null
         val candidate = java.io.File(path).canonicalFile
@@ -310,6 +310,7 @@ class AlbumApi internal constructor(
         }
     }
 
+    /** 执行 `resultOnIo` 方法定义的处理。 */
     private suspend fun <T> resultOnIo(block: suspend () -> T): Result<T> = try {
         Result.success(withContext(ioDispatcher) { block() })
     } catch (cancelled: CancellationException) {
@@ -318,11 +319,12 @@ class AlbumApi internal constructor(
         Result.failure(exception)
     }
 
+    /** 提供类级共享常量与工厂能力。 */
     companion object {
-        /** Default number of items requested by each paging load. */
+        /** 每次分页加载默认请求的条目数。 */
         const val DEFAULT_PAGE_SIZE: Int = 50
 
-        /** Creates an application-scoped API instance backed by MediaStore and Room. */
+        /** 创建由 MediaStore 和 Room 支持的应用级 API 实例。 */
         fun create(context: Context): AlbumApi {
             val appContext = context.applicationContext
             val resolver = appContext.contentResolver

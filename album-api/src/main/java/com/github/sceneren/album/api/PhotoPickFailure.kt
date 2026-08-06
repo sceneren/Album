@@ -1,6 +1,6 @@
 package com.github.sceneren.album.api
 
-/** Stable failure categories reported while validating or persisting picker results. */
+/** 定义验证或持久化选择器结果时对外报告的稳定失败类型。 */
 enum class PhotoPickFailure {
     SELECTION_LIMIT_EXCEEDED,
     MEDIA_TYPE_NOT_ALLOWED,

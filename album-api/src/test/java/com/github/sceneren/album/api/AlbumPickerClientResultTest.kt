@@ -12,8 +12,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumPickerClientResultTest` 覆盖的行为。 */
 class AlbumPickerClientResultTest {
     @Test
+    /** 验证 `confirmationReturnsCopiedPhotoPickerPathForEverySelectedFile` 所描述的场景。 */
     fun confirmationReturnsCopiedPhotoPickerPathForEverySelectedFile() {
         val context = RuntimeEnvironment.getApplication()
         val source = File.createTempFile("album-result", ".jpg", context.cacheDir).apply {

@@ -8,6 +8,7 @@ import com.github.sceneren.album.api.AlbumPickerResult
 
 /** 以全屏 View Activity 打开相册选择器。 */
 class AlbumPickerContract : ActivityResultContract<AlbumPickerRequest, AlbumPickerResult?>() {
+    /** 创建或准备 `createIntent` 对应的对象。 */
     override fun createIntent(context: Context, input: AlbumPickerRequest): Intent =
         Intent(context, AlbumPickerActivity::class.java)
             .also { intent ->
@@ -21,6 +22,7 @@ class AlbumPickerContract : ActivityResultContract<AlbumPickerRequest, AlbumPick
                 )
             }
 
+    /** 执行 `parseResult` 方法定义的处理。 */
     override fun parseResult(resultCode: Int, intent: Intent?): AlbumPickerResult? =
         if (resultCode == android.app.Activity.RESULT_OK && intent != null) {
             AlbumPickerIntentCodec.readResult(intent)

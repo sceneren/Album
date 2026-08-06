@@ -13,6 +13,7 @@ import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** 负责 `AlbumPickerSessionStore` 管理数据的持久化读写。 */
 internal class AlbumPickerSessionStore(
     context: Context,
 ) {
@@ -21,24 +22,29 @@ internal class AlbumPickerSessionStore(
         Context.MODE_PRIVATE,
     )
 
+    /** 创建或准备 `create` 对应的对象。 */
     fun create(
         config: AlbumPickerConfig,
         sessionId: String = UUID.randomUUID().toString(),
     ): AlbumPickerSessionState = AlbumPickerSessionState(sessionId, config).also(::save)
 
+    /** 执行 `save` 方法定义的处理。 */
     fun save(state: AlbumPickerSessionState) {
         preferences.edit()
             .putString(state.sessionId, encode(state))
             .commit()
     }
 
+    /** 获取 `load` 所需的数据。 */
     fun load(sessionId: String): AlbumPickerSessionState? =
         preferences.getString(sessionId, null)?.let { decode(sessionId, it) }
 
+    /** 清理 `remove` 对应的数据或资源。 */
     fun remove(sessionId: String) {
         preferences.edit().remove(sessionId).commit()
     }
 
+    /** 执行 `encode` 方法定义的处理。 */
     private fun encode(state: AlbumPickerSessionState): String = JSONObject().apply {
         put("config", encodeConfig(state.config))
         put("selected", encodeItems(state.selected))
@@ -50,6 +56,7 @@ internal class AlbumPickerSessionStore(
             ?: put("previewUri", JSONObject.NULL)
     }.toString()
 
+    /** 执行 `decode` 方法定义的处理。 */
     private fun decode(sessionId: String, value: String): AlbumPickerSessionState {
         val json = JSONObject(value)
         val configJson = json.getJSONObject("config")
@@ -64,6 +71,7 @@ internal class AlbumPickerSessionStore(
         )
     }
 
+    /** 执行 `encodeConfig` 方法定义的处理。 */
     private fun encodeConfig(config: AlbumPickerConfig) = JSONObject().apply {
         put("filter", config.mediaFilter.name)
         put("max", config.maxSelectionCount)
@@ -75,6 +83,7 @@ internal class AlbumPickerSessionStore(
         put("showPermissionUpgrade", config.showPermissionUpgrade)
     }
 
+    /** 执行 `decodeConfig` 方法定义的处理。 */
     private fun decodeConfig(json: JSONObject) = AlbumPickerConfig(
         mediaFilter = AlbumMediaFilter.valueOf(json.getString("filter")),
         maxSelectionCount = json.getInt("max"),
@@ -90,6 +99,7 @@ internal class AlbumPickerSessionStore(
         showPermissionUpgrade = json.getBoolean("showPermissionUpgrade"),
     )
 
+    /** 执行 `encodeItems` 方法定义的处理。 */
     private fun encodeItems(items: List<AlbumPickerSelection>) = JSONArray().apply {
         items.forEach { item ->
             put(JSONObject().apply {
@@ -107,6 +117,7 @@ internal class AlbumPickerSessionStore(
         }
     }
 
+    /** 执行 `decodeItems` 方法定义的处理。 */
     private fun decodeItems(array: JSONArray): List<AlbumPickerSelection> = buildList {
         repeat(array.length()) { index ->
             val item = array.getJSONObject(index)
@@ -127,19 +138,23 @@ internal class AlbumPickerSessionStore(
         }
     }
 
+    /** 执行 `encodePending` 方法定义的处理。 */
     private fun encodePending(pending: AlbumPendingCameraCapture) = JSONObject().apply {
         put("uri", pending.uri.toString())
         put("filePath", pending.filePath)
         put("type", pending.mediaType.name)
     }
 
+    /** 执行 `decodePending` 方法定义的处理。 */
     private fun decodePending(json: JSONObject) = AlbumPendingCameraCapture(
         uri = Uri.parse(json.getString("uri")),
         filePath = json.getString("filePath"),
         mediaType = AlbumMediaType.valueOf(json.getString("type")),
     )
 
+    /** 提供类级共享常量与工厂能力。 */
     private companion object {
+        /** 表示 `PREFERENCES_NAME` 对应的数据。 */
         const val PREFERENCES_NAME = "album_picker_sessions"
     }
 }

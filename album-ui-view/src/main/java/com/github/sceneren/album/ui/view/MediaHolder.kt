@@ -8,6 +8,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.github.sceneren.album.api.AlbumMedia
 
+/** 持有并绑定 `MediaHolder` 对应的列表项视图。 */
 internal class MediaHolder(
     itemView: View,
     private val appearance: AlbumPickerAppearance,
@@ -26,6 +27,7 @@ internal class MediaHolder(
         )
     }
 
+    /** 执行 `bind` 方法定义的处理。 */
     fun bind(
         media: AlbumMedia,
         selected: Boolean,
@@ -41,6 +43,7 @@ internal class MediaHolder(
         updateSelectionState(media, selected, selectionBlocked, onPreview, onToggle)
     }
 
+    /** 更新 `updateSelectionState` 对应的状态。 */
     fun updateSelectionState(
         media: AlbumMedia,
         selected: Boolean,
@@ -78,6 +81,7 @@ internal class MediaHolder(
         )
     }
 
+    /** 清理 `clear` 对应的数据或资源。 */
     fun clear() {
         boundMedia = null
         imageLoader.clear(image)

@@ -19,8 +19,10 @@ import com.github.sceneren.album.ui.view.AlbumImageLoader as ViewImageLoader
 import com.github.sceneren.album.ui.view.AlbumImageTarget as ViewImageTarget
 import com.github.sceneren.album.ui.view.AlbumUi as ViewUi
 
+/** 负责 `App` 相关的数据与行为。 */
 class App : Application() {
     @OptIn(ExperimentalCoilApi::class)
+    /** 处理 `onCreate` 回调。 */
     override fun onCreate() {
         super.onCreate()
         val imageLoader = ImageLoader.Builder(this)
@@ -28,6 +30,7 @@ class App : Application() {
             .build()
         ViewUi.setImageLoader(
             object : ViewImageLoader {
+                /** 获取 `load` 所需的数据。 */
                 override fun load(
                     imageView: ImageView,
                     media: AlbumMedia,
@@ -36,6 +39,7 @@ class App : Application() {
                     imageView.load(media.uri, imageLoader)
                 }
 
+                /** 清理 `clear` 对应的数据或资源。 */
                 override fun clear(imageView: ImageView) {
                     imageView.load(null, imageLoader)
                 }

@@ -6,8 +6,10 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/** 验证 `MediaStoreQuerySpecTest` 覆盖的行为。 */
 class MediaStoreQuerySpecTest {
     @Test
+    /** 验证 `mixedFilterAndBucketComposeOneSelection` 所描述的场景。 */
     fun mixedFilterAndBucketComposeOneSelection() {
         val spec = MediaStoreQuerySpec.create(
             AlbumMediaFilter.IMAGES_AND_VIDEOS,
@@ -29,6 +31,7 @@ class MediaStoreQuerySpecTest {
     }
 
     @Test
+    /** 验证 `allBucketOmitsBucketPredicate` 所描述的场景。 */
     fun allBucketOmitsBucketPredicate() {
         val spec = MediaStoreQuerySpec.create(
             AlbumMediaFilter.VIDEOS,

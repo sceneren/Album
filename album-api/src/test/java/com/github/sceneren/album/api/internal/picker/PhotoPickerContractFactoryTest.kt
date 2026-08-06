@@ -12,14 +12,17 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `PhotoPickerContractFactoryTest` 覆盖的行为。 */
 class PhotoPickerContractFactoryTest {
     @Test
+    /** 验证 `oneUsesSingleAndNullUsesPlatformCappedMultiple` 所描述的场景。 */
     fun oneUsesSingleAndNullUsesPlatformCappedMultiple() {
         assertTrue(PhotoPickerContractFactory.create(1) is PickerContract.Single)
         assertTrue(PhotoPickerContractFactory.create(null) is PickerContract.MultipleDefault)
     }
 
     @Test
+    /** 验证 `explicitMultipleKeepsLimit` 所描述的场景。 */
     fun explicitMultipleKeepsLimit() {
         assertEquals(
             PickerContract.Multiple(maxItems = 7),
@@ -28,11 +31,13 @@ class PhotoPickerContractFactoryTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    /** 验证 `zeroIsRejected` 所描述的场景。 */
     fun zeroIsRejected() {
         PhotoPickerContractFactory.create(0)
     }
 
     @Test
+    /** 验证 `filtersMapToApprovedPickerMediaTypes` 所描述的场景。 */
     fun filtersMapToApprovedPickerMediaTypes() {
         assertSame(
             ActivityResultContracts.PickVisualMedia.ImageOnly,

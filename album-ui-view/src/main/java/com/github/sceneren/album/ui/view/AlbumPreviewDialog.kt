@@ -64,6 +64,7 @@ internal class AlbumPreviewDialog(
         pager.adapter = adapter
         pager.registerOnPageChangeCallback(
             object : ViewPager2.OnPageChangeCallback() {
+                /** 处理 `onPageSelected` 回调。 */
                 override fun onPageSelected(position: Int) {
                     currentPosition = position
                     updateChrome()
@@ -78,6 +79,7 @@ internal class AlbumPreviewDialog(
         }
     }
 
+    /** 执行 `show` 方法定义的处理。 */
     fun show() {
         dialog.window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
         dialog.show()
@@ -105,15 +107,18 @@ internal class AlbumPreviewDialog(
         pager.post { maybeLoadMore(targetIndex) }
     }
 
+    /** 执行 `dismiss` 方法定义的处理。 */
     fun dismiss() {
         dialog.dismiss()
     }
 
+    /** 更新 `updateSelection` 对应的状态。 */
     fun updateSelection(value: Set<Uri>) {
         selectedUris = value.toSet()
         updateChrome()
     }
 
+    /** 执行 `bindViews` 方法定义的处理。 */
     private fun bindViews() {
         root = dialog.findViewById(R.id.auv_preview_root)
         toolbar = dialog.findViewById(R.id.auv_preview_toolbar)
@@ -134,6 +139,7 @@ internal class AlbumPreviewDialog(
         }
     }
 
+    /** 执行 `applyAppearance` 方法定义的处理。 */
     private fun applyAppearance() {
         val previewColor = previewBackgroundColor()
         val primaryColor = appearance.primaryTextColor
@@ -157,6 +163,7 @@ internal class AlbumPreviewDialog(
         )
     }
 
+    /** 执行 `applySystemBarInsets` 方法定义的处理。 */
     private fun applySystemBarInsets() {
         val toolbarHeight = toolbar.layoutParams.height
         val toolbarPaddingLeft = toolbar.paddingLeft
@@ -195,6 +202,7 @@ internal class AlbumPreviewDialog(
         }
     }
 
+    /** 更新 `updateChrome` 对应的状态。 */
     internal fun updateChrome() {
         if (adapter.itemCount == 0) return
         currentPosition = currentPosition.coerceIn(0, adapter.itemCount - 1)
@@ -237,6 +245,7 @@ internal class AlbumPreviewDialog(
         doneAction.isEnabled = hasSelection
     }
 
+    /** 执行 `maybeLoadMore` 方法定义的处理。 */
     internal fun maybeLoadMore(position: Int) {
         val offset = nextOffset ?: return
         if (endReached || loadJob?.isActive == true) return
@@ -260,18 +269,25 @@ internal class AlbumPreviewDialog(
         }
     }
 
+    /** 将当前对象转换为 `toolbarColor` 对应的结果。 */
     private fun toolbarColor(): Int =
         appearance.toolbarColor ?: activity.getColorCompat(R.color.auv_toolbar)
 
+    /** 执行 `bottomBarColor` 方法定义的处理。 */
     private fun bottomBarColor(): Int =
         appearance.bottomBarColor ?: activity.getColorCompat(R.color.auv_bottom)
 
+    /** 执行 `previewBackgroundColor` 方法定义的处理。 */
     private fun previewBackgroundColor(): Int =
         appearance.previewBackgroundColor ?: activity.getColorCompat(android.R.color.black)
 
+    /** 提供类级共享常量与工厂能力。 */
     private companion object {
+        /** 表示 `PREVIEW_PAGE_SIZE` 对应的数据。 */
         const val PREVIEW_PAGE_SIZE = 30
+        /** 表示 `PREVIEW_PREFETCH_DISTANCE` 对应的数据。 */
         const val PREVIEW_PREFETCH_DISTANCE = 3
+        /** 表示 `LIGHT_COLOR_LUMINANCE` 对应的数据。 */
         const val LIGHT_COLOR_LUMINANCE = 0.5
     }
 }

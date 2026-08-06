@@ -4,8 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** 验证 `AlbumPickerConfigTest` 覆盖的行为。 */
 class AlbumPickerConfigTest {
     @Test
+    /** 验证 `requiresSelectionLimitBetweenOneAndOneHundred` 所描述的场景。 */
     fun requiresSelectionLimitBetweenOneAndOneHundred() {
         assertEquals(100, AlbumPickerConfig(AlbumMediaFilter.IMAGES, 100).maxSelectionCount)
 
@@ -19,6 +21,7 @@ class AlbumPickerConfigTest {
     }
 
     @Test
+    /** 验证 `compressionDefaultsToDisabledAndSkipsFilesAtOrBelowOneHundredKb` 所描述的场景。 */
     fun compressionDefaultsToDisabledAndSkipsFilesAtOrBelowOneHundredKb() {
         val config = AlbumPickerConfig(AlbumMediaFilter.IMAGES, 1)
 

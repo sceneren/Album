@@ -7,7 +7,7 @@ import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.DiffUtil
 import com.github.sceneren.album.api.AlbumMedia
 
-/** Paging adapter for MediaStore or persisted picker media. */
+/** 为 MediaStore 或持久化选择器媒体提供分页适配。 */
 internal class GalleryAdapter(
     private val appearance: AlbumPickerAppearance,
     private val gridMetrics: GridMetrics,
@@ -18,6 +18,7 @@ internal class GalleryAdapter(
 ) : PagingDataAdapter<AlbumMedia, MediaHolder>(DIFF) {
     private var selectedUris: Set<Uri> = emptySet()
 
+    /** 更新 `updateSelection` 对应的状态。 */
     fun updateSelection(value: Set<Uri>) {
         val changedUris = (selectedUris - value) + (value - selectedUris)
         if (changedUris.isEmpty()) return
@@ -34,6 +35,7 @@ internal class GalleryAdapter(
         }
     }
 
+    /** 处理 `onCreateViewHolder` 回调。 */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaHolder =
         MediaHolder(
             LayoutInflater.from(parent.context).inflate(
@@ -46,6 +48,7 @@ internal class GalleryAdapter(
             parent.gridCellSize(gridMetrics),
         )
 
+    /** 处理 `onBindViewHolder` 回调。 */
     override fun onBindViewHolder(holder: MediaHolder, position: Int) {
         val item = getItem(position)
         if (item != null) {
@@ -61,6 +64,7 @@ internal class GalleryAdapter(
         }
     }
 
+    /** 处理 `onBindViewHolder` 回调。 */
     override fun onBindViewHolder(
         holder: MediaHolder,
         position: Int,
@@ -80,22 +84,29 @@ internal class GalleryAdapter(
         }
     }
 
+    /** 处理 `onViewRecycled` 回调。 */
     override fun onViewRecycled(holder: MediaHolder) {
         holder.clear()
     }
 
+    /** 提供类级共享常量与工厂能力。 */
     private companion object {
+        /** 表示 `SELECTION_STATE_PAYLOAD` 对应的数据。 */
         val SELECTION_STATE_PAYLOAD = Any()
 
+        /** 表示 `DIFF` 对应的数据。 */
         val DIFF = object : DiffUtil.ItemCallback<AlbumMedia>() {
+            /** 执行 `areItemsTheSame` 方法定义的处理。 */
             override fun areItemsTheSame(oldItem: AlbumMedia, newItem: AlbumMedia): Boolean =
                 oldItem.uri == newItem.uri
 
+            /** 执行 `areContentsTheSame` 方法定义的处理。 */
             override fun areContentsTheSame(oldItem: AlbumMedia, newItem: AlbumMedia): Boolean =
                 oldItem == newItem
         }
     }
 
+    /** 执行 `selectionLimitReached` 方法定义的处理。 */
     private fun selectionLimitReached(value: Set<Uri> = selectedUris): Boolean =
         value.size >= maxSelectionCount
 }

@@ -12,6 +12,7 @@ import com.github.sceneren.album.api.AlbumMedia
  */
 fun interface AlbumImageLoader {
     @Composable
+    /** 执行 `painter` 方法定义的处理。 */
     fun painter(
         media: AlbumMedia,
         target: AlbumImageTarget,

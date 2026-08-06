@@ -16,10 +16,12 @@ internal class AlbumFileMaterializer(
     private val resolver: ContentResolver,
     private val externalRoot: File? = context.applicationContext.getExternalFilesDir(null),
 ) {
+    /** 执行 `copy` 方法定义的处理。 */
     suspend fun copy(uri: Uri, displayName: String?): MaterializedMedia = withContext(Dispatchers.IO) {
         copyOnIo(uri, displayName)
     }
 
+    /** 执行 `copyAll` 方法定义的处理。 */
     suspend fun copyAll(items: List<Pair<Uri, String?>>): List<MaterializedMedia> =
         withContext(Dispatchers.IO) {
             val copied = mutableListOf<MaterializedMedia>()
@@ -34,6 +36,7 @@ internal class AlbumFileMaterializer(
             }
         }
 
+    /** 执行 `copyOnIo` 方法定义的处理。 */
     private fun copyOnIo(uri: Uri, displayName: String?): MaterializedMedia {
         val root = externalRoot ?: throw IOException("应用专属外部存储不可用")
         val directory = File(root, PHOTO_PICKER_DIRECTORY).apply {
@@ -64,9 +67,11 @@ internal class AlbumFileMaterializer(
         }
     }
 
+    /** 执行 `openInput` 方法定义的处理。 */
     private fun openInput(uri: Uri) = resolver.openInputStream(uri)
         ?: throw IOException("无法读取媒体 URI: $uri")
 
+    /** 执行 `uniqueFileName` 方法定义的处理。 */
     private fun uniqueFileName(displayName: String?): String {
         val safeName = displayName
             ?.substringAfterLast('/')
@@ -78,8 +83,11 @@ internal class AlbumFileMaterializer(
         return "${UUID.randomUUID()}_$safeName"
     }
 
+    /** 提供类级共享常量与工厂能力。 */
     companion object {
+        /** 表示 `PHOTO_PICKER_DIRECTORY` 对应的数据。 */
         const val PHOTO_PICKER_DIRECTORY: String = "photo_picker"
+        /** 表示 `BUFFER_SIZE` 对应的数据。 */
         private const val BUFFER_SIZE = 64 * 1024
     }
 }

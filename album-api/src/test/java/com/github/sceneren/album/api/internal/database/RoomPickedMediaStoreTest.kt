@@ -18,11 +18,13 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `RoomPickedMediaStoreTest` 覆盖的行为。 */
 class RoomPickedMediaStoreTest {
     private lateinit var database: AlbumDatabase
     private lateinit var store: RoomPickedMediaStore
 
     @Before
+    /** 更新 `setUp` 对应的状态。 */
     fun setUp() {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
@@ -32,9 +34,11 @@ class RoomPickedMediaStoreTest {
     }
 
     @After
+    /** 执行 `tearDown` 方法定义的处理。 */
     fun tearDown() = database.close()
 
     @Test
+    /** 验证 `batchKeepsPickerOrderAndFiltersByType` 所描述的场景。 */
     fun batchKeepsPickerOrderAndFiltersByType() = runTest {
         store.upsertBatch(
             listOf(
@@ -54,6 +58,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `duplicateUriUpdatesInsteadOfDuplicating` 所描述的场景。 */
     fun duplicateUriUpdatesInsteadOfDuplicating() = runTest {
         store.upsertBatch(listOf(draft("content://picked/same", AlbumMediaType.IMAGE, 10)))
         store.upsertBatch(listOf(draft("content://picked/same", AlbumMediaType.VIDEO, 20)))
@@ -63,6 +68,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `reselectedItemKeepsPersistableGrantOwnership` 所描述的场景。 */
     fun reselectedItemKeepsPersistableGrantOwnership() = runTest {
         store.upsertBatch(
             listOf(
@@ -89,6 +95,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `clearReturnsDeletedRowsAndEmptiesTable` 所描述的场景。 */
     fun clearReturnsDeletedRowsAndEmptiesTable() = runTest {
         store.upsertBatch(
             listOf(
@@ -104,6 +111,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `identicalSortOrderFallsBackToUriAscending` 所描述的场景。 */
     fun identicalSortOrderFallsBackToUriAscending() = runTest {
         database.pickedMediaDao().upsertAll(
             listOf(
@@ -119,6 +127,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `boundedPageUsesSameStableOrderAndOffset` 所描述的场景。 */
     fun boundedPageUsesSameStableOrderAndOffset() = runTest {
         store.upsertBatch(
             listOf(
@@ -134,6 +143,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `removeReturnsDeletedRow` 所描述的场景。 */
     fun removeReturnsDeletedRow() = runTest {
         store.upsertBatch(listOf(draft("content://picked/remove", AlbumMediaType.IMAGE, 10)))
 
@@ -144,6 +154,7 @@ class RoomPickedMediaStoreTest {
     }
 
     @Test
+    /** 验证 `batchLargerThanSqliteBindLimitIsPersisted` 所描述的场景。 */
     fun batchLargerThanSqliteBindLimitIsPersisted() = runTest {
         val drafts = (0..1_000).map { index ->
             draft(
@@ -158,6 +169,7 @@ class RoomPickedMediaStoreTest {
         assertEquals(drafts.size, store.all().size)
     }
 
+    /** 获取 `load` 所需的数据。 */
     private suspend fun load(filter: AlbumMediaFilter): List<PickedMediaEntity> {
         val result = store.pagingSource(filter).load(
             PagingSource.LoadParams.Refresh(
@@ -169,6 +181,7 @@ class RoomPickedMediaStoreTest {
         return (result as PagingSource.LoadResult.Page).data
     }
 
+    /** 执行 `draft` 方法定义的处理。 */
     private fun draft(
         uri: String,
         mediaType: AlbumMediaType,
@@ -187,6 +200,7 @@ class RoomPickedMediaStoreTest {
         ownsPersistableGrant = ownsPersistableGrant,
     )
 
+    /** 执行 `entity` 方法定义的处理。 */
     private fun entity(
         uri: String,
         sortOrder: Long,

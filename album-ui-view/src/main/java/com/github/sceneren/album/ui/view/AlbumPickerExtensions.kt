@@ -10,6 +10,7 @@ import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaSource
 import kotlin.math.roundToInt
 
+/** 将当前对象转换为 `toCoverMedia` 对应的结果。 */
 internal fun AlbumDirectory.toCoverMedia() = AlbumMedia(
     uri = coverUri,
     mediaType = coverMediaType,
@@ -27,6 +28,7 @@ internal fun AlbumDirectory.toCoverMedia() = AlbumMedia(
     source = AlbumMediaSource.MEDIA_STORE,
 )
 
+/** 执行 `gridCellSize` 方法定义的处理。 */
 internal fun View.gridCellSize(metrics: GridMetrics): Int {
     val gridWidth = measuredWidth.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
     val contentWidth = gridWidth.toLong() - paddingLeft - paddingRight
@@ -37,14 +39,18 @@ internal fun View.gridCellSize(metrics: GridMetrics): Int {
         .toInt()
 }
 
+/** 执行 `color` 方法定义的处理。 */
 internal fun Context.color(resourceId: Int): Int = ContextCompat.getColor(this, resourceId)
 
+/** 获取 `getColorCompat` 所需的数据。 */
 internal fun Context.getColorCompat(resourceId: Int): Int =
     ContextCompat.getColor(this, resourceId)
 
+/** 执行 `dpToPx` 方法定义的处理。 */
 internal fun Context.dpToPx(value: Int): Int =
     (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
 
+/** 执行 `applyActivityTransitions` 方法定义的处理。 */
 internal fun Activity.applyActivityTransitions(animation: AlbumPickerAnimation?) {
     val openEnter = animation?.openEnterResId ?: 0
     val openExit = animation?.openExitResId ?: 0
@@ -61,6 +67,7 @@ internal fun Activity.applyActivityTransitions(animation: AlbumPickerAnimation?)
     }
 }
 
+/** 执行 `applyLegacyCloseTransition` 方法定义的处理。 */
 internal fun Activity.applyLegacyCloseTransition(animation: AlbumPickerAnimation?) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
     @Suppress("DEPRECATION")

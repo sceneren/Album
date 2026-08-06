@@ -11,8 +11,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumPickerIntentCodecTest` 覆盖的行为。 */
 class AlbumPickerIntentCodecTest {
     @Test
+    /** 验证 `roundTripsConfigAndRealFilePathsWithoutParcelables` 所描述的场景。 */
     fun roundTripsConfigAndRealFilePathsWithoutParcelables() {
         val config = AlbumPickerConfig(
             mediaFilter = AlbumMediaFilter.IMAGES_AND_VIDEOS,

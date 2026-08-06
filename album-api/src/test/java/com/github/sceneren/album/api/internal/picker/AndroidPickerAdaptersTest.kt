@@ -19,8 +19,10 @@ import org.robolectric.shadows.ShadowContentResolver
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AndroidPickerAdaptersTest` 覆盖的行为。 */
 class AndroidPickerAdaptersTest {
     @Test
+    /** 验证 `metadataReaderMapsImageVideoAndOptionalColumns` 所描述的场景。 */
     fun metadataReaderMapsImageVideoAndOptionalColumns() {
         ShadowContentResolver.registerProviderInternal("picker", PickerMetadataProvider())
         val reader = ContentResolverUriMetadataReader(
@@ -38,6 +40,7 @@ class AndroidPickerAdaptersTest {
     }
 
     @Test
+    /** 验证 `requiredTypeRejectsUnsupportedMime` 所描述的场景。 */
     fun requiredTypeRejectsUnsupportedMime() {
         ShadowContentResolver.registerProviderInternal("picker", PickerMetadataProvider())
         val reader = ContentResolverUriMetadataReader(
@@ -48,11 +51,12 @@ class AndroidPickerAdaptersTest {
             reader.requiredType(uri("other"))
             fail("Unsupported MIME should fail")
         } catch (_: IllegalArgumentException) {
-            // Expected.
+            // 预期会抛出异常。
         }
     }
 
     @Test
+    /** 验证 `releaseReadNeverRequestsWritePermission` 所描述的场景。 */
     fun releaseReadNeverRequestsWritePermission() {
         var releasedFlags: Int? = null
         val resolver = ApplicationProvider
@@ -68,15 +72,19 @@ class AndroidPickerAdaptersTest {
         assertEquals(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION, releasedFlags)
     }
 
+    /** 负责 `PickerMetadataProvider` 相关的数据与行为。 */
     private class PickerMetadataProvider : ContentProvider() {
+        /** 处理 `onCreate` 回调。 */
         override fun onCreate(): Boolean = true
 
+        /** 获取 `getType` 所需的数据。 */
         override fun getType(uri: Uri): String = when (uri.lastPathSegment) {
             "image" -> "image/jpeg"
             "video" -> "video/mp4"
             else -> "application/octet-stream"
         }
 
+        /** 获取 `query` 所需的数据。 */
         override fun query(
             uri: Uri,
             projection: Array<out String>?,
@@ -104,10 +112,13 @@ class AndroidPickerAdaptersTest {
             )
         }
 
+        /** 执行 `insert` 方法定义的处理。 */
         override fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
+        /** 清理 `delete` 对应的数据或资源。 */
         override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
 
+        /** 更新 `update` 对应的状态。 */
         override fun update(
             uri: Uri,
             values: ContentValues?,
@@ -116,5 +127,6 @@ class AndroidPickerAdaptersTest {
         ): Int = 0
     }
 
+    /** 执行 `uri` 方法定义的处理。 */
     private fun uri(name: String): Uri = Uri.parse("content://picker/$name")
 }

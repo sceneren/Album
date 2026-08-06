@@ -3,8 +3,10 @@ package com.github.sceneren.album.api
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/** 验证 `AlbumCompressionPolicyTest` 覆盖的行为。 */
 class AlbumCompressionPolicyTest {
     @Test
+    /** 验证 `skipsImagesAtOrBelowConfiguredThresholdAndNeverCompressesVideos` 所描述的场景。 */
     fun skipsImagesAtOrBelowConfiguredThresholdAndNeverCompressesVideos() {
         val policy = AlbumCompressionPolicy(AlbumCompressionConfig(enabled = true, skipAtOrBelowKb = 100))
 

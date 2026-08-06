@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.github.sceneren.album.api.AlbumDirectory
 
+/** 持有并绑定 `DirectoryHolder` 对应的列表项视图。 */
 internal class DirectoryHolder(
     itemView: View,
     private val imageLoader: AlbumImageLoader,
@@ -21,6 +22,7 @@ internal class DirectoryHolder(
         cornerRadius = itemView.resources.getDimension(R.dimen.auv_directory_corner_radius)
     }
 
+    /** 执行 `bind` 方法定义的处理。 */
     fun bind(directory: AlbumDirectory, selected: Boolean) {
         clear()
         val name = if (directory.bucketId == AlbumDirectory.ALL_BUCKET_ID) {
@@ -39,6 +41,7 @@ internal class DirectoryHolder(
         itemView.setOnClickListener { onClick(directory.bucketId) }
     }
 
+    /** 清理 `clear` 对应的数据或资源。 */
     fun clear() {
         imageLoader.clear(cover)
         label.text = null

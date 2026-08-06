@@ -6,11 +6,13 @@ import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import kotlinx.coroutines.CancellationException
 
+/** 负责 `MediaStoreMediaPagingSource` 相关的数据与行为。 */
 internal class MediaStoreMediaPagingSource(
     private val dataSource: MediaStoreDataSource,
     private val mediaFilter: AlbumMediaFilter,
     private val bucketId: Long,
 ) : PagingSource<Int, AlbumMedia>() {
+    /** 获取 `load` 所需的数据。 */
     override suspend fun load(
         params: LoadParams<Int>,
     ): LoadResult<Int, AlbumMedia> = try {
@@ -35,6 +37,7 @@ internal class MediaStoreMediaPagingSource(
         LoadResult.Error(exception)
     }
 
+    /** 获取 `getRefreshKey` 所需的数据。 */
     override fun getRefreshKey(state: PagingState<Int, AlbumMedia>): Int? {
         val anchor = state.anchorPosition ?: return null
         val page = state.closestPageToPosition(anchor) ?: return null

@@ -7,6 +7,7 @@ import android.os.Build
 /** 根据过滤类型返回宿主需要声明和请求的媒体读取权限。 */
 object AlbumMediaPermissionRequestFactory {
     @SuppressLint("InlinedApi")
+    /** 创建或准备 `create` 对应的对象。 */
     fun create(filter: AlbumMediaFilter, sdkInt: Int = Build.VERSION.SDK_INT): Array<String> {
         if (sdkInt <= Build.VERSION_CODES.S_V2) {
             return arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)

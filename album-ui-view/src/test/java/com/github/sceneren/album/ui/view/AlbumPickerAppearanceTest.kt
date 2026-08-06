@@ -16,8 +16,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `AlbumPickerAppearanceTest` 覆盖的行为。 */
 class AlbumPickerAppearanceTest {
     @Test
+    /** 验证 `动画配置支持宿主资源和null禁用` 所描述的场景。 */
     fun `动画配置支持宿主资源和null禁用`() {
         val custom = AlbumPickerAnimation(
             openEnterResId = 100,
@@ -36,6 +38,7 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `默认主题使用底部弹出动画` 所描述的场景。 */
     fun `默认主题使用底部弹出动画`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val theme = context.resources.newTheme().apply {
@@ -63,6 +66,7 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `默认网格配置为1dp间距和每行4个` 所描述的场景。 */
     fun `默认网格配置为1dp间距和每行4个`() {
         val appearance = AlbumPickerAppearance()
 
@@ -71,6 +75,7 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `自定义网格配置可以通过Intent恢复` 所描述的场景。 */
     fun `自定义网格配置可以通过Intent恢复`() {
         val intent = Intent()
         AlbumPickerExtras.putAppearance(
@@ -88,6 +93,7 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `间距不能小于0` 所描述的场景。 */
     fun `间距不能小于0`() {
         assertThrows(IllegalArgumentException::class.java) {
             AlbumPickerAppearance(gridItemSpacingDp = -1)
@@ -95,6 +101,7 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `每行item数量必须在允许范围内` 所描述的场景。 */
     fun `每行item数量必须在允许范围内`() {
         assertThrows(IllegalArgumentException::class.java) {
             AlbumPickerAppearance(gridSpanCount = 0)
@@ -107,18 +114,21 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `外部允许且未完全授权时显示权限按钮` 所描述的场景。 */
     fun `外部允许且未完全授权时显示权限按钮`() {
         assertTrue(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.DENIED))
         assertTrue(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.PARTIAL))
     }
 
     @Test
+    /** 验证 `外部不允许或已完全授权时隐藏权限按钮` 所描述的场景。 */
     fun `外部不允许或已完全授权时隐藏权限按钮`() {
         assertFalse(shouldShowPermissionUpgradeButton(false, MediaAccessStatus.DENIED))
         assertFalse(shouldShowPermissionUpgradeButton(false, MediaAccessStatus.PARTIAL))
         assertFalse(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.FULL))
     }
 
+    /** 执行 `assertAnimationStyle` 方法定义的处理。 */
     private fun assertAnimationStyle(
         context: Context,
         styleResId: Int,

@@ -18,8 +18,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+/** 验证 `MediaStoreMediaPagingSourceTest` 覆盖的行为。 */
 class MediaStoreMediaPagingSourceTest {
     @Test
+    /** 验证 `nextPageUsesReturnedOffset` 所描述的场景。 */
     fun nextPageUsesReturnedOffset() = runTest {
         val fake = FakeMediaStoreDataSource(items = mediaItems(75))
         val source = MediaStoreMediaPagingSource(
@@ -49,6 +51,7 @@ class MediaStoreMediaPagingSourceTest {
     }
 
     @Test
+    /** 验证 `dataSourceFailureBecomesLoadError` 所描述的场景。 */
     fun dataSourceFailureBecomesLoadError() = runTest {
         val failure = IllegalStateException("query failed")
         val source = MediaStoreMediaPagingSource(
@@ -69,6 +72,7 @@ class MediaStoreMediaPagingSourceTest {
     }
 
     @Test
+    /** 验证 `cancellationPropagates` 所描述的场景。 */
     fun cancellationPropagates() = runTest {
         val cancellation = CancellationException("cancel load")
         val source = MediaStoreMediaPagingSource(
@@ -93,16 +97,19 @@ class MediaStoreMediaPagingSourceTest {
         assertSame(cancellation, thrown)
     }
 
+    /** 负责 `FakeMediaStoreDataSource` 相关的数据与行为。 */
     private class FakeMediaStoreDataSource(
         private val items: List<AlbumMedia> = emptyList(),
         private val failure: Throwable? = null,
     ) : MediaStoreDataSource {
         val requestedOffsets = mutableListOf<Int>()
 
+        /** 获取 `loadAll` 所需的数据。 */
         override suspend fun loadAll(
             mediaFilter: AlbumMediaFilter,
         ): List<AlbumMedia> = emptyList()
 
+        /** 获取 `loadPage` 所需的数据。 */
         override suspend fun loadPage(
             mediaFilter: AlbumMediaFilter,
             bucketId: Long,
@@ -114,11 +121,13 @@ class MediaStoreMediaPagingSourceTest {
             return items.drop(offset).take(limit)
         }
 
+        /** 获取 `getDirectories` 所需的数据。 */
         override suspend fun getDirectories(
             mediaFilter: AlbumMediaFilter,
         ): List<AlbumDirectory> = emptyList()
     }
 
+    /** 执行 `mediaItems` 方法定义的处理。 */
     private fun mediaItems(count: Int): List<AlbumMedia> = List(count) { index ->
         AlbumMedia(
             uri = Uri.parse("content://media/$index"),

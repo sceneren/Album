@@ -2,6 +2,7 @@ package com.github.sceneren.album
 
 import com.github.sceneren.album.api.AlbumMediaFilter
 
+/** 执行 `label` 方法定义的处理。 */
 internal fun AlbumMediaFilter.label(): String = when (this) {
     AlbumMediaFilter.IMAGES -> "图片"
     AlbumMediaFilter.VIDEOS -> "视频"

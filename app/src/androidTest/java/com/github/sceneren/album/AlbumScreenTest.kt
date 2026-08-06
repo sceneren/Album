@@ -9,11 +9,13 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
 
+/** 验证 `AlbumScreenTest` 覆盖的行为。 */
 class AlbumScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
 
     @Test
+    /** 执行 `screenOffersAllThreeMediaFilters` 方法定义的处理。 */
     fun screenOffersAllThreeMediaFilters() {
         composeRule.setContent {
             AlbumScreen(
