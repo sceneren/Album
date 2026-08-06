@@ -1,0 +1,8 @@
+jdk:
+  - openjdk17
+
+before_install:
+  - chmod +x gradlew
+
+install:
+  - ./gradlew --no-daemon clean :album-api:publishReleasePublicationToMavenLocal :album-ui-view:publishReleasePublicationToMavenLocal :album-ui-compose:publishReleasePublicationToMavenLocal -x test

@@ -23,8 +23,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":album-api"))
-    implementation(libs.androidx.activity.ktx)
+    api(project(":album-api"))
+    api(libs.androidx.activity.ktx)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.recyclerview)
