@@ -2,6 +2,8 @@
 
 Album 是一个 Android 相册选择器，提供数据 API、传统 View 界面和 Jetpack Compose 界面。它支持图片、视频、混合媒体、多选、系统 Photo Picker、MediaStore 分页、相机拍摄、图片压缩以及选择结果文件化。
 
+[![](https://jitpack.io/v/sceneren/Album.svg)](https://jitpack.io/#sceneren/Album)
+
 ## 模块
 
 | 模块 | 用途 |
