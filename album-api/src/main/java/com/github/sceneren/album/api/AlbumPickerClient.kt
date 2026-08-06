@@ -25,55 +25,6 @@ import java.io.File
 import java.io.IOException
 import java.util.UUID
 
-/** UI 模块共享的选择会话数据。 */
-data class AlbumPickerSessionSnapshot(
-    val sessionId: String,
-    val selectedItems: List<AlbumMedia>,
-    val cameraItems: List<AlbumMedia>,
-    val selectedUris: Set<Uri>,
-    val bucketId: Long,
-    val previewUri: Uri?,
-    val hasPendingCamera: Boolean,
-)
-
-/** 待交给系统相机 Activity Result Contract 的输出文件。 */
-data class AlbumCameraCapture(
-    val uri: Uri,
-    val filePath: String,
-    val mediaType: AlbumMediaType,
-)
-
-/** 相机 Activity Result 的统一包装。 */
-class AlbumCameraLauncher internal constructor(
-    private val activity: ComponentActivity,
-    private val client: AlbumPickerClient,
-    private val sessionId: String,
-    private val photoLauncher: androidx.activity.result.ActivityResultLauncher<Uri>,
-    private val videoLauncher: androidx.activity.result.ActivityResultLauncher<Uri>,
-    private val onResult: (Result<AlbumPickerSessionSnapshot>) -> Unit,
-) {
-    /** 注册后可多次调用；每次调用都会先把待写入 URI 持久化。 */
-    fun launch(mediaType: AlbumMediaType) {
-        activity.lifecycleScope.launch {
-            val captureType = when (mediaType) {
-                AlbumMediaType.IMAGE -> AlbumMediaType.IMAGE
-                AlbumMediaType.VIDEO -> AlbumMediaType.VIDEO
-            }
-            val prepared = client.prepareCamera(sessionId, captureType)
-            prepared.fold(
-                onSuccess = { capture ->
-                    if (captureType == AlbumMediaType.IMAGE) {
-                        photoLauncher.launch(capture.uri)
-                    } else {
-                        videoLauncher.launch(capture.uri)
-                    }
-                },
-                onFailure = { failure -> onResult(Result.failure(failure)) },
-            )
-        }
-    }
-}
-
 /** 相册 UI 使用的会话、相机和最终文件处理器。 */
 class AlbumPickerClient internal constructor(
     private val context: Context,
@@ -327,53 +278,6 @@ class AlbumPickerClient internal constructor(
     private fun externalRoot(): File = externalRootOverride
         ?: appContext.getExternalFilesDir(null)
         ?: throw IOException("应用专属外部存储不可用")
-
-    private fun AlbumPickerSessionState.toSnapshot() = AlbumPickerSessionSnapshot(
-        sessionId = sessionId,
-        selectedItems = selected.map { it.toAlbumMedia() },
-        cameraItems = cameraItems.map { it.toAlbumMedia() },
-        selectedUris = selected.mapTo(linkedSetOf()) { it.uri },
-        bucketId = bucketId,
-        previewUri = previewUri,
-        hasPendingCamera = pendingCamera != null,
-    )
-
-    private fun AlbumMedia.toSelection() = AlbumPickerSelection(
-        uri = uri,
-        mediaType = mediaType,
-        displayName = displayName,
-        mimeType = mimeType,
-        sizeBytes = sizeBytes,
-        width = width,
-        height = height,
-        durationMillis = durationMillis,
-        source = when (source) {
-            AlbumMediaSource.MEDIA_STORE -> AlbumPickerItemSource.MEDIA_STORE
-            AlbumMediaSource.PHOTO_PICKER -> AlbumPickerItemSource.PHOTO_PICKER
-            AlbumMediaSource.CAMERA -> AlbumPickerItemSource.CAMERA
-        },
-    )
-
-    private fun AlbumPickerSelection.toAlbumMedia() = AlbumMedia(
-        uri = uri,
-        mediaType = mediaType,
-        displayName = displayName,
-        mimeType = mimeType,
-        sizeBytes = sizeBytes,
-        dateAddedEpochSeconds = null,
-        dateModifiedEpochSeconds = null,
-        width = width,
-        height = height,
-        durationMillis = durationMillis,
-        bucketId = null,
-        bucketName = null,
-        selectedAtEpochMillis = null,
-        source = when (source) {
-            AlbumPickerItemSource.MEDIA_STORE -> AlbumMediaSource.MEDIA_STORE
-            AlbumPickerItemSource.PHOTO_PICKER -> AlbumMediaSource.PHOTO_PICKER
-            AlbumPickerItemSource.CAMERA -> AlbumMediaSource.CAMERA
-        },
-    )
 
     private companion object {
         const val CAMERA_DIRECTORY = "camera"

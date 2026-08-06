@@ -3,56 +3,8 @@ package com.github.sceneren.album.ui.compose
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.annotation.ColorInt
-import androidx.annotation.DrawableRes
-import androidx.annotation.IntRange
-import androidx.annotation.StyleRes
-import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerResult
-
-/** Compose 相册选择器的一次启动请求。 */
-data class AlbumPickerRequest(
-    val config: AlbumPickerConfig,
-    @StyleRes val themeResId: Int = 0,
-    val appearance: AlbumPickerAppearance = AlbumPickerAppearance(),
-)
-
-/** Compose 实现的颜色和图标覆盖项。 */
-data class AlbumPickerAppearance(
-    @ColorInt val toolbarColor: Int? = null,
-    @ColorInt val bottomBarColor: Int? = null,
-    @ColorInt val previewBackgroundColor: Int? = null,
-    @ColorInt val accentColor: Int? = null,
-    @ColorInt val primaryTextColor: Int? = null,
-    @ColorInt val secondaryTextColor: Int? = null,
-    @ColorInt val scrimColor: Int? = null,
-    @DrawableRes val backIconRes: Int? = null,
-    @DrawableRes val cameraIconRes: Int? = null,
-    @DrawableRes val addIconRes: Int? = null,
-    @DrawableRes val checkedIconRes: Int? = null,
-    @DrawableRes val uncheckedIconRes: Int? = null,
-    @DrawableRes val folderIconRes: Int? = null,
-    @DrawableRes val doneIconRes: Int? = null,
-    @DrawableRes val videoIconRes: Int? = null,
-    /** RecyclerView/XML implementation-compatible spacing between grid cells, in dp. */
-    @IntRange(from = 0) val gridItemSpacingDp: Int = 1,
-    /** RecyclerView/XML implementation-compatible number of cells per row. */
-    @IntRange(from = 1, to = 100) val gridSpanCount: Int = 4,
-)
-
-{
-    init {
-        require(gridItemSpacingDp >= 0) { "gridItemSpacingDp must be >= 0" }
-        require(gridSpanCount in 1..MAX_GRID_SPAN_COUNT) {
-            "gridSpanCount must be in 1..$MAX_GRID_SPAN_COUNT"
-        }
-    }
-
-    companion object {
-        const val MAX_GRID_SPAN_COUNT: Int = 100
-    }
-}
 
 /** 以全屏 Compose Activity 打开相册选择器。 */
 class AlbumPickerContract :
@@ -73,55 +25,5 @@ class AlbumPickerContract :
             AlbumPickerIntentCodec.readResult(intent)
         } else {
             null
-        }
-}
-
-internal object AlbumPickerExtras {
-    const val THEME = "album_compose.theme"
-    private const val PREFIX = "album_compose.appearance."
-
-    fun putAppearance(intent: Intent, appearance: AlbumPickerAppearance) {
-        intent.putExtra(PREFIX + "toolbar", appearance.toolbarColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "bottom", appearance.bottomBarColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "preview", appearance.previewBackgroundColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "accent", appearance.accentColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "primary", appearance.primaryTextColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "secondary", appearance.secondaryTextColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "scrim", appearance.scrimColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "back", appearance.backIconRes ?: 0)
-        intent.putExtra(PREFIX + "camera", appearance.cameraIconRes ?: 0)
-        intent.putExtra(PREFIX + "add", appearance.addIconRes ?: 0)
-        intent.putExtra(PREFIX + "checked", appearance.checkedIconRes ?: 0)
-        intent.putExtra(PREFIX + "unchecked", appearance.uncheckedIconRes ?: 0)
-        intent.putExtra(PREFIX + "folder", appearance.folderIconRes ?: 0)
-        intent.putExtra(PREFIX + "done", appearance.doneIconRes ?: 0)
-        intent.putExtra(PREFIX + "video", appearance.videoIconRes ?: 0)
-        intent.putExtra(PREFIX + "grid_item_spacing_dp", appearance.gridItemSpacingDp)
-        intent.putExtra(PREFIX + "grid_span_count", appearance.gridSpanCount)
-    }
-
-    fun readAppearance(intent: Intent) = AlbumPickerAppearance(
-        toolbarColor = intent.intOrNull(PREFIX + "toolbar"),
-        bottomBarColor = intent.intOrNull(PREFIX + "bottom"),
-        previewBackgroundColor = intent.intOrNull(PREFIX + "preview"),
-        accentColor = intent.intOrNull(PREFIX + "accent"),
-        primaryTextColor = intent.intOrNull(PREFIX + "primary"),
-        secondaryTextColor = intent.intOrNull(PREFIX + "secondary"),
-        scrimColor = intent.intOrNull(PREFIX + "scrim"),
-        backIconRes = intent.intOrNull(PREFIX + "back", true),
-        cameraIconRes = intent.intOrNull(PREFIX + "camera", true),
-        addIconRes = intent.intOrNull(PREFIX + "add", true),
-        checkedIconRes = intent.intOrNull(PREFIX + "checked", true),
-        uncheckedIconRes = intent.intOrNull(PREFIX + "unchecked", true),
-        folderIconRes = intent.intOrNull(PREFIX + "folder", true),
-        doneIconRes = intent.intOrNull(PREFIX + "done", true),
-        videoIconRes = intent.intOrNull(PREFIX + "video", true),
-        gridItemSpacingDp = intent.getIntExtra(PREFIX + "grid_item_spacing_dp", 1),
-        gridSpanCount = intent.getIntExtra(PREFIX + "grid_span_count", 4),
-    )
-
-    private fun Intent.intOrNull(key: String, zeroIsNull: Boolean = false): Int? {
-        val value = getIntExtra(key, Int.MIN_VALUE)
-        return if (value == Int.MIN_VALUE || (zeroIsNull && value == 0)) null else value
     }
 }

@@ -144,9 +144,3 @@ private fun DemoScreen(
         }
     }
 }
-
-private fun AlbumMediaFilter.label(): String = when (this) {
-    AlbumMediaFilter.IMAGES -> "图片"
-    AlbumMediaFilter.VIDEOS -> "视频"
-    AlbumMediaFilter.IMAGES_AND_VIDEOS -> "图片和视频"
-}

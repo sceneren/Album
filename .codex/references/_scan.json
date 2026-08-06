@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-05 12:04:35",
+  "scan_time": "2026-08-06 10:36:56",
   "module_count": 4,
   "modules": [
     {
@@ -16,8 +16,9 @@
       "source_dirs": [
         {
           "root": "app\\src\\main\\java",
-          "file_count": 5,
+          "file_count": 6,
           "file_list": [
+            "com\\github\\sceneren\\album\\AlbumMediaFilterExtensions.kt",
             "com\\github\\sceneren\\album\\App.kt",
             "com\\github\\sceneren\\album\\MainActivity.kt",
             "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
@@ -29,8 +30,9 @@
           ]
         }
       ],
-      "file_count": 5,
+      "file_count": 6,
       "file_list": [
+        "com\\github\\sceneren\\album\\AlbumMediaFilterExtensions.kt",
         "com\\github\\sceneren\\album\\App.kt",
         "com\\github\\sceneren\\album\\MainActivity.kt",
         "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
@@ -112,7 +114,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "app\\src\\main\\java/\n└── com/  (5个文件)\n    └── github/  (5个文件)\n        └── sceneren/  (5个文件)\n            └── album/  (5个文件)",
+      "tree": "app\\src\\main\\java/\n└── com/  (6个文件)\n    └── github/  (6个文件)\n        └── sceneren/  (6个文件)\n            └── album/  (6个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -391,82 +393,158 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 33,
+          "file_count": 71,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCameraCaptureType.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCameraConfig.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCameraLauncher.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCompressionConfig.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCompressionPolicy.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCompressionStatus.kt",
             "com\\github\\sceneren\\album\\api\\AlbumDirectory.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMedia.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaFeed.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumMediaSource.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumMediaType.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPhotoPickerLauncher.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerConfig.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerExtensions.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerIntentCodec.kt",
-            "com\\github\\sceneren\\album\\api\\AlbumPickerModels.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerResult.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerResultItem.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerSessionSnapshot.kt",
+            "com\\github\\sceneren\\album\\api\\MediaAccessStatus.kt",
+            "com\\github\\sceneren\\album\\api\\PhotoPickFailure.kt",
+            "com\\github\\sceneren\\album\\api\\PhotoPickResult.kt",
+            "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabase.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabaseFactory.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDao.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDraft.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaEntity.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaExtensions.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaStore.kt",
             "com\\github\\sceneren\\album\\api\\internal\\database\\RoomPickedMediaStore.kt",
             "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreQuerySpec.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MutableDirectory.kt",
             "com\\github\\sceneren\\album\\api\\internal\\permission\\AndroidMediaAccessResolver.kt",
             "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaAccessPolicy.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaAccessResolver.kt",
             "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaPermissionSnapshot.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\AlbumMediaFilterExtensions.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\AndroidPersistableGrantManager.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriAccessChecker.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriMetadataReader.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\CursorExtensions.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\OptionalMetadata.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\PersistableGrantManager.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerContractFactory.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerRegistrar.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerResultProcessor.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerResultProcessorExtensions.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\PickedUriMetadata.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\PickerContract.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\PickerRegistrar.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\UriAccessChecker.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\UriMetadataReader.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPendingCameraCapture.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerItemSource.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelection.kt",
             "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelectionReducer.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt"
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionState.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\CameraAddResult.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\JSONObjectExtensions.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 33,
+      "file_count": 71,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCameraCaptureType.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCameraConfig.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCameraLauncher.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCompressionConfig.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCompressionPolicy.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCompressionStatus.kt",
         "com\\github\\sceneren\\album\\api\\AlbumDirectory.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMedia.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaFeed.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumMediaSource.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumMediaType.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPhotoPickerLauncher.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerConfig.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerExtensions.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerIntentCodec.kt",
-        "com\\github\\sceneren\\album\\api\\AlbumPickerModels.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerResult.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerResultItem.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerSessionSnapshot.kt",
+        "com\\github\\sceneren\\album\\api\\MediaAccessStatus.kt",
+        "com\\github\\sceneren\\album\\api\\PhotoPickFailure.kt",
+        "com\\github\\sceneren\\album\\api\\PhotoPickResult.kt",
+        "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabase.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabaseFactory.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDao.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDraft.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaEntity.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaExtensions.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaStore.kt",
         "com\\github\\sceneren\\album\\api\\internal\\database\\RoomPickedMediaStore.kt",
         "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreQuerySpec.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MutableDirectory.kt",
         "com\\github\\sceneren\\album\\api\\internal\\permission\\AndroidMediaAccessResolver.kt",
         "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaAccessPolicy.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaAccessResolver.kt",
         "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaPermissionSnapshot.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\AlbumMediaFilterExtensions.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\AndroidPersistableGrantManager.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriAccessChecker.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriMetadataReader.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\CursorExtensions.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\OptionalMetadata.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\PersistableGrantManager.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerContractFactory.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerRegistrar.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerResultProcessor.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\PhotoPickerResultProcessorExtensions.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\PickedUriMetadata.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\PickerContract.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\PickerRegistrar.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\UriAccessChecker.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\UriMetadataReader.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPendingCameraCapture.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerItemSource.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelection.kt",
         "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelectionReducer.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt"
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionState.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\CameraAddResult.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\JSONObjectExtensions.kt"
       ],
       "resource_dirs": [
         {
@@ -478,7 +556,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (33个文件)\n    └── github/  (33个文件)\n        └── sceneren/  (33个文件)\n            └── album/  (33个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (71个文件)\n    └── github/  (71个文件)\n        └── sceneren/  (71个文件)\n            └── album/  (71个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",
@@ -641,30 +719,70 @@
       "source_dirs": [
         {
           "root": "album-ui-view\\src\\main\\java",
-          "file_count": 4,
+          "file_count": 23,
           "file_list": [
+            "com\\github\\sceneren\\album\\ui\\view\\Action.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\ActionAdapter.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\ActionHolder.kt",
             "com\\github\\sceneren\\album\\ui\\view\\AlbumImageLoader.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumImageTarget.kt",
             "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerActivity.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerAppearance.kt",
             "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerContract.kt",
-            "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt"
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerExtensions.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerExtras.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerRequest.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumUi.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\CameraAdapter.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\DirectoryAdapter.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\DirectoryHolder.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\GalleryAdapter.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\GridMetrics.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\GridSpacingItemDecoration.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\IntentExtensions.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\MediaHolder.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\PreviewAdapter.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\PreviewHolder.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 4,
+      "file_count": 23,
       "file_list": [
+        "com\\github\\sceneren\\album\\ui\\view\\Action.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\ActionAdapter.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\ActionHolder.kt",
         "com\\github\\sceneren\\album\\ui\\view\\AlbumImageLoader.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumImageTarget.kt",
         "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerActivity.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerAppearance.kt",
         "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerContract.kt",
-        "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt"
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerExtensions.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerExtras.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerRequest.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumUi.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\CameraAdapter.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\DirectoryAdapter.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\DirectoryHolder.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\GalleryAdapter.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\GridMetrics.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\GridSpacingItemDecoration.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\IntentExtensions.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\MediaHolder.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\PreviewAdapter.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\PreviewHolder.kt"
       ],
       "resource_dirs": [
         {
           "dir": "drawable",
-          "count": 7,
+          "count": 9,
           "files": [
+            "auv_bg_directory_panel.xml",
+            "auv_bg_select_count.xml",
             "auv_ic_album_add.xml",
             "auv_ic_album_back.xml",
             "auv_ic_album_camera.xml",
@@ -676,27 +794,29 @@
         },
         {
           "dir": "layout",
-          "count": 5,
+          "count": 6,
           "files": [
             "auv_activity_album_picker.xml",
             "auv_dialog_album_preview.xml",
             "auv_item_album_action.xml",
+            "auv_item_album_directory.xml",
             "auv_item_album_media.xml",
             "auv_item_album_preview_page.xml"
           ]
         },
         {
           "dir": "values",
-          "count": 3,
+          "count": 4,
           "files": [
             "auv_colors.xml",
+            "auv_dimens.xml",
             "auv_strings.xml",
             "auv_styles.xml"
           ]
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (4个文件)\n    └── github/  (4个文件)\n        └── sceneren/  (4个文件)\n            └── album/  (4个文件)",
+      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (23个文件)\n    └── github/  (23个文件)\n        └── sceneren/  (23个文件)\n            └── album/  (23个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -827,44 +947,66 @@
       "source_dirs": [
         {
           "root": "album-ui-compose\\src\\main\\java",
-          "file_count": 3,
+          "file_count": 11,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerActivity.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt"
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerAppearance.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtras.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerRequest.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\IntentExtensions.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 3,
+      "file_count": 11,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerActivity.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt"
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerAppearance.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtras.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerRequest.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\IntentExtensions.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
       ],
       "resource_dirs": [
         {
           "dir": "drawable",
-          "count": 3,
+          "count": 7,
           "files": [
+            "auc_ic_album_add.xml",
+            "auc_ic_album_back.xml",
+            "auc_ic_album_camera.xml",
             "auc_ic_album_checked.xml",
+            "auc_ic_album_expand_more.xml",
             "auc_ic_album_play.xml",
             "auc_ic_album_unchecked.xml"
           ]
         },
         {
           "dir": "values",
-          "count": 2,
+          "count": 4,
           "files": [
+            "auc_colors.xml",
+            "auc_dimens.xml",
             "auc_strings.xml",
             "auc_styles.xml"
           ]
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (3个文件)\n    └── github/  (3个文件)\n        └── sceneren/  (3个文件)\n            └── album/  (3个文件)",
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (11个文件)\n    └── github/  (11个文件)\n        └── sceneren/  (11个文件)\n            └── album/  (11个文件)",
       "dependencies": [
         {
           "name": "album-api",

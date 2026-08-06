@@ -31,8 +31,3 @@ internal object AlbumPickerSelectionReducer {
         return CameraAddResult(nextSelected, nextCameraItems)
     }
 }
-
-internal data class CameraAddResult(
-    val selected: List<AlbumPickerSelection>,
-    val cameraItems: List<AlbumPickerSelection>,
-)

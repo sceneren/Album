@@ -90,7 +90,6 @@ import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
-import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
@@ -395,15 +394,6 @@ internal fun selectedTitleDirectory(
 
 internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
     currentBucketId != targetBucketId
-
-private data class PreviewState(
-    val id: Long,
-    val items: List<AlbumMedia>,
-    val initialIndex: Int,
-    val nextOffset: Int?,
-    val loading: Boolean = false,
-    val endReached: Boolean = false,
-)
 
 private const val PREVIEW_PAGE_SIZE = 30
 private const val PREVIEW_PREFETCH_DISTANCE = 3
@@ -849,23 +839,6 @@ private fun DirectoryRow(
     }
 }
 
-private fun AlbumDirectory.toCoverMedia() = AlbumMedia(
-    uri = coverUri,
-    mediaType = coverMediaType,
-    displayName = bucketName,
-    mimeType = null,
-    sizeBytes = null,
-    dateAddedEpochSeconds = null,
-    dateModifiedEpochSeconds = null,
-    width = null,
-    height = null,
-    durationMillis = null,
-    bucketId = bucketId,
-    bucketName = bucketName,
-    selectedAtEpochMillis = null,
-    source = AlbumMediaSource.MEDIA_STORE,
-)
-
 @Composable
 private fun AlbumPreviewScreen(
     state: PreviewState,
@@ -1169,8 +1142,6 @@ private fun MediaTile(
         }
     }
 }
-
-private fun Int.toColor() = Color(this)
 
 /** Converts an XML sp resource to Compose sp without applying the font scale twice. */
 @Composable

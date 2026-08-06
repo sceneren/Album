@@ -2,13 +2,11 @@ package com.github.sceneren.album.api.internal.picker
 
 import android.net.Uri
 import com.github.sceneren.album.api.AlbumMediaFilter
-import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.PhotoPickFailure
 import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.internal.database.PickedMediaDraft
 import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import com.github.sceneren.album.api.internal.database.toAlbumMedia
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -135,20 +133,4 @@ internal class PhotoPickerResultProcessor(
         }
     }
 
-    private fun AlbumMediaFilter.allows(mediaType: AlbumMediaType): Boolean = when (this) {
-        AlbumMediaFilter.IMAGES -> mediaType == AlbumMediaType.IMAGE
-        AlbumMediaFilter.VIDEOS -> mediaType == AlbumMediaType.VIDEO
-        AlbumMediaFilter.IMAGES_AND_VIDEOS -> true
-    }
-
-    private fun Exception.rethrowCancellation() {
-        if (this is CancellationException) throw this
-    }
-
-    private inline fun Exception.rethrowCancellationAfter(cleanup: () -> Unit) {
-        if (this is CancellationException) {
-            cleanup()
-            throw this
-        }
-    }
 }

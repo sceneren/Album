@@ -9,10 +9,6 @@ import androidx.core.content.ContextCompat
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.MediaAccessStatus
 
-internal fun interface MediaAccessResolver {
-    fun resolve(filter: AlbumMediaFilter): MediaAccessStatus
-}
-
 internal class AndroidMediaAccessResolver(
     context: Context,
     private val sdkInt: () -> Int = { Build.VERSION.SDK_INT },

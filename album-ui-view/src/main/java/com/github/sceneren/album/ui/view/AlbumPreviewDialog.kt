@@ -5,15 +5,12 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.ViewCompat
@@ -21,21 +18,17 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
-import com.github.panpf.zoomimage.ZoomImageView
 import com.github.sceneren.album.api.AlbumMedia
-import com.github.sceneren.album.api.AlbumMediaType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /** 使用 XML、ViewPager2 和 ZoomImageView 实现的全屏媒体预览。 */
 internal class AlbumPreviewDialog(
     private val activity: AlbumPickerActivity,
     private val appearance: AlbumPickerAppearance,
-    private val imageLoader: AlbumImageLoader,
+    imageLoader: AlbumImageLoader,
     private val scope: CoroutineScope,
     initialItems: List<AlbumMedia>,
     private val initialIndex: Int,
@@ -276,88 +269,9 @@ internal class AlbumPreviewDialog(
     private fun previewBackgroundColor(): Int =
         appearance.previewBackgroundColor ?: activity.getColorCompat(android.R.color.black)
 
-    private class PreviewAdapter(
-        private val appearance: AlbumPickerAppearance,
-        private val imageLoader: AlbumImageLoader,
-        initialItems: List<AlbumMedia>,
-    ) : RecyclerView.Adapter<PreviewHolder>() {
-        private val items = initialItems.distinctBy { it.uri }.toMutableList()
-        private val uris = items.mapTo(linkedSetOf()) { it.uri }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PreviewHolder =
-            PreviewHolder(
-                LayoutInflater.from(parent.context)
-                    .inflate(R.layout.auv_item_album_preview_page, parent, false),
-                appearance,
-                imageLoader,
-            )
-
-        override fun onBindViewHolder(holder: PreviewHolder, position: Int) {
-            holder.bind(items[position])
-        }
-
-        override fun onViewRecycled(holder: PreviewHolder) {
-            holder.clear()
-        }
-
-        override fun getItemCount(): Int = items.size
-
-        fun itemAt(position: Int): AlbumMedia? = items.getOrNull(position)
-
-        fun append(page: List<AlbumMedia>) {
-            val additions = page.filter { uris.add(it.uri) }
-            if (additions.isEmpty()) return
-            val start = items.size
-            items += additions
-            notifyItemRangeInserted(start, additions.size)
-        }
-    }
-
-    private class PreviewHolder(
-        itemView: View,
-        private val appearance: AlbumPickerAppearance,
-        private val imageLoader: AlbumImageLoader,
-    ) : RecyclerView.ViewHolder(itemView) {
-        private val zoomImage: ZoomImageView = itemView.findViewById(R.id.auv_preview_zoom_image)
-        private val videoCover: ImageView = itemView.findViewById(R.id.auv_preview_video_cover)
-        private val play: ImageView = itemView.findViewById(R.id.auv_preview_video_play)
-
-        fun bind(media: AlbumMedia) {
-            clear()
-            val background = appearance.previewBackgroundColor
-                ?: itemView.context.getColorCompat(android.R.color.black)
-            itemView.setBackgroundColor(background)
-            if (media.mediaType == AlbumMediaType.IMAGE) {
-                zoomImage.visibility = View.VISIBLE
-                videoCover.visibility = View.GONE
-                play.visibility = View.GONE
-                imageLoader.load(zoomImage, media, AlbumImageTarget.PREVIEW_IMAGE)
-            } else {
-                zoomImage.visibility = View.GONE
-                videoCover.visibility = View.VISIBLE
-                play.visibility = View.VISIBLE
-                imageLoader.load(videoCover, media, AlbumImageTarget.VIDEO_COVER)
-                play.setImageResource(appearance.videoIconRes ?: R.drawable.auv_ic_album_play)
-                play.setOnClickListener { /* 视频预览仅展示封面，不在选择器内播放。 */ }
-            }
-        }
-
-        fun clear() {
-            imageLoader.clear(zoomImage)
-            imageLoader.clear(videoCover)
-            play.setOnClickListener(null)
-        }
-    }
-
     private companion object {
         const val PREVIEW_PAGE_SIZE = 30
         const val PREVIEW_PREFETCH_DISTANCE = 3
         const val LIGHT_COLOR_LUMINANCE = 0.5
     }
 }
-
-internal fun android.content.Context.getColorCompat(resourceId: Int): Int =
-    ContextCompat.getColor(this, resourceId)
-
-internal fun android.content.Context.dpToPx(value: Int): Int =
-    (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)

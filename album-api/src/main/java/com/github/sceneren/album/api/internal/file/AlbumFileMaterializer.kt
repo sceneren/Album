@@ -83,10 +83,3 @@ internal class AlbumFileMaterializer(
         private const val BUFFER_SIZE = 64 * 1024
     }
 }
-
-internal data class MaterializedMedia(
-    val originalUri: Uri,
-    val originalFilePath: String,
-    val filePath: String,
-    val sizeBytes: Long,
-)

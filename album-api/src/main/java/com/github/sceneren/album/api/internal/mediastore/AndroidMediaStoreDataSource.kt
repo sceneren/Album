@@ -206,47 +206,6 @@ internal class AndroidMediaStoreDataSource(
             .map(MutableDirectory::toAlbumDirectory)
     }
 
-    private fun Cursor.readMediaType(column: Int): AlbumMediaType = when (getInt(column)) {
-        MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> AlbumMediaType.IMAGE
-        MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> AlbumMediaType.VIDEO
-        else -> error("Unsupported MediaStore media type: ${getInt(column)}")
-    }
-
-    private fun Cursor.stringOrNull(column: Int): String? =
-        if (isNull(column)) null else getString(column)
-
-    private fun Cursor.longOrNull(column: Int): Long? =
-        if (isNull(column)) null else getLong(column)
-
-    private fun Cursor.positiveLongOrNull(column: Int): Long? =
-        longOrNull(column)?.takeIf { it > 0L }
-
-    private fun Cursor.positiveIntOrNull(column: Int): Int? =
-        if (isNull(column)) null else getInt(column).takeIf { it > 0 }
-
-    private val AlbumMediaType.contentUri: Uri
-        get() = when (this) {
-            AlbumMediaType.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-            AlbumMediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        }
-
-    private data class MutableDirectory(
-        val bucketId: Long,
-        val bucketName: String?,
-        val coverUri: Uri,
-        val coverMediaType: AlbumMediaType,
-        val firstMediaDate: Long,
-        var mediaCount: Long = 0,
-    ) {
-        fun toAlbumDirectory() = AlbumDirectory(
-            bucketId = bucketId,
-            bucketName = bucketName,
-            coverUri = coverUri,
-            coverMediaType = coverMediaType,
-            mediaCount = mediaCount,
-        )
-    }
-
     private companion object {
         const val EXTERNAL_VOLUME = "external"
         const val SORT_ORDER = "date_added DESC, _id DESC"

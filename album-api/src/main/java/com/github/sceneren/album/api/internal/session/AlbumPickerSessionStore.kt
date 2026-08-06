@@ -13,41 +13,6 @@ import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class AlbumPickerSessionState(
-    val sessionId: String,
-    val config: AlbumPickerConfig,
-    val selected: List<AlbumPickerSelection> = emptyList(),
-    val cameraItems: List<AlbumPickerSelection> = emptyList(),
-    val pendingCamera: AlbumPendingCameraCapture? = null,
-    val bucketId: Long = Long.MIN_VALUE,
-    val previewUri: Uri? = null,
-)
-
-internal data class AlbumPickerSelection(
-    val uri: Uri,
-    val mediaType: AlbumMediaType,
-    val displayName: String?,
-    val mimeType: String?,
-    val sizeBytes: Long?,
-    val width: Int?,
-    val height: Int?,
-    val durationMillis: Long?,
-    val source: AlbumPickerItemSource,
-    val filePath: String? = null,
-)
-
-internal enum class AlbumPickerItemSource {
-    MEDIA_STORE,
-    PHOTO_PICKER,
-    CAMERA,
-}
-
-internal data class AlbumPendingCameraCapture(
-    val uri: Uri,
-    val filePath: String,
-    val mediaType: AlbumMediaType,
-)
-
 internal class AlbumPickerSessionStore(
     context: Context,
 ) {
@@ -173,19 +138,6 @@ internal class AlbumPickerSessionStore(
         filePath = json.getString("filePath"),
         mediaType = AlbumMediaType.valueOf(json.getString("type")),
     )
-
-    private fun JSONObject.putNullable(key: String, value: Any?) {
-        put(key, value ?: JSONObject.NULL)
-    }
-
-    private fun JSONObject.optNullableLong(key: String): Long? =
-        if (isNull(key)) null else optLong(key)
-
-    private fun JSONObject.optNullableInt(key: String): Int? =
-        if (isNull(key)) null else optInt(key)
-
-    private fun JSONObject.optNullableString(key: String): String? =
-        if (isNull(key)) null else getString(key)
 
     private companion object {
         const val PREFERENCES_NAME = "album_picker_sessions"

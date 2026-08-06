@@ -12,15 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-internal interface PickerRegistrar {
-    fun register(
-        activity: ComponentActivity,
-        mediaFilter: AlbumMediaFilter,
-        maxSelectionCount: Int?,
-        onResult: (PhotoPickResult) -> Unit,
-    ): AlbumPhotoPickerLauncher
-}
-
 internal class PhotoPickerRegistrar(
     private val processor: PhotoPickerResultProcessor,
     private val applicationScope: CoroutineScope,
