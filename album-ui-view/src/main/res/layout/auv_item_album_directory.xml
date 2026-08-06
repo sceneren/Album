@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/auv_directory_row_height"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="@dimen/auv_directory_row_padding">
+
+    <ImageView
+        android:id="@+id/auv_directory_cover"
+        android:layout_width="@dimen/auv_directory_cover_size"
+        android:layout_height="@dimen/auv_directory_cover_size"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/auv_directory_label"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="@dimen/auv_directory_text_margin_start"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:textColor="@color/auv_directory_text"
+        android:textSize="@dimen/auv_directory_text_size" />
+</LinearLayout>

@@ -37,4 +37,11 @@
     <dimen name="auc_preview_done_action_padding_end">8dp</dimen>
     <dimen name="auc_preview_done_icon_gap">4dp</dimen>
     <dimen name="auc_preview_done_text_margin_start">8dp</dimen>
+    <dimen name="auc_directory_row_height">72dp</dimen>
+    <dimen name="auc_directory_row_padding">8dp</dimen>
+    <dimen name="auc_directory_cover_size">56dp</dimen>
+    <dimen name="auc_directory_text_margin_start">12dp</dimen>
+    <dimen name="auc_directory_text_size">18sp</dimen>
+    <dimen name="auc_directory_corner_radius">8dp</dimen>
+    <dimen name="auc_directory_max_height">432dp</dimen>
 </resources>

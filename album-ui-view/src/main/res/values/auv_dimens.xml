@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="auv_toolbar_height">56dp</dimen>
+    <dimen name="auv_directory_row_height">72dp</dimen>
+    <dimen name="auv_directory_row_padding">8dp</dimen>
+    <dimen name="auv_directory_cover_size">56dp</dimen>
+    <dimen name="auv_directory_text_margin_start">12dp</dimen>
+    <dimen name="auv_directory_text_size">18sp</dimen>
+    <dimen name="auv_directory_corner_radius">8dp</dimen>
+    <dimen name="auv_directory_max_height">432dp</dimen>
+</resources>

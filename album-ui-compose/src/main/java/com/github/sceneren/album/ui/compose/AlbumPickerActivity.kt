@@ -9,6 +9,7 @@ import androidx.annotation.DimenRes
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,10 +35,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items as lazyListItems
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,8 +48,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -60,8 +62,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
@@ -86,6 +90,7 @@ import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
+import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
@@ -190,10 +195,12 @@ class AlbumPickerActivity : ComponentActivity() {
                 imageLoader = imageLoader,
                 onBack = { onBackPressedDispatcher.onBackPressed() },
                 onDirectory = { bucketId ->
-                    lifecycleScope.launch {
-                        client.setBucket(currentSession().sessionId, bucketId).onSuccess { updated ->
-                            renderSession(updated)
-                            refreshContent()
+                    if (shouldUpdateDirectory(currentSession().bucketId, bucketId)) {
+                        lifecycleScope.launch {
+                            client.setBucket(currentSession().sessionId, bucketId).onSuccess { updated ->
+                                renderSession(updated)
+                                refreshContent()
+                            }
                         }
                     }
                 },
@@ -386,6 +393,9 @@ internal fun selectedTitleDirectory(
     return directories.firstOrNull { it.bucketId == bucketId }
 }
 
+internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
+    currentBucketId != targetBucketId
+
 private data class PreviewState(
     val id: Long,
     val items: List<AlbumMedia>,
@@ -434,6 +444,10 @@ private fun AlbumPickerScreen(
         else -> stringResource(R.string.auc_unnamed_directory, titleDirectory.mediaCount)
     }
     var directoryMenu by remember { mutableStateOf(false) }
+    BackHandler(enabled = directoryMenu) { directoryMenu = false }
+    LaunchedEffect(accessStatus) {
+        if (accessStatus != MediaAccessStatus.FULL) directoryMenu = false
+    }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
 
     Box(Modifier.fillMaxSize()) {
@@ -478,7 +492,7 @@ private fun AlbumPickerScreen(
                                 .fillMaxWidth()
                                 .height(dimensionResource(R.dimen.auc_toolbar_back_size))
                                 .clickable(enabled = accessStatus == MediaAccessStatus.FULL) {
-                                    directoryMenu = true
+                                    directoryMenu = !directoryMenu
                                 },
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
@@ -513,41 +527,11 @@ private fun AlbumPickerScreen(
                                             dimensionResource(
                                                 R.dimen.auc_toolbar_title_arrow_size,
                                             ),
-                                        ),
-                                )
-                            }
-                        }
-                        DropdownMenu(
-                            expanded = directoryMenu,
-                            onDismissRequest = { directoryMenu = false },
-                        ) {
-                            if (accessStatus == MediaAccessStatus.FULL) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.auc_all_media)) },
-                                    onClick = {
-                                        directoryMenu = false
-                                        onDirectory(AlbumDirectory.ALL_BUCKET_ID)
-                                    },
-                                )
-                                directories
-                                    .filter { it.bucketId != AlbumDirectory.ALL_BUCKET_ID }
-                                    .forEach { directory ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                directory.bucketName
-                                                    ?: stringResource(
-                                                        R.string.auc_unnamed_directory,
-                                                        directory.mediaCount,
-                                                    ),
-                                            )
+                                        )
+                                        .graphicsLayer {
+                                            rotationZ = if (directoryMenu) 180f else 0f
                                         },
-                                        onClick = {
-                                            directoryMenu = false
-                                            onDirectory(directory.bucketId)
-                                        },
-                                    )
-                                }
+                                )
                             }
                         }
                     }
@@ -737,6 +721,32 @@ private fun AlbumPickerScreen(
             }
         }
 
+        if (directoryMenu && accessStatus == MediaAccessStatus.FULL) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(top = dimensionResource(R.dimen.auc_toolbar_height))
+                    .background(colorResource(R.color.auc_directory_scrim))
+                    .clickable { directoryMenu = false },
+            )
+            DirectoryPanel(
+                directories = directories,
+                selectedBucketId = session.bucketId,
+                imageLoader = imageLoader,
+                onDirectory = { bucketId ->
+                    directoryMenu = false
+                    if (shouldUpdateDirectory(session.bucketId, bucketId)) {
+                        onDirectory(bucketId)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = dimensionResource(R.dimen.auc_toolbar_height)),
+            )
+        }
+
         preview?.let { state ->
             key(state.id) {
                 AlbumPreviewScreen(
@@ -753,6 +763,108 @@ private fun AlbumPickerScreen(
         }
     }
 }
+
+@Composable
+private fun DirectoryPanel(
+    directories: List<AlbumDirectory>,
+    selectedBucketId: Long,
+    imageLoader: AlbumImageLoader,
+    onDirectory: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val panelShape = RoundedCornerShape(
+        bottomStart = dimensionResource(R.dimen.auc_directory_corner_radius),
+        bottomEnd = dimensionResource(R.dimen.auc_directory_corner_radius),
+    )
+    LazyColumn(
+        modifier = modifier
+            .heightIn(max = dimensionResource(R.dimen.auc_directory_max_height))
+            .clip(panelShape)
+            .background(colorResource(R.color.auc_directory_panel)),
+    ) {
+        lazyListItems(
+            items = directories,
+            key = AlbumDirectory::bucketId,
+        ) { directory ->
+            DirectoryRow(
+                directory = directory,
+                selected = directory.bucketId == selectedBucketId,
+                imageLoader = imageLoader,
+                onClick = { onDirectory(directory.bucketId) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DirectoryRow(
+    directory: AlbumDirectory,
+    selected: Boolean,
+    imageLoader: AlbumImageLoader,
+    onClick: () -> Unit,
+) {
+    val name = if (directory.bucketId == AlbumDirectory.ALL_BUCKET_ID) {
+        stringResource(R.string.auc_all_media)
+    } else {
+        directory.bucketName?.takeIf(String::isNotBlank)
+            ?: stringResource(R.string.auc_unnamed_directory_name)
+    }
+    val label = stringResource(R.string.auc_directory_label, name, directory.mediaCount)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(dimensionResource(R.dimen.auc_directory_row_height))
+            .background(
+                colorResource(
+                    if (selected) {
+                        R.color.auc_directory_selected
+                    } else {
+                        R.color.auc_directory_panel
+                    },
+                ),
+            )
+            .clickable(onClick = onClick)
+            .padding(dimensionResource(R.dimen.auc_directory_row_padding)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = imageLoader.painter(
+                directory.toCoverMedia(),
+                AlbumImageTarget.GRID_THUMBNAIL,
+            ),
+            contentDescription = null,
+            modifier = Modifier.size(dimensionResource(R.dimen.auc_directory_cover_size)),
+            contentScale = ContentScale.Crop,
+        )
+        Text(
+            text = label,
+            color = colorResource(R.color.auc_directory_text),
+            fontSize = dimensionSp(R.dimen.auc_directory_text_size),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = dimensionResource(R.dimen.auc_directory_text_margin_start)),
+        )
+    }
+}
+
+private fun AlbumDirectory.toCoverMedia() = AlbumMedia(
+    uri = coverUri,
+    mediaType = coverMediaType,
+    displayName = bucketName,
+    mimeType = null,
+    sizeBytes = null,
+    dateAddedEpochSeconds = null,
+    dateModifiedEpochSeconds = null,
+    width = null,
+    height = null,
+    durationMillis = null,
+    bucketId = bucketId,
+    bucketName = bucketName,
+    selectedAtEpochMillis = null,
+    source = AlbumMediaSource.MEDIA_STORE,
+)
 
 @Composable
 private fun AlbumPreviewScreen(
@@ -1042,8 +1154,8 @@ private fun MediaTile(
         Box(
             Modifier
                 .align(Alignment.TopEnd)
-                .padding(dimensionResource(R.dimen.auc_media_check_margin))
                 .size(dimensionResource(R.dimen.auc_media_check_size))
+                .padding(dimensionResource(R.dimen.auc_media_check_margin))
                 .background(appearance.scrimColor?.toColor() ?: Color.Transparent)
                 .clickable { onToggle(media) },
             contentAlignment = Alignment.Center,

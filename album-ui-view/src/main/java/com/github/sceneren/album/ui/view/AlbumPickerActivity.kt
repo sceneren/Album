@@ -15,7 +15,6 @@ import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -26,6 +25,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
@@ -34,6 +34,7 @@ import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
@@ -41,6 +42,7 @@ import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
+import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
@@ -67,6 +69,8 @@ class AlbumPickerActivity : ComponentActivity() {
     private lateinit var titleAction: View
     private lateinit var title: TextView
     private lateinit var titleArrow: ImageView
+    private lateinit var directoryScrim: View
+    private lateinit var directoryList: RecyclerView
     private lateinit var cancelButton: TextView
     private lateinit var previewButton: Button
     private lateinit var doneAction: LinearLayout
@@ -76,6 +80,7 @@ class AlbumPickerActivity : ComponentActivity() {
     private lateinit var actionAdapter: ActionAdapter
     private lateinit var cameraAdapter: CameraAdapter
     private lateinit var mediaAdapter: GalleryAdapter
+    private lateinit var directoryAdapter: DirectoryAdapter
 
     private var cameraLauncher: com.github.sceneren.album.api.AlbumCameraLauncher? = null
     private var photoPicker: com.github.sceneren.album.api.AlbumPhotoPickerLauncher? = null
@@ -134,6 +139,10 @@ class AlbumPickerActivity : ComponentActivity() {
         applySystemBarInsets()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (isDirectoryPanelVisible()) {
+                    hideDirectoryPanel()
+                    return
+                }
                 lifecycleScope.launch {
                     client.cancel(session.sessionId)
                     setResult(Activity.RESULT_CANCELED)
@@ -167,6 +176,8 @@ class AlbumPickerActivity : ComponentActivity() {
         titleAction = findViewById(R.id.auv_picker_title_action)
         title = findViewById(R.id.auv_picker_title)
         titleArrow = findViewById(R.id.auv_picker_title_arrow)
+        directoryScrim = findViewById(R.id.auv_picker_directory_scrim)
+        directoryList = findViewById(R.id.auv_picker_directories)
         cancelButton = findViewById(R.id.auv_picker_cancel)
         previewButton = findViewById(R.id.auv_picker_preview)
         doneAction = findViewById(R.id.auv_picker_done_action)
@@ -178,6 +189,7 @@ class AlbumPickerActivity : ComponentActivity() {
             onBackPressedDispatcher.onBackPressed()
         }
         titleAction.setOnClickListener { showDirectories() }
+        directoryScrim.setOnClickListener { hideDirectoryPanel() }
         cancelButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         previewButton.setOnClickListener { showPreview() }
         doneAction.setOnClickListener { confirmSelection() }
@@ -211,6 +223,11 @@ class AlbumPickerActivity : ComponentActivity() {
             ::toggleMedia,
         )
         grid.adapter = ConcatAdapter(actionAdapter, cameraAdapter, mediaAdapter)
+        directoryAdapter = DirectoryAdapter(imageLoader, ::selectDirectory)
+        directoryList.layoutManager = LinearLayoutManager(this)
+        directoryList.adapter = directoryAdapter
+        directoryList.itemAnimator = null
+        directoryList.clipToOutline = true
     }
 
     /** 将可配置外观应用到 XML 中已声明的控件，不创建新的界面层级。 */
@@ -289,6 +306,12 @@ class AlbumPickerActivity : ComponentActivity() {
                 bottom = bottomPaddingBottom + safeInsets.bottom,
             )
             grid.updatePadding(left = safeInsets.left, right = safeInsets.right)
+            directoryScrim.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = toolbarHeight + safeInsets.top
+            }
+            directoryList.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = toolbarHeight + safeInsets.top
+            }
             insets
         }
         ViewCompat.requestApplyInsets(root)
@@ -303,6 +326,7 @@ class AlbumPickerActivity : ComponentActivity() {
             directoryJob?.cancel()
             directoryJob = null
             directories = emptyList()
+            hideDirectoryPanel()
         }
         renderTitle()
         renderActions()
@@ -343,6 +367,7 @@ class AlbumPickerActivity : ComponentActivity() {
                 if (accessStatus == MediaAccessStatus.FULL) {
                     directories = updatedDirectories
                     renderTitle()
+                    directoryAdapter.submit(directories, session.bucketId)
                 }
             }
         }
@@ -351,12 +376,12 @@ class AlbumPickerActivity : ComponentActivity() {
     private fun renderSession(updated: AlbumPickerSessionSnapshot) {
         session = updated
         renderTitle()
-        cameraAdapter.selectedUris = updated.selectedUris
+        directoryAdapter.submit(directories, updated.bucketId)
         cameraAdapter.submit(
-            if (accessStatus == MediaAccessStatus.FULL) updated.cameraItems else emptyList(),
+            value = if (accessStatus == MediaAccessStatus.FULL) updated.cameraItems else emptyList(),
+            selectedUris = updated.selectedUris,
         )
-        mediaAdapter.selectedUris = updated.selectedUris
-        mediaAdapter.notifyDataSetChanged()
+        mediaAdapter.updateSelection(updated.selectedUris)
         previewDialog?.updateSelection(updated.selectedUris)
         previewButton.text = if (updated.selectedItems.isEmpty()) {
             getString(R.string.auv_preview)
@@ -522,35 +547,159 @@ class AlbumPickerActivity : ComponentActivity() {
 
     private fun showDirectories() {
         if (accessStatus != MediaAccessStatus.FULL) return
-        lifecycleScope.launch {
+        if (isDirectoryPanelVisible()) {
+            hideDirectoryPanel()
+            return
+        }
+        if (directories.isNotEmpty()) {
+            showDirectoryPanel()
+            return
+        }
+        directoryJob?.cancel()
+        directoryJob = lifecycleScope.launch {
             directories = api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
-            renderTitle()
-            val popup = PopupMenu(this@AlbumPickerActivity, title)
-            popup.menu.add(R.string.auv_all_media).setOnMenuItemClickListener {
-                selectDirectory(AlbumDirectory.ALL_BUCKET_ID)
-                true
+            if (accessStatus == MediaAccessStatus.FULL) {
+                renderTitle()
+                showDirectoryPanel()
             }
-            directories.filter { it.bucketId != AlbumDirectory.ALL_BUCKET_ID }.forEach { directory ->
-                popup.menu.add(
-                    directory.bucketName ?: getString(
-                        R.string.auv_unnamed_directory,
-                        directory.mediaCount,
-                    ),
-                ).setOnMenuItemClickListener {
-                    selectDirectory(directory.bucketId)
-                    true
-                }
-            }
-            popup.show()
         }
     }
 
     private fun selectDirectory(bucketId: Long) {
+        hideDirectoryPanel()
+        if (!shouldUpdateDirectory(session.bucketId, bucketId)) return
         lifecycleScope.launch {
             client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
                 renderSession(updated)
                 refreshContent()
             }
+        }
+    }
+
+    private fun showDirectoryPanel() {
+        directoryAdapter.submit(directories, session.bucketId)
+        val contentHeight = directories.size * resources.getDimensionPixelSize(
+            R.dimen.auv_directory_row_height,
+        )
+        directoryList.updateLayoutParams<ViewGroup.LayoutParams> {
+            height = minOf(
+                contentHeight,
+                resources.getDimensionPixelSize(R.dimen.auv_directory_max_height),
+                (root.height - directoryList.top).coerceAtLeast(0),
+            )
+        }
+        directoryScrim.isVisible = true
+        directoryList.isVisible = directories.isNotEmpty()
+        titleArrow.animate().rotation(180f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
+    }
+
+    private fun hideDirectoryPanel() {
+        directoryScrim.isVisible = false
+        directoryList.isVisible = false
+        titleArrow.animate().rotation(0f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
+    }
+
+    private fun isDirectoryPanelVisible(): Boolean = directoryScrim.isVisible
+
+    private class DirectoryAdapter(
+        private val imageLoader: AlbumImageLoader,
+        private val onClick: (Long) -> Unit,
+    ) : RecyclerView.Adapter<DirectoryHolder>() {
+        private var items: List<AlbumDirectory> = emptyList()
+        private var selectedBucketId: Long = AlbumDirectory.ALL_BUCKET_ID
+
+        fun submit(value: List<AlbumDirectory>, selectedBucketId: Long) {
+            if (items == value && this.selectedBucketId == selectedBucketId) return
+            val previousItems = items
+            val previousSelectedBucketId = this.selectedBucketId
+            val diff = DiffUtil.calculateDiff(
+                object : DiffUtil.Callback() {
+                    override fun getOldListSize(): Int = previousItems.size
+
+                    override fun getNewListSize(): Int = value.size
+
+                    override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                        previousItems[oldItemPosition].bucketId == value[newItemPosition].bucketId
+
+                    override fun areContentsTheSame(
+                        oldItemPosition: Int,
+                        newItemPosition: Int,
+                    ): Boolean {
+                        val oldItem = previousItems[oldItemPosition]
+                        val newItem = value[newItemPosition]
+                        return oldItem == newItem &&
+                            (oldItem.bucketId == previousSelectedBucketId) ==
+                            (newItem.bucketId == selectedBucketId)
+                    }
+                },
+            )
+            items = value
+            this.selectedBucketId = selectedBucketId
+            diff.dispatchUpdatesTo(this)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DirectoryHolder =
+            DirectoryHolder(
+                LayoutInflater.from(parent.context).inflate(
+                    R.layout.auv_item_album_directory,
+                    parent,
+                    false,
+                ),
+                imageLoader,
+                onClick,
+            )
+
+        override fun onBindViewHolder(holder: DirectoryHolder, position: Int) {
+            val directory = items[position]
+            holder.bind(directory, directory.bucketId == selectedBucketId)
+        }
+
+        override fun onViewRecycled(holder: DirectoryHolder) {
+            holder.clear()
+        }
+
+        override fun getItemCount(): Int = items.size
+    }
+
+    private class DirectoryHolder(
+        itemView: View,
+        private val imageLoader: AlbumImageLoader,
+        private val onClick: (Long) -> Unit,
+    ) : RecyclerView.ViewHolder(itemView) {
+        private val cover: ImageView = itemView.findViewById(R.id.auv_directory_cover)
+        private val label: TextView = itemView.findViewById(R.id.auv_directory_label)
+
+        fun bind(directory: AlbumDirectory, selected: Boolean) {
+            clear()
+            val name = if (directory.bucketId == AlbumDirectory.ALL_BUCKET_ID) {
+                itemView.context.getString(R.string.auv_all_media)
+            } else {
+                directory.bucketName?.takeIf(String::isNotBlank)
+                    ?: itemView.context.getString(R.string.auv_unnamed_directory_name)
+            }
+            label.text = itemView.context.getString(
+                R.string.auv_directory_label,
+                name,
+                directory.mediaCount,
+            )
+            itemView.setBackgroundColor(
+                ContextCompat.getColor(
+                    itemView.context,
+                    if (selected) {
+                        R.color.auv_directory_selected
+                    } else {
+                        R.color.auv_directory_panel
+                    },
+                ),
+            )
+            imageLoader.load(cover, directory.toCoverMedia(), AlbumImageTarget.GRID_THUMBNAIL)
+            itemView.setOnClickListener { onClick(directory.bucketId) }
+        }
+
+        fun clear() {
+            imageLoader.clear(cover)
+            label.text = null
+            itemView.setOnClickListener(null)
         }
     }
 
@@ -566,8 +715,24 @@ class AlbumPickerActivity : ComponentActivity() {
 
         fun submit(value: List<Action>) {
             if (items == value) return
+            val previousItems = items
+            val diff = DiffUtil.calculateDiff(
+                object : DiffUtil.Callback() {
+                    override fun getOldListSize(): Int = previousItems.size
+
+                    override fun getNewListSize(): Int = value.size
+
+                    override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                        previousItems[oldItemPosition] == value[newItemPosition]
+
+                    override fun areContentsTheSame(
+                        oldItemPosition: Int,
+                        newItemPosition: Int,
+                    ): Boolean = areItemsTheSame(oldItemPosition, newItemPosition)
+                },
+            )
             items = value
-            notifyDataSetChanged()
+            diff.dispatchUpdatesTo(this)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ActionHolder =
@@ -630,11 +795,36 @@ class AlbumPickerActivity : ComponentActivity() {
         private val onToggle: (AlbumMedia) -> Unit,
     ) : RecyclerView.Adapter<MediaHolder>() {
         private var items: List<AlbumMedia> = emptyList()
-        var selectedUris: Set<android.net.Uri> = emptySet()
+        private var selectedUris: Set<android.net.Uri> = emptySet()
 
-        fun submit(value: List<AlbumMedia>) {
+        fun submit(value: List<AlbumMedia>, selectedUris: Set<android.net.Uri>) {
+            if (items == value && this.selectedUris == selectedUris) return
+            val previousItems = items
+            val previousSelectedUris = this.selectedUris
+            val diff = DiffUtil.calculateDiff(
+                object : DiffUtil.Callback() {
+                    override fun getOldListSize(): Int = previousItems.size
+
+                    override fun getNewListSize(): Int = value.size
+
+                    override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                        previousItems[oldItemPosition].uri == value[newItemPosition].uri
+
+                    override fun areContentsTheSame(
+                        oldItemPosition: Int,
+                        newItemPosition: Int,
+                    ): Boolean {
+                        val oldItem = previousItems[oldItemPosition]
+                        val newItem = value[newItemPosition]
+                        return oldItem == newItem &&
+                            (oldItem.uri in previousSelectedUris) ==
+                            (newItem.uri in selectedUris)
+                    }
+                },
+            )
             items = value
-            notifyDataSetChanged()
+            this.selectedUris = selectedUris
+            diff.dispatchUpdatesTo(this)
         }
 
         fun currentItems(): List<AlbumMedia> = items
@@ -665,7 +855,16 @@ class AlbumPickerActivity : ComponentActivity() {
         private val onPreview: (AlbumMedia) -> Unit,
         private val onToggle: (AlbumMedia) -> Unit,
     ) : PagingDataAdapter<AlbumMedia, MediaHolder>(DIFF) {
-        var selectedUris: Set<android.net.Uri> = emptySet()
+        private var selectedUris: Set<android.net.Uri> = emptySet()
+
+        fun updateSelection(value: Set<android.net.Uri>) {
+            val changedUris = (selectedUris - value) + (value - selectedUris)
+            if (changedUris.isEmpty()) return
+            selectedUris = value
+            for (index in 0 until itemCount) {
+                if (peek(index)?.uri in changedUris) notifyItemChanged(index)
+            }
+        }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaHolder =
             MediaHolder(
@@ -758,6 +957,7 @@ class AlbumPickerActivity : ComponentActivity() {
 }
 
 private const val LIGHT_COLOR_LUMINANCE = 0.5
+private const val DIRECTORY_ARROW_DURATION_MILLIS = 150L
 
 internal fun shouldShowPermissionUpgradeButton(
     isAllowedByHost: Boolean,
@@ -774,6 +974,26 @@ internal fun selectedTitleDirectory(
     }
     return directories.firstOrNull { it.bucketId == bucketId }
 }
+
+internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
+    currentBucketId != targetBucketId
+
+private fun AlbumDirectory.toCoverMedia() = AlbumMedia(
+    uri = coverUri,
+    mediaType = coverMediaType,
+    displayName = bucketName,
+    mimeType = null,
+    sizeBytes = null,
+    dateAddedEpochSeconds = null,
+    dateModifiedEpochSeconds = null,
+    width = null,
+    height = null,
+    durationMillis = null,
+    bucketId = bucketId,
+    bucketName = bucketName,
+    selectedAtEpochMillis = null,
+    source = AlbumMediaSource.MEDIA_STORE,
+)
 
 private data class GridMetrics(
     val spanCount: Int,

@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/auv_picker_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/auv_toolbar"
-    android:orientation="vertical">
+    android:background="@color/auv_toolbar">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
     <RelativeLayout
         android:id="@+id/auv_picker_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="@dimen/auv_toolbar_height"
         android:background="@color/auv_toolbar"
         android:gravity="center_vertical"
         android:paddingStart="8dp"
@@ -143,4 +147,24 @@
                 android:textSize="14sp" />
         </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:id="@+id/auv_picker_directory_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="@dimen/auv_toolbar_height"
+        android:background="@color/auv_directory_scrim"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/auv_picker_directories"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/auv_toolbar_height"
+        android:background="@drawable/auv_bg_directory_panel"
+        android:overScrollMode="never"
+        android:visibility="gone" />
+</FrameLayout>

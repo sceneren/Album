@@ -4,8 +4,10 @@ import android.net.Uri
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.MediaAccessStatus
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -53,5 +55,11 @@ class AlbumPickerTitleTest {
                 listOf(cameraDirectory),
             ),
         )
+    }
+
+    @Test
+    fun selectedDirectoryDoesNotTriggerAnotherUpdate() {
+        assertFalse(shouldUpdateDirectory(cameraDirectory.bucketId, cameraDirectory.bucketId))
+        assertTrue(shouldUpdateDirectory(AlbumDirectory.ALL_BUCKET_ID, cameraDirectory.bucketId))
     }
 }
