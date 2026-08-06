@@ -1,9 +1,12 @@
 package com.github.sceneren.album.ui.view
 
+import android.content.Context
 import android.content.Intent
+import androidx.test.core.app.ApplicationProvider
 import com.github.sceneren.album.api.MediaAccessStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,6 +17,51 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class AlbumPickerAppearanceTest {
+    @Test
+    fun `动画配置支持宿主资源和null禁用`() {
+        val custom = AlbumPickerAnimation(
+            openEnterResId = 100,
+            openExitResId = 101,
+            closeEnterResId = 102,
+            closeExitResId = 103,
+        )
+        val customIntent = Intent()
+        AlbumPickerExtras.putAnimation(customIntent, custom)
+
+        assertEquals(custom, AlbumPickerExtras.readAnimation(customIntent))
+
+        val disabledIntent = Intent()
+        AlbumPickerExtras.putAnimation(disabledIntent, null)
+        assertNull(AlbumPickerExtras.readAnimation(disabledIntent))
+    }
+
+    @Test
+    fun `默认主题使用底部弹出动画`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val theme = context.resources.newTheme().apply {
+            applyStyle(R.style.auv_theme_album_picker, true)
+        }
+        val windowAnimations = theme.obtainStyledAttributes(
+            intArrayOf(android.R.attr.windowAnimationStyle),
+        ).let { attributes ->
+            try {
+                attributes.getResourceId(0, 0)
+            } finally {
+                attributes.recycle()
+            }
+        }
+
+        assertEquals(R.style.auv_animation_album_picker, windowAnimations)
+        assertAnimationStyle(
+            context = context,
+            styleResId = windowAnimations,
+            expectedOpenEnter = R.anim.auv_album_picker_enter,
+            expectedOpenExit = R.anim.auv_album_picker_hold,
+            expectedCloseEnter = R.anim.auv_album_picker_hold,
+            expectedCloseExit = R.anim.auv_album_picker_exit,
+        )
+    }
+
     @Test
     fun `默认网格配置为1dp间距和每行4个`() {
         val appearance = AlbumPickerAppearance()
@@ -69,5 +117,32 @@ class AlbumPickerAppearanceTest {
         assertFalse(shouldShowPermissionUpgradeButton(false, MediaAccessStatus.DENIED))
         assertFalse(shouldShowPermissionUpgradeButton(false, MediaAccessStatus.PARTIAL))
         assertFalse(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.FULL))
+    }
+
+    private fun assertAnimationStyle(
+        context: Context,
+        styleResId: Int,
+        expectedOpenEnter: Int,
+        expectedOpenExit: Int,
+        expectedCloseEnter: Int,
+        expectedCloseExit: Int,
+    ) {
+        val attributes = context.obtainStyledAttributes(
+            styleResId,
+            intArrayOf(
+                android.R.attr.activityOpenEnterAnimation,
+                android.R.attr.activityOpenExitAnimation,
+                android.R.attr.activityCloseEnterAnimation,
+                android.R.attr.activityCloseExitAnimation,
+            ),
+        )
+        try {
+            assertEquals(expectedOpenEnter, attributes.getResourceId(0, 0))
+            assertEquals(expectedOpenExit, attributes.getResourceId(1, 0))
+            assertEquals(expectedCloseEnter, attributes.getResourceId(2, 0))
+            assertEquals(expectedCloseExit, attributes.getResourceId(3, 0))
+        } finally {
+            attributes.recycle()
+        }
     }
 }

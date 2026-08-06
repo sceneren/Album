@@ -1,6 +1,8 @@
 package com.github.sceneren.album.ui.view
 
+import android.app.Activity
 import android.content.Context
+import android.os.Build
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.github.sceneren.album.api.AlbumDirectory
@@ -42,3 +44,28 @@ internal fun Context.getColorCompat(resourceId: Int): Int =
 
 internal fun Context.dpToPx(value: Int): Int =
     (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
+
+internal fun Activity.applyActivityTransitions(animation: AlbumPickerAnimation?) {
+    val openEnter = animation?.openEnterResId ?: 0
+    val openExit = animation?.openExitResId ?: 0
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, openEnter, openExit)
+        overrideActivityTransition(
+            Activity.OVERRIDE_TRANSITION_CLOSE,
+            animation?.closeEnterResId ?: 0,
+            animation?.closeExitResId ?: 0,
+        )
+    } else {
+        @Suppress("DEPRECATION")
+        overridePendingTransition(openEnter, openExit)
+    }
+}
+
+internal fun Activity.applyLegacyCloseTransition(animation: AlbumPickerAnimation?) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+    @Suppress("DEPRECATION")
+    overridePendingTransition(
+        animation?.closeEnterResId ?: 0,
+        animation?.closeExitResId ?: 0,
+    )
+}

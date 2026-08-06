@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-06 10:36:56",
+  "scan_time": "2026-08-06 14:23:20",
   "module_count": 4,
   "modules": [
     {
@@ -778,10 +778,20 @@
       ],
       "resource_dirs": [
         {
+          "dir": "anim",
+          "count": 3,
+          "files": [
+            "auv_album_picker_enter.xml",
+            "auv_album_picker_exit.xml",
+            "auv_album_picker_hold.xml"
+          ]
+        },
+        {
           "dir": "drawable",
-          "count": 9,
+          "count": 11,
           "files": [
             "auv_bg_directory_panel.xml",
+            "auv_bg_processing_dialog.xml",
             "auv_bg_select_count.xml",
             "auv_ic_album_add.xml",
             "auv_ic_album_back.xml",
@@ -789,15 +799,17 @@
             "auv_ic_album_checked.xml",
             "auv_ic_album_expand_more.xml",
             "auv_ic_album_play.xml",
-            "auv_ic_album_unchecked.xml"
+            "auv_ic_album_unchecked.xml",
+            "auv_progress_spinner.png"
           ]
         },
         {
           "dir": "layout",
-          "count": 6,
+          "count": 7,
           "files": [
             "auv_activity_album_picker.xml",
             "auv_dialog_album_preview.xml",
+            "auv_dialog_album_processing.xml",
             "auv_item_album_action.xml",
             "auv_item_album_directory.xml",
             "auv_item_album_media.xml",
@@ -982,8 +994,17 @@
       ],
       "resource_dirs": [
         {
+          "dir": "anim",
+          "count": 3,
+          "files": [
+            "auc_album_picker_enter.xml",
+            "auc_album_picker_exit.xml",
+            "auc_album_picker_hold.xml"
+          ]
+        },
+        {
           "dir": "drawable",
-          "count": 7,
+          "count": 8,
           "files": [
             "auc_ic_album_add.xml",
             "auc_ic_album_back.xml",
@@ -991,7 +1012,8 @@
             "auc_ic_album_checked.xml",
             "auc_ic_album_expand_more.xml",
             "auc_ic_album_play.xml",
-            "auc_ic_album_unchecked.xml"
+            "auc_ic_album_unchecked.xml",
+            "auc_progress_spinner.png"
           ]
         },
         {

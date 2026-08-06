@@ -1,10 +1,18 @@
 <resources>
+    <style name="auv_animation_album_picker">
+        <item name="android:activityOpenEnterAnimation">@anim/auv_album_picker_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/auv_album_picker_hold</item>
+        <item name="android:activityCloseEnterAnimation">@anim/auv_album_picker_hold</item>
+        <item name="android:activityCloseExitAnimation">@anim/auv_album_picker_exit</item>
+    </style>
+
     <style name="auv_theme_album_picker" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">@color/auv_accent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">@color/auv_toolbar</item>
         <item name="android:navigationBarColor">@color/auv_bottom</item>
+        <item name="android:windowAnimationStyle">@style/auv_animation_album_picker</item>
     </style>
 
     <style name="auv_theme_album_picker_preview" parent="android:style/Theme.Material.NoActionBar">

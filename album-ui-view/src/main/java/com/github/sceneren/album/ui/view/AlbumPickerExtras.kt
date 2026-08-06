@@ -5,6 +5,7 @@ import android.content.Intent
 internal object AlbumPickerExtras {
     const val THEME = "album_view.theme"
     private const val PREFIX = "album_view.appearance."
+    private const val ANIMATION_PREFIX = "album_view.animation."
 
     fun putAppearance(intent: Intent, appearance: AlbumPickerAppearance) {
         intent.putExtra(PREFIX + "toolbar", appearance.toolbarColor ?: Int.MIN_VALUE)
@@ -45,4 +46,36 @@ internal object AlbumPickerExtras {
         gridItemSpacingDp = intent.getIntExtra(PREFIX + "grid_item_spacing_dp", 1),
         gridSpanCount = intent.getIntExtra(PREFIX + "grid_span_count", 4),
     )
+
+    fun putAnimation(intent: Intent, animation: AlbumPickerAnimation?) {
+        intent.putExtra(ANIMATION_PREFIX + "enabled", animation != null)
+        if (animation == null) return
+        intent.putExtra(ANIMATION_PREFIX + "open_enter", animation.openEnterResId)
+        intent.putExtra(ANIMATION_PREFIX + "open_exit", animation.openExitResId)
+        intent.putExtra(ANIMATION_PREFIX + "close_enter", animation.closeEnterResId)
+        intent.putExtra(ANIMATION_PREFIX + "close_exit", animation.closeExitResId)
+    }
+
+    fun readAnimation(intent: Intent): AlbumPickerAnimation? {
+        if (!intent.getBooleanExtra(ANIMATION_PREFIX + "enabled", true)) return null
+        val defaults = AlbumPickerAnimation()
+        return AlbumPickerAnimation(
+            openEnterResId = intent.getIntExtra(
+                ANIMATION_PREFIX + "open_enter",
+                defaults.openEnterResId,
+            ),
+            openExitResId = intent.getIntExtra(
+                ANIMATION_PREFIX + "open_exit",
+                defaults.openExitResId,
+            ),
+            closeEnterResId = intent.getIntExtra(
+                ANIMATION_PREFIX + "close_enter",
+                defaults.closeEnterResId,
+            ),
+            closeExitResId = intent.getIntExtra(
+                ANIMATION_PREFIX + "close_exit",
+                defaults.closeExitResId,
+            ),
+        )
+    }
 }

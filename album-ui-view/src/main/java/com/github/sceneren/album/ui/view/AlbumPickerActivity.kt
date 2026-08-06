@@ -53,6 +53,7 @@ import kotlin.math.roundToInt
 
 /** 基于 XML 布局的 View 全屏相册选择页。 */
 class AlbumPickerActivity : ComponentActivity() {
+    private var activityAnimation: AlbumPickerAnimation? = AlbumPickerAnimation()
     private lateinit var config: com.github.sceneren.album.api.AlbumPickerConfig
     private lateinit var appearance: AlbumPickerAppearance
     private lateinit var api: AlbumApi
@@ -105,6 +106,8 @@ class AlbumPickerActivity : ComponentActivity() {
         val theme = intent.getIntExtra(AlbumPickerExtras.THEME, 0)
         if (theme != 0) setTheme(theme)
         super.onCreate(savedInstanceState)
+        activityAnimation = AlbumPickerExtras.readAnimation(intent)
+        applyActivityTransitions(activityAnimation)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         config = AlbumPickerIntentCodec.readConfig(intent)
@@ -156,6 +159,11 @@ class AlbumPickerActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshContent()
+    }
+
+    override fun finish() {
+        super.finish()
+        applyLegacyCloseTransition(activityAnimation)
     }
 
     override fun onDestroy() {

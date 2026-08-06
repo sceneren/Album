@@ -1,9 +1,17 @@
 <resources>
+    <style name="auc_animation_album_picker">
+        <item name="android:activityOpenEnterAnimation">@anim/auc_album_picker_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/auc_album_picker_hold</item>
+        <item name="android:activityCloseEnterAnimation">@anim/auc_album_picker_hold</item>
+        <item name="android:activityCloseExitAnimation">@anim/auc_album_picker_exit</item>
+    </style>
+
     <style name="auc_theme_album_picker" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#00C853</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">#303136</item>
         <item name="android:navigationBarColor">#303136</item>
+        <item name="android:windowAnimationStyle">@style/auc_animation_album_picker</item>
     </style>
 </resources>

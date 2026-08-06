@@ -113,6 +113,7 @@ import kotlinx.coroutines.launch
 
 /** Compose 全屏相册选择页。 */
 class AlbumPickerActivity : ComponentActivity() {
+    private var activityAnimation: AlbumPickerAnimation? = AlbumPickerAnimation()
     private lateinit var config: com.github.sceneren.album.api.AlbumPickerConfig
     private lateinit var appearance: AlbumPickerAppearance
     private lateinit var api: AlbumApi
@@ -143,6 +144,8 @@ class AlbumPickerActivity : ComponentActivity() {
         val theme = intent.getIntExtra(AlbumPickerExtras.THEME, 0)
         if (theme != 0) setTheme(theme)
         super.onCreate(savedInstanceState)
+        activityAnimation = AlbumPickerExtras.readAnimation(intent)
+        applyActivityTransitions(activityAnimation)
         config = AlbumPickerIntentCodec.readConfig(intent)
         appearance = AlbumPickerExtras.readAppearance(intent)
         enableEdgeToEdge(
@@ -234,6 +237,11 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     private var cameraLauncher: com.github.sceneren.album.api.AlbumCameraLauncher? = null
+
+    override fun finish() {
+        super.finish()
+        applyLegacyCloseTransition(activityAnimation)
+    }
 
     override fun onResume() {
         super.onResume()

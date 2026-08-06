@@ -41,7 +41,7 @@ import com.github.sceneren.album.ui.view.AlbumPickerRequest as ViewPickerRequest
 /** 仅用于演示两个可复用 UI 模块，媒体查询和选择状态均由模块负责。 */
 class MainActivity : ComponentActivity() {
     private var selectedFilter by mutableStateOf(AlbumMediaFilter.IMAGES)
-    private var compressionEnabled by mutableStateOf(false)
+    private var compressionEnabled by mutableStateOf(true)
     private var requestPermissionEnable by mutableStateOf(true)
     private var cameraEnable by mutableStateOf(true)
     private var lastResult by mutableStateOf<AlbumPickerResult?>(null)

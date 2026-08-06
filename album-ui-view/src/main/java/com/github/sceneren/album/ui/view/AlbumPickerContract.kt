@@ -14,6 +14,7 @@ class AlbumPickerContract : ActivityResultContract<AlbumPickerRequest, AlbumPick
                 AlbumPickerIntentCodec.putConfig(intent, input.config)
                 intent.putExtra(AlbumPickerExtras.THEME, input.themeResId)
                 AlbumPickerExtras.putAppearance(intent, input.appearance)
+                AlbumPickerExtras.putAnimation(intent, input.animation)
                 intent.putExtra(
                     AlbumPickerIntentCodec.EXTRA_SESSION_ID,
                     AlbumPickerIntentCodec.newSessionId(),
