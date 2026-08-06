@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/auv_processing_dialog_size"
+    android:layout_height="@dimen/auv_processing_dialog_size"
+    android:background="@drawable/auv_bg_processing_dialog">
+
+    <ImageView
+        android:id="@+id/auv_processing_spinner"
+        android:layout_width="@dimen/auv_processing_indicator_size"
+        android:layout_height="@dimen/auv_processing_indicator_size"
+        android:layout_gravity="center"
+        android:contentDescription="@string/auv_processing"
+        android:src="@drawable/auv_progress_spinner" />
+</FrameLayout>

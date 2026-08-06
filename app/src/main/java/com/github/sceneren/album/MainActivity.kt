@@ -42,6 +42,8 @@ import com.github.sceneren.album.ui.view.AlbumPickerRequest as ViewPickerRequest
 class MainActivity : ComponentActivity() {
     private var selectedFilter by mutableStateOf(AlbumMediaFilter.IMAGES)
     private var compressionEnabled by mutableStateOf(false)
+    private var requestPermissionEnable by mutableStateOf(true)
+    private var cameraEnable by mutableStateOf(true)
     private var lastResult by mutableStateOf<AlbumPickerResult?>(null)
 
     private val viewPicker = registerForActivityResult(ViewPickerContract()) { result ->
@@ -60,9 +62,13 @@ class MainActivity : ComponentActivity() {
                     DemoScreen(
                         filter = selectedFilter,
                         compressionEnabled = compressionEnabled,
+                        requestPermissionEnable = requestPermissionEnable,
+                        cameraEnable= cameraEnable,
                         result = lastResult,
                         onFilter = { selectedFilter = it },
                         onCompression = { compressionEnabled = it },
+                        onRequestPermission = { requestPermissionEnable = it },
+                        onCamera = { cameraEnable = it },
                         onOpenView = {
                             viewPicker.launch(
                                 ViewPickerRequest(
@@ -84,14 +90,14 @@ class MainActivity : ComponentActivity() {
 
     private fun buildRequest(): AlbumPickerConfig = AlbumPickerConfig(
         mediaFilter = selectedFilter,
-        maxSelectionCount = 20,
+        maxSelectionCount = 9,
         singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
         camera = AlbumCameraConfig(
-            enabled = true,
+            enabled = cameraEnable,
             mixedMediaCaptureType = AlbumCameraCaptureType.PHOTO,
         ),
         compression = AlbumCompressionConfig(enabled = compressionEnabled),
-        showPermissionUpgrade = true,
+        showPermissionUpgrade = requestPermissionEnable,
     )
 }
 
@@ -99,9 +105,13 @@ class MainActivity : ComponentActivity() {
 private fun DemoScreen(
     filter: AlbumMediaFilter,
     compressionEnabled: Boolean,
+    requestPermissionEnable: Boolean,
+    cameraEnable: Boolean,
     result: AlbumPickerResult?,
     onFilter: (AlbumMediaFilter) -> Unit,
     onCompression: (Boolean) -> Unit,
+    onRequestPermission: (Boolean) -> Unit,
+    onCamera: (Boolean) -> Unit,
     onOpenView: () -> Unit,
     onOpenCompose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -126,6 +136,19 @@ private fun DemoScreen(
             onClick = { onCompression(!compressionEnabled) },
             label = { Text("启用图片压缩（100KB 以下跳过）") },
         )
+
+        FilterChip(
+            selected = requestPermissionEnable,
+            onClick = { onRequestPermission(!requestPermissionEnable) },
+            label = { Text("启用内部权限申请") },
+        )
+
+        FilterChip(
+            selected = cameraEnable,
+            onClick = { onCamera(!cameraEnable) },
+            label = { Text("启用相机") },
+        )
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onOpenView) { Text("打开 View 相册") }
             Button(onClick = onOpenCompose) { Text("打开 Compose 相册") }

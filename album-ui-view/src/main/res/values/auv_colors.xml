@@ -12,4 +12,7 @@
     <color name="auv_directory_selected">#FFE0E0E0</color>
     <color name="auv_directory_text">#FF424242</color>
     <color name="auv_directory_scrim">#99000000</color>
+    <color name="auv_media_selected_scrim">#66000000</color>
+    <color name="auv_media_blocked_scrim">#66FFFFFF</color>
+    <color name="auv_processing_dialog_background">#CC454545</color>
 </resources>

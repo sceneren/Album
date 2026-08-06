@@ -1,6 +1,9 @@
 package com.github.sceneren.album.ui.view
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.Dialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -8,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -82,6 +86,9 @@ class AlbumPickerActivity : ComponentActivity() {
     private var directoryJob: Job? = null
     private var messageToast: Toast? = null
     private var previewDialog: AlbumPreviewDialog? = null
+    private var processingDialog: Dialog? = null
+    private var processingSpinnerAnimator: ObjectAnimator? = null
+    private var isConfirming = false
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
     private var directories: List<AlbumDirectory> = emptyList()
 
@@ -154,6 +161,7 @@ class AlbumPickerActivity : ComponentActivity() {
     override fun onDestroy() {
         previewDialog?.dismiss()
         previewDialog = null
+        hideProcessingDialog()
         feedJob?.cancel()
         directoryJob?.cancel()
         messageToast?.cancel()
@@ -206,6 +214,7 @@ class AlbumPickerActivity : ComponentActivity() {
             appearance,
             gridMetrics,
             imageLoader,
+            config.maxSelectionCount,
             ::onMediaPreview,
             ::toggleMedia,
         )
@@ -213,6 +222,7 @@ class AlbumPickerActivity : ComponentActivity() {
             appearance,
             gridMetrics,
             imageLoader,
+            config.maxSelectionCount,
             ::onMediaPreview,
             ::toggleMedia,
         )
@@ -415,6 +425,13 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     private fun toggleMedia(media: AlbumMedia) {
+        if (
+            media.uri !in session.selectedUris &&
+            session.selectedItems.size >= config.maxSelectionCount
+        ) {
+            showSelectionLimitMessage()
+            return
+        }
         lifecycleScope.launch {
             client.toggleSelection(session.sessionId, media).onSuccess { updated ->
                 renderSession(updated)
@@ -436,16 +453,21 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     private fun confirmSelection() {
+        if (isConfirming) return
         if (session.selectedItems.isEmpty()) {
             showMessage(getString(R.string.auv_select_first))
             return
         }
+        isConfirming = true
         doneAction.isEnabled = false
+        showProcessingDialog()
         lifecycleScope.launch {
             client.confirm(session.sessionId).onSuccess { result ->
                 setResult(Activity.RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
                 finish()
             }.onFailure { failure ->
+                isConfirming = false
+                hideProcessingDialog()
                 doneAction.isEnabled = true
                 showMessage(
                     getString(
@@ -455,6 +477,47 @@ class AlbumPickerActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun showProcessingDialog() {
+        processingSpinnerAnimator?.cancel()
+        processingDialog = Dialog(this, R.style.auv_theme_album_picker_processing).apply {
+            setContentView(R.layout.auv_dialog_album_processing)
+            setCancelable(false)
+            setCanceledOnTouchOutside(false)
+            show()
+            window?.setLayout(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            processingSpinnerAnimator = ObjectAnimator.ofFloat(
+                findViewById<ImageView>(R.id.auv_processing_spinner),
+                View.ROTATION,
+                0f,
+                360f,
+            ).apply {
+                duration = PROCESSING_SPINNER_DURATION_MILLIS
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                start()
+            }
+        }
+    }
+
+    private fun hideProcessingDialog() {
+        processingSpinnerAnimator?.cancel()
+        processingSpinnerAnimator = null
+        processingDialog?.dismiss()
+        processingDialog = null
+    }
+
+    private fun showSelectionLimitMessage() {
+        val message = when (config.mediaFilter) {
+            AlbumMediaFilter.IMAGES -> R.string.auv_selection_limit_images
+            AlbumMediaFilter.VIDEOS -> R.string.auv_selection_limit_videos
+            AlbumMediaFilter.IMAGES_AND_VIDEOS -> R.string.auv_selection_limit_files
+        }
+        showMessage(getString(message, config.maxSelectionCount))
     }
 
     private fun showMessage(message: CharSequence) {
@@ -653,6 +716,7 @@ private const val LIGHT_COLOR_LUMINANCE = 0.5
 private const val DIRECTORY_ARROW_DURATION_MILLIS = 150L
 private const val DIRECTORY_PANEL_MAX_HEIGHT_RATIO = 0.6f
 private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200L
+private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000L
 
 internal fun shouldShowPermissionUpgradeButton(
     isAllowedByHost: Boolean,

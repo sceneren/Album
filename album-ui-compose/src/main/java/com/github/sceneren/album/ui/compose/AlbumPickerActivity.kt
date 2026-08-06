@@ -16,12 +16,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -69,6 +73,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
@@ -118,6 +123,7 @@ class AlbumPickerActivity : ComponentActivity() {
     private var feed by mutableStateOf<com.github.sceneren.album.api.AlbumMediaFeed?>(null)
     private var directories by mutableStateOf<List<AlbumDirectory>>(emptyList())
     private var preview by mutableStateOf<PreviewState?>(null)
+    private var isConfirming by mutableStateOf(false)
     private var previewLoadJob: Job? = null
     private var messageToast: Toast? = null
     private var isPhotoPickerInFlight = false
@@ -222,6 +228,7 @@ class AlbumPickerActivity : ComponentActivity() {
                 onPreviewLoadMore = ::loadMorePreview,
                 onClosePreview = ::closePreview,
                 onConfirm = ::confirmSelection,
+                isConfirming = isConfirming,
             )
         }
     }
@@ -277,6 +284,13 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     private fun toggleMedia(media: AlbumMedia) {
+        if (
+            media.uri !in currentSession().selectedUris &&
+            currentSession().selectedItems.size >= config.maxSelectionCount
+        ) {
+            showSelectionLimitMessage()
+            return
+        }
         lifecycleScope.launch {
             client.toggleSelection(currentSession().sessionId, media).onSuccess { updated ->
                 renderSession(updated)
@@ -296,15 +310,18 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     private fun confirmSelection() {
+        if (isConfirming) return
         if (currentSession().selectedItems.isEmpty()) {
             showMessage(getString(R.string.auc_select_first))
             return
         }
+        isConfirming = true
         lifecycleScope.launch {
             client.confirm(currentSession().sessionId).onSuccess { result ->
                 setResult(Activity.RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
                 finish()
             }.onFailure { failure ->
+                isConfirming = false
                 showMessage(
                     getString(
                         R.string.auc_process_failed,
@@ -313,6 +330,15 @@ class AlbumPickerActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun showSelectionLimitMessage() {
+        val message = when (config.mediaFilter) {
+            AlbumMediaFilter.IMAGES -> R.string.auc_selection_limit_images
+            AlbumMediaFilter.VIDEOS -> R.string.auc_selection_limit_videos
+            AlbumMediaFilter.IMAGES_AND_VIDEOS -> R.string.auc_selection_limit_files
+        }
+        showMessage(getString(message, config.maxSelectionCount))
     }
 
     private fun showGridPreview(media: AlbumMedia, loadedFeedItems: List<AlbumMedia>) {
@@ -429,6 +455,7 @@ private fun AlbumPickerScreen(
     onPreviewLoadMore: () -> Unit,
     onClosePreview: () -> Unit,
     onConfirm: () -> Unit,
+    isConfirming: Boolean,
 ) {
     val toolbar = appearance.toolbarColor?.toColor() ?: colorResource(R.color.auc_toolbar)
     val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
@@ -447,6 +474,7 @@ private fun AlbumPickerScreen(
         if (accessStatus != MediaAccessStatus.FULL) directoryMenu = false
     }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
+    val selectionLimitReached = session.selectedItems.size >= config.maxSelectionCount
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         Scaffold(
@@ -673,6 +701,7 @@ private fun AlbumPickerScreen(
                         MediaTile(
                             item,
                             item.uri in session.selectedUris,
+                            selectionLimitReached && item.uri !in session.selectedUris,
                             appearance,
                             imageLoader,
                             onPreview = { selected ->
@@ -695,6 +724,7 @@ private fun AlbumPickerScreen(
                             MediaTile(
                                 item,
                                 item.uri in session.selectedUris,
+                                selectionLimitReached && item.uri !in session.selectedUris,
                                 appearance,
                                 imageLoader,
                                 onPreview = { selected ->
@@ -794,6 +824,7 @@ private fun AlbumPickerScreen(
                 )
             }
         }
+        if (isConfirming) ProcessingOverlay()
     }
 }
 
@@ -1153,6 +1184,7 @@ private fun ActionTile(
 private fun MediaTile(
     media: AlbumMedia,
     selected: Boolean,
+    selectionBlocked: Boolean,
     appearance: AlbumPickerAppearance,
     imageLoader: AlbumImageLoader,
     onPreview: (AlbumMedia) -> Unit,
@@ -1163,20 +1195,28 @@ private fun MediaTile(
             .fillMaxWidth()
             .aspectRatio(1f)
             .background(Color.Black)
-            .clickable { onPreview(media) },
+            .clickable(enabled = !selectionBlocked) { onPreview(media) },
     ) {
-        Image(
-            painter = imageLoader.painter(media, AlbumImageTarget.GRID_THUMBNAIL),
-            contentDescription = media.displayName,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
+        MediaThumbnail(media, imageLoader)
+        if (selected || selectionBlocked) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (selected) {
+                            appearance.scrimColor?.toColor()
+                                ?: colorResource(R.color.auc_media_selected_scrim)
+                        } else {
+                            colorResource(R.color.auc_media_blocked_scrim)
+                        },
+                    ),
+            )
+        }
         Box(
             Modifier
                 .align(Alignment.TopEnd)
                 .size(dimensionResource(R.dimen.auc_media_check_size))
                 .padding(dimensionResource(R.dimen.auc_media_check_margin))
-                .background(appearance.scrimColor?.toColor() ?: Color.Transparent)
                 .clickable { onToggle(media) },
             contentAlignment = Alignment.Center,
         ) {
@@ -1186,6 +1226,68 @@ private fun MediaTile(
                 appearance.uncheckedIconRes ?: R.drawable.auc_ic_album_unchecked
             }
             Icon(painterResource(icon), contentDescription = null, tint = Color.Unspecified)
+        }
+    }
+}
+
+@Composable
+private fun MediaThumbnail(
+    media: AlbumMedia,
+    imageLoader: AlbumImageLoader,
+) {
+    Image(
+        painter = imageLoader.painter(media, AlbumImageTarget.GRID_THUMBNAIL),
+        contentDescription = media.displayName,
+        modifier = Modifier.fillMaxSize(),
+        contentScale = ContentScale.Crop,
+    )
+}
+
+@Composable
+private fun ProcessingOverlay() {
+    BackHandler { }
+    val interactionSource = remember { MutableInteractionSource() }
+    val spinnerTransition = rememberInfiniteTransition(label = "processingSpinner")
+    val spinnerRotation by spinnerTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = PROCESSING_SPINNER_DURATION_MILLIS,
+                easing = LinearEasing,
+            ),
+        ),
+        label = "processingSpinnerRotation",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorResource(R.color.auc_processing_screen_scrim))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {},
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(dimensionResource(R.dimen.auc_processing_dialog_size))
+                .background(
+                    colorResource(R.color.auc_processing_dialog_background),
+                    RoundedCornerShape(
+                        dimensionResource(R.dimen.auc_processing_dialog_corner_radius),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.auc_progress_spinner),
+                contentDescription = stringResource(R.string.auc_processing),
+                modifier = Modifier
+                    .size(dimensionResource(R.dimen.auc_processing_indicator_size))
+                    .rotate(spinnerRotation),
+            )
         }
     }
 }
@@ -1208,3 +1310,4 @@ private fun systemBarStyle(color: Int): SystemBarStyle =
     }
 
 private const val LIGHT_COLOR_LUMINANCE = 0.5
+private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000

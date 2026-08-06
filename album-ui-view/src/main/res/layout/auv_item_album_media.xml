@@ -12,6 +12,13 @@
         android:contentDescription="@null"
         android:scaleType="centerCrop" />
 
+    <View
+        android:id="@+id/auv_media_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
     <ImageView
         android:id="@+id/auv_media_check"
         android:layout_width="24dp"

@@ -12,6 +12,7 @@ internal class GalleryAdapter(
     private val appearance: AlbumPickerAppearance,
     private val gridMetrics: GridMetrics,
     private val imageLoader: AlbumImageLoader,
+    private val maxSelectionCount: Int,
     private val onPreview: (AlbumMedia) -> Unit,
     private val onToggle: (AlbumMedia) -> Unit,
 ) : PagingDataAdapter<AlbumMedia, MediaHolder>(DIFF) {
@@ -20,9 +21,16 @@ internal class GalleryAdapter(
     fun updateSelection(value: Set<Uri>) {
         val changedUris = (selectedUris - value) + (value - selectedUris)
         if (changedUris.isEmpty()) return
+        val limitStateChanged = selectionLimitReached() != selectionLimitReached(value)
         selectedUris = value
+        if (limitStateChanged) {
+            notifyItemRangeChanged(0, itemCount, SELECTION_STATE_PAYLOAD)
+            return
+        }
         for (index in 0 until itemCount) {
-            if (peek(index)?.uri in changedUris) notifyItemChanged(index)
+            if (peek(index)?.uri in changedUris) {
+                notifyItemChanged(index, SELECTION_STATE_PAYLOAD)
+            }
         }
     }
 
@@ -41,9 +49,34 @@ internal class GalleryAdapter(
     override fun onBindViewHolder(holder: MediaHolder, position: Int) {
         val item = getItem(position)
         if (item != null) {
-            holder.bind(item, selectedUris, onPreview, onToggle)
+            holder.bind(
+                media = item,
+                selected = item.uri in selectedUris,
+                selectionBlocked = selectionLimitReached() && item.uri !in selectedUris,
+                onPreview = onPreview,
+                onToggle = onToggle,
+            )
         } else {
             holder.clear()
+        }
+    }
+
+    override fun onBindViewHolder(
+        holder: MediaHolder,
+        position: Int,
+        payloads: MutableList<Any>,
+    ) {
+        val item = peek(position)
+        if (item != null && SELECTION_STATE_PAYLOAD in payloads) {
+            holder.updateSelectionState(
+                media = item,
+                selected = item.uri in selectedUris,
+                selectionBlocked = selectionLimitReached() && item.uri !in selectedUris,
+                onPreview = onPreview,
+                onToggle = onToggle,
+            )
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
         }
     }
 
@@ -52,6 +85,8 @@ internal class GalleryAdapter(
     }
 
     private companion object {
+        val SELECTION_STATE_PAYLOAD = Any()
+
         val DIFF = object : DiffUtil.ItemCallback<AlbumMedia>() {
             override fun areItemsTheSame(oldItem: AlbumMedia, newItem: AlbumMedia): Boolean =
                 oldItem.uri == newItem.uri
@@ -60,4 +95,7 @@ internal class GalleryAdapter(
                 oldItem == newItem
         }
     }
+
+    private fun selectionLimitReached(value: Set<Uri> = selectedUris): Boolean =
+        value.size >= maxSelectionCount
 }

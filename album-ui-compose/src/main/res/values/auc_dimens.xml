@@ -23,6 +23,9 @@
     <dimen name="auc_loading_box_height">160dp</dimen>
     <dimen name="auc_media_check_size">24dp</dimen>
     <dimen name="auc_media_check_margin">4dp</dimen>
+    <dimen name="auc_processing_dialog_size">64dp</dimen>
+    <dimen name="auc_processing_dialog_corner_radius">4dp</dimen>
+    <dimen name="auc_processing_indicator_size">40dp</dimen>
     <dimen name="auc_bottom_height">56dp</dimen>
     <dimen name="auc_bottom_padding_horizontal">10dp</dimen>
     <dimen name="auc_bottom_min_button_width">70dp</dimen>

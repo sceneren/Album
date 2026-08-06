@@ -13,4 +13,8 @@
     <color name="auc_directory_selected">#FFE0E0E0</color>
     <color name="auc_directory_text">#FF424242</color>
     <color name="auc_directory_scrim">#99000000</color>
+    <color name="auc_media_selected_scrim">#66000000</color>
+    <color name="auc_media_blocked_scrim">#66FFFFFF</color>
+    <color name="auc_processing_screen_scrim">#73000000</color>
+    <color name="auc_processing_dialog_background">#CC454545</color>
 </resources>
