@@ -7,5 +7,4 @@
     <dimen name="auv_directory_text_margin_start">12dp</dimen>
     <dimen name="auv_directory_text_size">18sp</dimen>
     <dimen name="auv_directory_corner_radius">8dp</dimen>
-    <dimen name="auv_directory_max_height">432dp</dimen>
 </resources>

@@ -10,143 +10,143 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-    <RelativeLayout
-        android:id="@+id/auv_picker_toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/auv_toolbar_height"
-        android:background="@color/auv_toolbar"
-        android:gravity="center_vertical"
-        android:paddingStart="8dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="8dp"
-        android:paddingBottom="4dp">
-
-        <ImageButton
-            android:id="@+id/auv_picker_back"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="@string/auv_back"
-            android:src="@drawable/auv_ic_album_back" />
-
-        <LinearLayout
-            android:id="@+id/auv_picker_title_action"
+        <RelativeLayout
+            android:id="@+id/auv_picker_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginHorizontal="100dp"
-            android:gravity="center"
-            android:orientation="horizontal">
+            android:layout_height="@dimen/auv_toolbar_height"
+            android:background="@color/auv_toolbar"
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp">
+
+            <ImageButton
+                android:id="@+id/auv_picker_back"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/auv_back"
+                android:src="@drawable/auv_ic_album_back" />
+
+            <LinearLayout
+                android:id="@+id/auv_picker_title_action"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="100dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/auv_picker_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/auv_title"
+                    android:textColor="@color/auv_primary"
+                    android:textSize="18sp" />
+
+                <ImageView
+                    android:id="@+id/auv_picker_title_arrow"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="2dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/auv_ic_album_expand_more" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/auv_picker_title"
+                android:id="@+id/auv_picker_cancel"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:ellipsize="end"
+                android:layout_height="48dp"
+                android:layout_alignParentEnd="true"
                 android:gravity="center"
-                android:maxLines="1"
-                android:text="@string/auv_title"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:text="@string/auv_cancel"
                 android:textColor="@color/auv_primary"
-                android:textSize="18sp" />
+                android:textSize="15sp" />
+        </RelativeLayout>
 
-            <ImageView
-                android:id="@+id/auv_picker_title_arrow"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginStart="2dp"
-                android:contentDescription="@null"
-                android:src="@drawable/auv_ic_album_expand_more" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/auv_picker_cancel"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:gravity="center"
-            android:layout_alignParentEnd="true"
-            android:paddingStart="12dp"
-            android:paddingEnd="8dp"
-            android:text="@string/auv_cancel"
-            android:textColor="@color/auv_primary"
-            android:textSize="15sp" />
-    </RelativeLayout>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/auv_picker_grid"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="@android:color/black"
-        android:clipToPadding="false" />
-
-    <Button
-        android:id="@+id/auv_picker_permission"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:backgroundTint="@color/auv_permission_background"
-        android:textColor="@color/auv_permission_text"
-        android:textSize="15sp"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:id="@+id/auv_picker_bottom"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="@color/auv_bottom"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp">
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/auv_picker_grid"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@android:color/black"
+            android:clipToPadding="false" />
 
         <Button
-            android:id="@+id/auv_picker_preview"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:paddingHorizontal="10dp"
-            android:background="@android:color/transparent"
-            android:minHeight="0dp"
-            android:minWidth="70dp"
-            android:stateListAnimator="@null"
-            android:text="@string/auv_preview"
-            android:textAllCaps="false"
-            android:textColor="@color/auv_primary" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+            android:id="@+id/auv_picker_permission"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:backgroundTint="@color/auv_permission_background"
+            android:textColor="@color/auv_permission_text"
+            android:textSize="15sp"
+            android:visibility="gone" />
 
         <LinearLayout
-            android:id="@+id/auv_picker_done_action"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:clickable="true"
-            android:focusable="true"
+            android:id="@+id/auv_picker_bottom"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@color/auv_bottom"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="10dp"
-            android:paddingEnd="8dp">
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
 
-            <TextView
-                android:id="@+id/auv_picker_selected_count"
+            <Button
+                android:id="@+id/auv_picker_preview"
                 android:layout_width="wrap_content"
-                android:layout_height="18dp"
-                android:minWidth="18dp"
-                android:gravity="center"
-                android:textColor="@color/auv_primary"
-                android:textSize="13sp"
-                android:visibility="gone" />
+                android:layout_height="48dp"
+                android:background="@android:color/transparent"
+                android:minWidth="70dp"
+                android:minHeight="0dp"
+                android:paddingHorizontal="10dp"
+                android:stateListAnimator="@null"
+                android:text="@string/auv_preview"
+                android:textAllCaps="false"
+                android:textColor="@color/auv_primary" />
 
-            <TextView
-                android:id="@+id/auv_picker_done_text"
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/auv_picker_done_action"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_marginStart="8dp"
-                android:gravity="center"
-                android:text="@string/auv_please_select"
-                android:textColor="@color/auv_secondary"
-                android:textSize="14sp" />
+                android:layout_height="48dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    android:id="@+id/auv_picker_selected_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:gravity="center"
+                    android:minWidth="18dp"
+                    android:textColor="@color/auv_primary"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/auv_picker_done_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:text="@string/auv_please_select"
+                    android:textColor="@color/auv_secondary"
+                    android:textSize="14sp" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
     </LinearLayout>
 
     <View

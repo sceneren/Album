@@ -1,5 +1,6 @@
 package com.github.sceneren.album.ui.view
 
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -14,6 +15,11 @@ internal class DirectoryHolder(
 ) : RecyclerView.ViewHolder(itemView) {
     private val cover: ImageView = itemView.findViewById(R.id.auv_directory_cover)
     private val label: TextView = itemView.findViewById(R.id.auv_directory_label)
+    private val selectedBackground = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        setColor(ContextCompat.getColor(itemView.context, R.color.auv_directory_selected))
+        cornerRadius = itemView.resources.getDimension(R.dimen.auv_directory_corner_radius)
+    }
 
     fun bind(directory: AlbumDirectory, selected: Boolean) {
         clear()
@@ -28,16 +34,7 @@ internal class DirectoryHolder(
             name,
             directory.mediaCount,
         )
-        itemView.setBackgroundColor(
-            ContextCompat.getColor(
-                itemView.context,
-                if (selected) {
-                    R.color.auv_directory_selected
-                } else {
-                    R.color.auv_directory_panel
-                },
-            ),
-        )
+        itemView.background = selectedBackground.takeIf { selected }
         imageLoader.load(cover, directory.toCoverMedia(), AlbumImageTarget.GRID_THUMBNAIL)
         itemView.setOnClickListener { onClick(directory.bucketId) }
     }

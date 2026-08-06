@@ -221,7 +221,6 @@ class AlbumPickerActivity : ComponentActivity() {
         directoryList.layoutManager = LinearLayoutManager(this)
         directoryList.adapter = directoryAdapter
         directoryList.itemAnimator = null
-        directoryList.clipToOutline = true
     }
 
     /** 将可配置外观应用到 XML 中已声明的控件，不创建新的界面层级。 */
@@ -575,22 +574,71 @@ class AlbumPickerActivity : ComponentActivity() {
         val contentHeight = directories.size * resources.getDimensionPixelSize(
             R.dimen.auv_directory_row_height,
         )
+        val windowMaxHeight = (root.height * DIRECTORY_PANEL_MAX_HEIGHT_RATIO).roundToInt()
+        val panelHeight = minOf(
+            contentHeight,
+            windowMaxHeight,
+            (root.height - directoryList.top).coerceAtLeast(0),
+        )
         directoryList.updateLayoutParams<ViewGroup.LayoutParams> {
-            height = minOf(
-                contentHeight,
-                resources.getDimensionPixelSize(R.dimen.auv_directory_max_height),
-                (root.height - directoryList.top).coerceAtLeast(0),
-            )
+            height = panelHeight
         }
+        cancelDirectoryPanelAnimations()
         directoryScrim.isVisible = true
         directoryList.isVisible = directories.isNotEmpty()
+        directoryScrim.alpha = 0f
+        directoryList.alpha = 0f
+        directoryList.pivotY = 0f
+        directoryList.scaleY = 0f
+        directoryScrim.animate()
+            .alpha(1f)
+            .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
+            .start()
+        if (directoryList.isVisible) {
+            directoryList.animate()
+                .alpha(1f)
+                .scaleY(1f)
+                .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
+                .start()
+        } else {
+            directoryList.alpha = 1f
+            directoryList.scaleY = 1f
+        }
         titleArrow.animate().rotation(180f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
     }
 
     private fun hideDirectoryPanel() {
-        directoryScrim.isVisible = false
-        directoryList.isVisible = false
+        cancelDirectoryPanelAnimations()
+        if (!directoryScrim.isVisible && !directoryList.isVisible) {
+            titleArrow.animate().rotation(0f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
+            return
+        }
+        directoryScrim.animate()
+            .alpha(0f)
+            .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
+            .withEndAction {
+                directoryScrim.isVisible = false
+                directoryScrim.alpha = 1f
+            }
+            .start()
+        if (directoryList.isVisible) {
+            directoryList.animate()
+                .alpha(0f)
+                .scaleY(0f)
+                .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
+                .withEndAction {
+                    directoryList.isVisible = false
+                    directoryList.alpha = 1f
+                    directoryList.scaleY = 1f
+                }
+                .start()
+        }
         titleArrow.animate().rotation(0f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
+    }
+
+    private fun cancelDirectoryPanelAnimations() {
+        directoryScrim.animate().cancel()
+        directoryList.animate().cancel()
     }
 
     private fun isDirectoryPanelVisible(): Boolean = directoryScrim.isVisible
@@ -603,6 +651,8 @@ class AlbumPickerActivity : ComponentActivity() {
 
 private const val LIGHT_COLOR_LUMINANCE = 0.5
 private const val DIRECTORY_ARROW_DURATION_MILLIS = 150L
+private const val DIRECTORY_PANEL_MAX_HEIGHT_RATIO = 0.6f
+private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200L
 
 internal fun shouldShowPermissionUpgradeButton(
     isAllowedByHost: Boolean,

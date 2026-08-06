@@ -13,12 +13,19 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -62,9 +69,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -74,9 +81,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.TextUnit
 import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.paging.compose.LazyPagingItems
@@ -440,7 +448,7 @@ private fun AlbumPickerScreen(
     }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
 
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Black,
             topBar = {
@@ -711,7 +719,29 @@ private fun AlbumPickerScreen(
             }
         }
 
-        if (directoryMenu && accessStatus == MediaAccessStatus.FULL) {
+        val directoryVisible = directoryMenu && accessStatus == MediaAccessStatus.FULL
+        val directoryPanelMaxHeight = maxHeight * DIRECTORY_PANEL_MAX_HEIGHT_RATIO
+        val directoryPanelTransition = updateTransition(
+            targetState = directoryVisible,
+            label = "directoryPanel",
+        )
+        val directoryPanelAlpha by directoryPanelTransition.animateFloat(
+            transitionSpec = { tween(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS) },
+            label = "directoryPanelAlpha",
+        ) { visible ->
+            if (visible) 1f else 0f
+        }
+        val directoryPanelScaleY by directoryPanelTransition.animateFloat(
+            transitionSpec = { tween(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS) },
+            label = "directoryPanelScaleY",
+        ) { visible ->
+            if (visible) 1f else 0f
+        }
+        AnimatedVisibility(
+            visible = directoryVisible,
+            enter = fadeIn(animationSpec = tween(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)),
+            exit = fadeOut(animationSpec = tween(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)),
+        ) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -720,21 +750,34 @@ private fun AlbumPickerScreen(
                     .background(colorResource(R.color.auc_directory_scrim))
                     .clickable { directoryMenu = false },
             )
-            DirectoryPanel(
-                directories = directories,
-                selectedBucketId = session.bucketId,
-                imageLoader = imageLoader,
-                onDirectory = { bucketId ->
-                    directoryMenu = false
-                    if (shouldUpdateDirectory(session.bucketId, bucketId)) {
-                        onDirectory(bucketId)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = dimensionResource(R.dimen.auc_toolbar_height)),
-            )
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = dimensionResource(R.dimen.auc_toolbar_height)),
+        ) {
+            if (directoryPanelTransition.currentState || directoryPanelTransition.targetState) {
+                DirectoryPanel(
+                    directories = directories,
+                    selectedBucketId = session.bucketId,
+                    imageLoader = imageLoader,
+                    maxHeight = directoryPanelMaxHeight,
+                    onDirectory = { bucketId ->
+                        directoryMenu = false
+                        if (shouldUpdateDirectory(session.bucketId, bucketId)) {
+                            onDirectory(bucketId)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = directoryPanelAlpha
+                            scaleY = directoryPanelScaleY
+                            transformOrigin = TransformOrigin(0.5f, 0f)
+                        },
+                )
+            }
         }
 
         preview?.let { state ->
@@ -759,6 +802,7 @@ private fun DirectoryPanel(
     directories: List<AlbumDirectory>,
     selectedBucketId: Long,
     imageLoader: AlbumImageLoader,
+    maxHeight: Dp,
     onDirectory: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -768,9 +812,8 @@ private fun DirectoryPanel(
     )
     LazyColumn(
         modifier = modifier
-            .heightIn(max = dimensionResource(R.dimen.auc_directory_max_height))
-            .clip(panelShape)
-            .background(colorResource(R.color.auc_directory_panel)),
+            .heightIn(max = maxHeight)
+            .background(colorResource(R.color.auc_directory_panel), panelShape),
     ) {
         lazyListItems(
             items = directories,
@@ -805,12 +848,13 @@ private fun DirectoryRow(
             .fillMaxWidth()
             .height(dimensionResource(R.dimen.auc_directory_row_height))
             .background(
-                colorResource(
-                    if (selected) {
-                        R.color.auc_directory_selected
-                    } else {
-                        R.color.auc_directory_panel
-                    },
+                color = if (selected) {
+                    colorResource(R.color.auc_directory_selected)
+                } else {
+                    Color.Transparent
+                },
+                shape = RoundedCornerShape(
+                    dimensionResource(R.dimen.auc_directory_corner_radius),
                 ),
             )
             .clickable(onClick = onClick)
@@ -838,6 +882,9 @@ private fun DirectoryRow(
         )
     }
 }
+
+private const val DIRECTORY_PANEL_MAX_HEIGHT_RATIO = 0.6f
+private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200
 
 @Composable
 private fun AlbumPreviewScreen(
