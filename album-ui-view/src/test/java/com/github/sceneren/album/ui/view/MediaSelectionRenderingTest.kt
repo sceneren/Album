@@ -15,6 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -68,6 +69,19 @@ class MediaSelectionRenderingTest {
     }
 
     @Test
+    fun selectionCheckUses32DpTouchTargetWithUnchanged16DpIconArea() {
+        val holder = holder(AlbumImageLoader { _, _, _ -> })
+        val check = holder.itemView.findViewById<View>(R.id.auv_media_check)
+
+        assertEquals(dp(32), check.layoutParams.width)
+        assertEquals(dp(32), check.layoutParams.height)
+        assertEquals(dp(8), check.paddingLeft)
+        assertEquals(dp(8), check.paddingTop)
+        assertEquals(dp(16), check.layoutParams.width - check.paddingLeft - check.paddingRight)
+        assertEquals(dp(16), check.layoutParams.height - check.paddingTop - check.paddingBottom)
+    }
+
+    @Test
     fun adapterUsesPayloadForSingleAndLimitStateUpdates() {
         val adapter = CameraAdapter(
             appearance = AlbumPickerAppearance(),
@@ -100,6 +114,9 @@ class MediaSelectionRenderingTest {
         )
         return MediaHolder(itemView, AlbumPickerAppearance(), imageLoader, cellSize = 100)
     }
+
+    private fun dp(value: Int): Int =
+        (value * context.resources.displayMetrics.density).roundToInt()
 
     private fun media(uri: String) = AlbumMedia(
         uri = Uri.parse(uri),

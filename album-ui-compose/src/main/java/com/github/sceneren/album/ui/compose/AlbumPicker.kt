@@ -1348,8 +1348,8 @@ private fun MediaTile(
             Modifier
                 .align(Alignment.TopEnd)
                 .size(dimensionResource(R.dimen.auc_media_check_size))
-                .padding(dimensionResource(R.dimen.auc_media_check_margin))
-                .clickable { onToggle(media) },
+                .clickable { onToggle(media) }
+                .padding(dimensionResource(R.dimen.auc_media_check_margin)),
             contentAlignment = Alignment.Center,
         ) {
             val icon = if (selected) {

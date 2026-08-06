@@ -21,10 +21,10 @@
 
     <ImageView
         android:id="@+id/auv_media_check"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="@dimen/auv_media_check_size"
+        android:layout_height="@dimen/auv_media_check_size"
         android:layout_gravity="top|end"
-        android:padding="4dp"
+        android:padding="@dimen/auv_media_check_padding"
         android:background="@android:color/transparent"
         android:clickable="true"
         android:contentDescription="@string/auv_toggle_selection"
