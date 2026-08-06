@@ -12,8 +12,11 @@ import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import com.github.sceneren.album.api.internal.mediastore.MediaStoreDataSource
 import com.github.sceneren.album.api.internal.permission.MediaAccessResolver
 import com.github.sceneren.album.api.internal.picker.PersistableGrantManager
+import com.github.sceneren.album.api.internal.picker.PhotoPickerResultProcessor
+import com.github.sceneren.album.api.internal.picker.PickedUriMetadata
 import com.github.sceneren.album.api.internal.picker.PickerRegistrar
 import com.github.sceneren.album.api.internal.picker.UriAccessChecker
+import com.github.sceneren.album.api.internal.picker.UriMetadataReader
 import kotlinx.coroutines.test.runTest
 import java.io.File
 import java.util.UUID
@@ -49,6 +52,11 @@ class AlbumApiTest {
             mediaStore = mediaStore,
             pickedStore = pickedStore,
             pickerRegistrar = FakePickerRegistrar(),
+            photoPickerResultProcessor = PhotoPickerResultProcessor(
+                grantManager = grants,
+                metadataReader = FakeUriMetadataReader(),
+                store = pickedStore,
+            ),
             grantManager = grants,
             uriAccessChecker = accessChecker,
         )
@@ -75,6 +83,23 @@ class AlbumApiTest {
 
         assertEquals(AlbumMediaSource.PHOTO_PICKER, feed.source)
         assertEquals(MediaAccessStatus.DENIED, feed.accessStatus)
+    }
+
+    @Test
+    fun hostManagedPhotoPickerResultUsesTheSharedPersistencePipeline() = runTest {
+        val pickedUri = uri("compose")
+
+        val result = api.processPhotoPickerResult(
+            uris = listOf(pickedUri),
+            mediaFilter = AlbumMediaFilter.IMAGES,
+            maxSelectionCount = 3,
+        )
+
+        assertEquals(
+            listOf(pickedUri),
+            (result as PhotoPickResult.Selected).media.map(AlbumMedia::uri),
+        )
+        assertTrue(pickedUri.toString() in pickedStore.rows)
     }
 
     @Test
@@ -468,6 +493,21 @@ class AlbumApiTest {
         val readable = mutableSetOf<Uri>()
 
         override fun canRead(uri: Uri): Boolean = uri in readable
+    }
+
+    private class FakeUriMetadataReader : UriMetadataReader {
+        override fun requiredType(uri: Uri): AlbumMediaType = AlbumMediaType.IMAGE
+
+        override fun read(uri: Uri, type: AlbumMediaType) = PickedUriMetadata(
+            uri = uri,
+            mediaType = type,
+            displayName = "picked.jpg",
+            mimeType = "image/jpeg",
+            sizeBytes = 1_024L,
+            width = 100,
+            height = 100,
+            durationMillis = null,
+        )
     }
 
     private fun entity(name: String, ownsGrant: Boolean) = PickedMediaEntity(

@@ -1,39 +1,33 @@
 package com.github.sceneren.album.ui.compose
 
-import android.app.Activity
-import android.content.Intent
-import android.os.Build
-import android.os.Bundle
+import android.net.Uri
 import android.widget.Toast
-import androidx.annotation.DimenRes
-import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DimenRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,13 +39,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items as lazyListItems
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -61,15 +53,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,19 +76,22 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.ColorUtils
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -101,257 +101,265 @@ import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
+import com.github.sceneren.album.api.AlbumMediaFeed
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumMediaType
-import com.github.sceneren.album.api.AlbumPickerIntentCodec
+import com.github.sceneren.album.api.AlbumPickerConfig
+import com.github.sceneren.album.api.AlbumPickerResult
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.MediaAccessStatus
 import com.github.sceneren.album.api.PhotoPickResult
+import com.github.sceneren.album.api.SingleSelectionFinishMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.UUID
+import androidx.compose.foundation.lazy.items as lazyListItems
 
-/** Compose 全屏相册选择页。 */
-class AlbumPickerActivity : ComponentActivity() {
-    private var activityAnimation: AlbumPickerAnimation? = AlbumPickerAnimation()
-    private lateinit var config: com.github.sceneren.album.api.AlbumPickerConfig
-    private lateinit var appearance: AlbumPickerAppearance
-    private lateinit var api: AlbumApi
-    private lateinit var client: com.github.sceneren.album.api.AlbumPickerClient
-    private lateinit var imageLoader: AlbumImageLoader
-    private var session by mutableStateOf<AlbumPickerSessionSnapshot?>(null)
-    private var accessStatus by mutableStateOf(MediaAccessStatus.DENIED)
-    private var feed by mutableStateOf<com.github.sceneren.album.api.AlbumMediaFeed?>(null)
-    private var directories by mutableStateOf<List<AlbumDirectory>>(emptyList())
-    private var preview by mutableStateOf<PreviewState?>(null)
-    private var isConfirming by mutableStateOf(false)
-    private var previewLoadJob: Job? = null
-    private var messageToast: Toast? = null
-    private var isPhotoPickerInFlight = false
-
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
-        lifecycleScope.launch {
-            api.syncPartialSelections(config.mediaFilter)
-            refreshContent()
-        }
+/**
+ * Embeddable Compose album picker.
+ *
+ * The host owns navigation and should remove this component after [onResult] or [onCancel]. When
+ * [imageLoader] is null, the process-level loader configured through [AlbumUi] is used.
+ */
+@Composable
+fun AlbumPicker(
+    config: AlbumPickerConfig,
+    onResult: (AlbumPickerResult) -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+    appearance: AlbumPickerAppearance = AlbumPickerAppearance(),
+    imageLoader: AlbumImageLoader? = null,
+) {
+    val context = LocalContext.current
+    val applicationContext = context.applicationContext
+    val api = remember(applicationContext) { AlbumApi.create(applicationContext) }
+    val client = remember(api, applicationContext) { api.createPickerClient(applicationContext) }
+    val sessionId = rememberSaveable(config) { UUID.randomUUID().toString() }
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentOnResult by rememberUpdatedState(onResult)
+    val currentOnCancel by rememberUpdatedState(onCancel)
+    val resolvedImageLoader = remember(imageLoader) {
+        imageLoader ?: AlbumUi.requireImageLoader()
     }
 
-    private var photoPicker: com.github.sceneren.album.api.AlbumPhotoPickerLauncher? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        val theme = intent.getIntExtra(AlbumPickerExtras.THEME, 0)
-        if (theme != 0) setTheme(theme)
-        super.onCreate(savedInstanceState)
-        activityAnimation = AlbumPickerExtras.readAnimation(intent)
-        applyActivityTransitions(activityAnimation)
-        config = AlbumPickerIntentCodec.readConfig(intent)
-        appearance = AlbumPickerExtras.readAppearance(intent)
-        enableEdgeToEdge(
-            statusBarStyle = systemBarStyle(appearance.toolbarColor ?: DEFAULT_TOOLBAR_COLOR),
-            navigationBarStyle = systemBarStyle(appearance.bottomBarColor ?: DEFAULT_BOTTOM_BAR_COLOR),
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
-        }
-        imageLoader = AlbumUi.requireImageLoader()
-        api = AlbumApi.create(this)
-        client = api.createPickerClient(this)
-        val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
-        session = client.openSession(config, sessionId)
-        photoPicker = api.registerPhotoPicker(this, config.mediaFilter, config.maxSelectionCount) { result ->
-            isPhotoPickerInFlight = false
-            showMessage(
-                when (result) {
-                    is PhotoPickResult.Selected -> getString(
-                        R.string.auc_added_count,
-                        result.media.size,
-                    )
-                    PhotoPickResult.Cancelled -> getString(R.string.auc_add_cancelled)
-                    is PhotoPickResult.Failed -> getString(
-                        R.string.auc_add_failed,
-                        result.reason.name,
-                    )
-                },
-            )
-            if (result is PhotoPickResult.Selected) refreshContent()
-        }
-        cameraLauncher = client.registerCamera(this, currentSession().sessionId) { result ->
-            result.onSuccess { updated ->
-                renderSession(updated)
-                if (accessStatus != MediaAccessStatus.FULL) refreshContent()
-                maybeAutoConfirm()
-            }.onFailure { failure ->
-                showMessage(failure.message ?: getString(R.string.auc_camera_failed))
-            }
-        }
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (preview != null) {
-                    closePreview()
-                    return
-                }
-                lifecycleScope.launch {
-                    client.cancel(currentSession().sessionId)
-                    setResult(Activity.RESULT_CANCELED)
-                    finish()
-                }
-            }
-        })
-        setContent {
-            AlbumPickerScreen(
-                config = config,
-                appearance = appearance,
-                session = currentSession(),
-                accessStatus = accessStatus,
-                directories = directories,
-                feed = feed,
-                preview = preview,
-                imageLoader = imageLoader,
-                onBack = { onBackPressedDispatcher.onBackPressed() },
-                onDirectory = { bucketId ->
-                    if (shouldUpdateDirectory(currentSession().bucketId, bucketId)) {
-                        lifecycleScope.launch {
-                            client.setBucket(currentSession().sessionId, bucketId).onSuccess { updated ->
-                                renderSession(updated)
-                                refreshContent()
-                            }
-                        }
-                    }
-                },
-                onRequestPermission = {
-                    permissionLauncher.launch(AlbumMediaPermissionRequestFactory.create(config.mediaFilter))
-                },
-                onAddMore = ::launchPhotoPicker,
-                onCamera = { cameraLauncher?.launch(cameraMediaType()) },
-                onToggle = ::toggleMedia,
-                onGridPreview = ::showGridPreview,
-                onSelectedPreview = ::showSelectedPreview,
-                onPreviewLoadMore = ::loadMorePreview,
-                onClosePreview = ::closePreview,
-                onConfirm = ::confirmSelection,
-                isConfirming = isConfirming,
-            )
-        }
+    var session by remember(api, client, config, sessionId) {
+        mutableStateOf(client.openSession(config, sessionId))
     }
+    var accessStatus by remember { mutableStateOf(MediaAccessStatus.DENIED) }
+    var feed by remember { mutableStateOf<AlbumMediaFeed?>(null) }
+    var directories by remember { mutableStateOf<List<AlbumDirectory>>(emptyList()) }
+    var preview by remember { mutableStateOf<PreviewState?>(null) }
+    var isConfirming by remember { mutableStateOf(false) }
+    var isCancelling by remember { mutableStateOf(false) }
+    var isFinished by remember { mutableStateOf(false) }
+    var isPhotoPickerInFlight by remember { mutableStateOf(false) }
+    var previewLoadJob by remember { mutableStateOf<Job?>(null) }
+    var messageToast by remember { mutableStateOf<Toast?>(null) }
 
-    private var cameraLauncher: com.github.sceneren.album.api.AlbumCameraLauncher? = null
-
-    override fun finish() {
-        super.finish()
-        applyLegacyCloseTransition(activityAnimation)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (!isPhotoPickerInFlight) refreshContent()
-    }
-
-    override fun onDestroy() {
-        previewLoadJob?.cancel()
+    fun showMessage(message: CharSequence) {
         messageToast?.cancel()
-        super.onDestroy()
+        messageToast = Toast.makeText(
+            applicationContext,
+            message,
+            Toast.LENGTH_SHORT,
+        ).also(Toast::show)
     }
 
-    private fun refreshContent() {
+    suspend fun refreshContentNow() {
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
-        lifecycleScope.launch {
-            directories = if (accessStatus == MediaAccessStatus.FULL) {
-                api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
-            } else {
-                emptyList()
-            }
-            val current = currentSession()
-            feed = api.getMediaFeed(config.mediaFilter, current.bucketId)
-            renderSession(client.snapshot(current.sessionId))
+        directories = if (accessStatus == MediaAccessStatus.FULL) {
+            api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
+        } else {
+            emptyList()
         }
+        val current = session
+        feed = api.getMediaFeed(config.mediaFilter, current.bucketId)
+        session = client.snapshot(current.sessionId)
     }
 
-    private fun renderSession(updated: AlbumPickerSessionSnapshot) {
-        session = updated
+    fun refreshContent() {
+        scope.launch { refreshContentNow() }
     }
 
-    private fun currentSession(): AlbumPickerSessionSnapshot =
-        requireNotNull(session) { "相册选择会话尚未初始化" }
-
-    private fun showMessage(message: CharSequence) {
-        messageToast?.cancel()
-        messageToast = Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).also(Toast::show)
-    }
-
-    private fun launchPhotoPicker() {
-        val launcher = photoPicker ?: return
-        isPhotoPickerInFlight = true
-        try {
-            launcher.launch()
-        } catch (failure: RuntimeException) {
-            isPhotoPickerInFlight = false
-            throw failure
-        }
-    }
-
-    private fun toggleMedia(media: AlbumMedia) {
-        if (
-            media.uri !in currentSession().selectedUris &&
-            currentSession().selectedItems.size >= config.maxSelectionCount
-        ) {
-            showSelectionLimitMessage()
-            return
-        }
-        lifecycleScope.launch {
-            client.toggleSelection(currentSession().sessionId, media).onSuccess { updated ->
-                renderSession(updated)
-                maybeAutoConfirm()
-            }.onFailure { failure ->
-                showMessage(failure.message ?: getString(R.string.auc_selection_failed))
-            }
-        }
-    }
-
-    private fun maybeAutoConfirm() {
-        if (
-            config.maxSelectionCount == 1 &&
-            config.singleSelectionFinishMode == com.github.sceneren.album.api.SingleSelectionFinishMode.IMMEDIATE &&
-            currentSession().selectedItems.size == 1
-        ) confirmSelection()
-    }
-
-    private fun confirmSelection() {
+    fun confirmSelection() {
         if (isConfirming) return
-        if (currentSession().selectedItems.isEmpty()) {
-            showMessage(getString(R.string.auc_select_first))
+        if (session.selectedItems.isEmpty()) {
+            showMessage(applicationContext.getString(R.string.auc_select_first))
             return
         }
         isConfirming = true
-        lifecycleScope.launch {
-            client.confirm(currentSession().sessionId).onSuccess { result ->
-                setResult(Activity.RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
-                finish()
+        scope.launch {
+            client.confirm(session.sessionId).onSuccess { result ->
+                isFinished = true
+                currentOnResult(result)
             }.onFailure { failure ->
                 isConfirming = false
                 showMessage(
-                    getString(
+                    applicationContext.getString(
                         R.string.auc_process_failed,
-                        failure.message ?: getString(R.string.auc_retry),
+                        failure.message ?: applicationContext.getString(R.string.auc_retry),
                     ),
                 )
             }
         }
     }
 
-    private fun showSelectionLimitMessage() {
+    fun handlePhotoPickerResult(uris: List<Uri>) {
+        scope.launch {
+            val result = api.processPhotoPickerResult(
+                uris = uris,
+                mediaFilter = config.mediaFilter,
+                maxSelectionCount = config.maxSelectionCount,
+            )
+            isPhotoPickerInFlight = false
+            showMessage(
+                when (result) {
+                    is PhotoPickResult.Selected -> applicationContext.getString(
+                        R.string.auc_added_count,
+                        result.media.size,
+                    )
+
+                    PhotoPickResult.Cancelled -> {
+                        applicationContext.getString(R.string.auc_add_cancelled)
+                    }
+
+                    is PhotoPickResult.Failed -> applicationContext.getString(
+                        R.string.auc_add_failed,
+                        result.reason.name,
+                    )
+                },
+            )
+            if (result is PhotoPickResult.Selected) refreshContentNow()
+        }
+    }
+
+    val photoPickerRequest = remember(config.mediaFilter) {
+        PickVisualMediaRequest.Builder()
+            .setMediaType(config.mediaFilter.toVisualMediaType())
+            .build()
+    }
+    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        handlePhotoPickerResult(uri?.let(::listOf).orEmpty())
+    }
+    val multiplePhotoPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(
+            config.maxSelectionCount.coerceAtLeast(MIN_MULTIPLE_PICK_COUNT),
+        ),
+    ) { uris ->
+        handlePhotoPickerResult(uris)
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        scope.launch {
+            api.syncPartialSelections(config.mediaFilter)
+            refreshContentNow()
+        }
+    }
+    val photoCameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture(),
+    ) { success ->
+        scope.launch {
+            client.completeCamera(session.sessionId, success)
+                .onSuccess { updated ->
+                    session = updated
+                    if (accessStatus != MediaAccessStatus.FULL) refreshContentNow()
+                    maybeAutoConfirm(config, updated, ::confirmSelection)
+                }
+                .onFailure { failure ->
+                    showMessage(
+                        failure.message
+                            ?: applicationContext.getString(R.string.auc_camera_failed),
+                    )
+                }
+        }
+    }
+    val videoCameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CaptureVideo(),
+    ) { success ->
+        scope.launch {
+            client.completeCamera(session.sessionId, success)
+                .onSuccess { updated ->
+                    session = updated
+                    if (accessStatus != MediaAccessStatus.FULL) refreshContentNow()
+                    maybeAutoConfirm(config, updated, ::confirmSelection)
+                }
+                .onFailure { failure ->
+                    showMessage(
+                        failure.message
+                            ?: applicationContext.getString(R.string.auc_camera_failed),
+                    )
+                }
+        }
+    }
+
+    fun launchPhotoPicker() {
+        isPhotoPickerInFlight = true
+        try {
+            if (config.maxSelectionCount == 1) {
+                singlePhotoPickerLauncher.launch(photoPickerRequest)
+            } else {
+                multiplePhotoPickerLauncher.launch(photoPickerRequest)
+            }
+        } catch (failure: RuntimeException) {
+            isPhotoPickerInFlight = false
+            throw failure
+        }
+    }
+
+    fun launchCamera() {
+        val mediaType = config.cameraMediaType()
+        scope.launch {
+            client.prepareCamera(session.sessionId, mediaType).onSuccess { capture ->
+                if (mediaType == AlbumMediaType.IMAGE) {
+                    photoCameraLauncher.launch(capture.uri)
+                } else {
+                    videoCameraLauncher.launch(capture.uri)
+                }
+            }.onFailure { failure ->
+                showMessage(
+                    failure.message ?: applicationContext.getString(R.string.auc_camera_failed),
+                )
+            }
+        }
+    }
+
+    fun showSelectionLimitMessage() {
         val message = when (config.mediaFilter) {
             AlbumMediaFilter.IMAGES -> R.string.auc_selection_limit_images
             AlbumMediaFilter.VIDEOS -> R.string.auc_selection_limit_videos
             AlbumMediaFilter.IMAGES_AND_VIDEOS -> R.string.auc_selection_limit_files
         }
-        showMessage(getString(message, config.maxSelectionCount))
+        showMessage(applicationContext.getString(message, config.maxSelectionCount))
     }
 
-    private fun showGridPreview(media: AlbumMedia, loadedFeedItems: List<AlbumMedia>) {
+    fun toggleMedia(media: AlbumMedia) {
+        if (
+            media.uri !in session.selectedUris &&
+            session.selectedItems.size >= config.maxSelectionCount
+        ) {
+            showSelectionLimitMessage()
+            return
+        }
+        scope.launch {
+            client.toggleSelection(session.sessionId, media).onSuccess { updated ->
+                session = updated
+                maybeAutoConfirm(config, updated, ::confirmSelection)
+            }.onFailure { failure ->
+                showMessage(
+                    failure.message ?: applicationContext.getString(R.string.auc_selection_failed),
+                )
+            }
+        }
+    }
+
+    fun showGridPreview(media: AlbumMedia, loadedFeedItems: List<AlbumMedia>) {
         val cameraItems = if (accessStatus == MediaAccessStatus.FULL) {
-            currentSession().cameraItems
+            session.cameraItems
         } else {
             emptyList()
         }
@@ -366,8 +374,8 @@ class AlbumPickerActivity : ComponentActivity() {
         )
     }
 
-    private fun showSelectedPreview() {
-        val items = currentSession().selectedItems
+    fun showSelectedPreview() {
+        val items = session.selectedItems
         if (items.isEmpty()) return
         previewLoadJob?.cancel()
         preview = PreviewState(
@@ -379,15 +387,15 @@ class AlbumPickerActivity : ComponentActivity() {
         )
     }
 
-    private fun loadMorePreview() {
+    fun loadMorePreview() {
         val current = preview ?: return
         val offset = current.nextOffset ?: return
         if (current.loading || current.endReached) return
         preview = current.copy(loading = true)
-        previewLoadJob = lifecycleScope.launch {
+        previewLoadJob = scope.launch {
             api.loadMediaPage(
                 mediaFilter = config.mediaFilter,
-                bucketId = currentSession().bucketId,
+                bucketId = session.bucketId,
                 offset = offset,
                 limit = PREVIEW_PAGE_SIZE,
             ).onSuccess { page ->
@@ -403,25 +411,139 @@ class AlbumPickerActivity : ComponentActivity() {
             }.onFailure { failure ->
                 val latest = preview?.takeIf { it.id == current.id } ?: return@onFailure
                 preview = latest.copy(loading = false, endReached = true)
-                showMessage(failure.message ?: getString(R.string.auc_preview_load_failed))
+                showMessage(
+                    failure.message
+                        ?: applicationContext.getString(R.string.auc_preview_load_failed),
+                )
             }
         }
     }
 
-    private fun closePreview() {
+    fun closePreview() {
         previewLoadJob?.cancel()
         previewLoadJob = null
         preview = null
     }
 
-    private fun cameraMediaType() = when (config.mediaFilter) {
-        AlbumMediaFilter.IMAGES -> AlbumMediaType.IMAGE
-        AlbumMediaFilter.VIDEOS -> AlbumMediaType.VIDEO
-        AlbumMediaFilter.IMAGES_AND_VIDEOS -> if (
-            config.camera.mixedMediaCaptureType == AlbumCameraCaptureType.PHOTO
-        ) AlbumMediaType.IMAGE else AlbumMediaType.VIDEO
+    fun cancelPicker() {
+        if (isCancelling || isConfirming) return
+        if (preview != null) {
+            closePreview()
+            return
+        }
+        isCancelling = true
+        scope.launch {
+            runCatching { client.cancel(session.sessionId) }
+                .onFailure { failure ->
+                    showMessage(
+                        failure.message
+                            ?: applicationContext.getString(R.string.auc_cancel_failed),
+                    )
+                }
+            isFinished = true
+            currentOnCancel()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, config, sessionId) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (
+                event == Lifecycle.Event.ON_RESUME &&
+                !isPhotoPickerInFlight &&
+                !isFinished
+            ) {
+                refreshContent()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            previewLoadJob?.cancel()
+            messageToast?.cancel()
+        }
+    }
+    BackHandler(
+        enabled = !isConfirming && !isCancelling && !isFinished,
+        onBack = ::cancelPicker,
+    )
+
+    if (isFinished) return
+
+    AlbumPickerScreen(
+        modifier = modifier,
+        config = config,
+        appearance = appearance,
+        session = session,
+        accessStatus = accessStatus,
+        directories = directories,
+        feed = feed,
+        preview = preview,
+        imageLoader = resolvedImageLoader,
+        onBack = ::cancelPicker,
+        onDirectory = { bucketId ->
+            if (shouldUpdateDirectory(session.bucketId, bucketId)) {
+                scope.launch {
+                    client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
+                        session = updated
+                        refreshContentNow()
+                    }
+                }
+            }
+        },
+        onRequestPermission = {
+            permissionLauncher.launch(
+                AlbumMediaPermissionRequestFactory.create(config.mediaFilter),
+            )
+        },
+        onAddMore = ::launchPhotoPicker,
+        onCamera = ::launchCamera,
+        onToggle = ::toggleMedia,
+        onGridPreview = ::showGridPreview,
+        onSelectedPreview = ::showSelectedPreview,
+        onPreviewLoadMore = ::loadMorePreview,
+        onClosePreview = ::closePreview,
+        onConfirm = ::confirmSelection,
+        isConfirming = isConfirming,
+    )
+}
+
+private fun AlbumMediaFilter.toVisualMediaType() = when (this) {
+    AlbumMediaFilter.IMAGES -> ActivityResultContracts.PickVisualMedia.ImageOnly
+    AlbumMediaFilter.VIDEOS -> ActivityResultContracts.PickVisualMedia.VideoOnly
+    AlbumMediaFilter.IMAGES_AND_VIDEOS -> ActivityResultContracts.PickVisualMedia.ImageAndVideo
+}
+
+internal fun AlbumPickerConfig.cameraMediaType() = when (mediaFilter) {
+    AlbumMediaFilter.IMAGES -> AlbumMediaType.IMAGE
+    AlbumMediaFilter.VIDEOS -> AlbumMediaType.VIDEO
+    AlbumMediaFilter.IMAGES_AND_VIDEOS -> if (
+        camera.mixedMediaCaptureType == AlbumCameraCaptureType.PHOTO
+    ) AlbumMediaType.IMAGE else AlbumMediaType.VIDEO
+}
+
+private fun maybeAutoConfirm(
+    config: AlbumPickerConfig,
+    session: AlbumPickerSessionSnapshot,
+    onConfirm: () -> Unit,
+) {
+    if (shouldAutoConfirm(config, session)) {
+        onConfirm()
     }
 }
+
+internal fun shouldAutoConfirm(
+    config: AlbumPickerConfig,
+    session: AlbumPickerSessionSnapshot,
+): Boolean =
+    (
+            config.maxSelectionCount == 1 &&
+                    config.singleSelectionFinishMode == SingleSelectionFinishMode.IMMEDIATE &&
+                    session.selectedItems.size == 1
+            )
+
+private const val MIN_MULTIPLE_PICK_COUNT = 2
 
 internal fun selectedTitleDirectory(
     accessStatus: MediaAccessStatus,
@@ -439,17 +561,16 @@ internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long):
 
 private const val PREVIEW_PAGE_SIZE = 30
 private const val PREVIEW_PREFETCH_DISTANCE = 3
-private val DEFAULT_TOOLBAR_COLOR = 0xFF303136.toInt()
-private val DEFAULT_BOTTOM_BAR_COLOR = 0xFF303136.toInt()
 
 @Composable
 private fun AlbumPickerScreen(
-    config: com.github.sceneren.album.api.AlbumPickerConfig,
+    modifier: Modifier,
+    config: AlbumPickerConfig,
     appearance: AlbumPickerAppearance,
     session: AlbumPickerSessionSnapshot,
     accessStatus: MediaAccessStatus,
     directories: List<AlbumDirectory>,
-    feed: com.github.sceneren.album.api.AlbumMediaFeed?,
+    feed: AlbumMediaFeed?,
     preview: PreviewState?,
     imageLoader: AlbumImageLoader,
     onBack: () -> Unit,
@@ -484,7 +605,7 @@ private fun AlbumPickerScreen(
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
     val selectionLimitReached = session.selectedItems.size >= config.maxSelectionCount
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Black,
             topBar = {
@@ -629,12 +750,10 @@ private fun AlbumPickerScreen(
                         Modifier
                             .fillMaxWidth()
                             .height(dimensionResource(R.dimen.auc_bottom_height))
-                            .padding(
-                                top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                                bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                            ),
+                            .padding(vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical)),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        // 预览按钮
                         TextButton(
                             onClick = onSelectedPreview,
                             modifier = Modifier
@@ -665,6 +784,7 @@ private fun AlbumPickerScreen(
                             )
                         }
                         Spacer(Modifier.weight(1f))
+                        // 完成按钮
                         SelectionFinishAction(
                             selectedCount = session.selectedItems.size,
                             appearance = appearance,
@@ -957,9 +1077,11 @@ private fun AlbumPreviewScreen(
 
     val currentMedia = state.items.getOrNull(pagerState.currentPage)
     val currentSelected = currentMedia?.uri in session.selectedUris
-    Column(Modifier
-        .fillMaxSize()
-        .background(previewBackground)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(previewBackground)
+    ) {
         Box(
             Modifier
                 .fillMaxWidth()
@@ -1083,6 +1205,13 @@ private fun AlbumPreviewScreen(
     }
 }
 
+/**
+ * 确认完成按钮。
+ * @param selectedCount 已选媒体数量
+ * @param appearance 配置
+ * @param onConfirm 确认完成回调
+ * @param modifier 修饰符
+ */
 @Composable
 private fun SelectionFinishAction(
     selectedCount: Int,
@@ -1108,36 +1237,31 @@ private fun SelectionFinishAction(
         if (hasSelection) {
             Box(
                 modifier = Modifier
-                    .background(accent, CircleShape)
                     .height(dimensionResource(R.dimen.auc_preview_selected_count_size))
-                    .widthIn(min = dimensionResource(R.dimen.auc_preview_selected_count_size)),
-                contentAlignment = Alignment.Center,
+                    .widthIn(min = dimensionResource(R.dimen.auc_preview_selected_count_size))
+                    .background(accent, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = selectedCount.toString(),
                     color = primary,
                     fontSize = dimensionSp(R.dimen.auc_preview_count_text_size),
-                    textAlign = TextAlign.Center,
+                    lineHeight = dimensionSp(R.dimen.auc_preview_count_text_size),
+                    maxLines = 1,
+                    style = LocalTextStyle.current.copy(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    ),
                 )
             }
+
         }
-        if (hasSelection && appearance.doneIconRes != null) {
-            Spacer(Modifier.width(dimensionResource(R.dimen.auc_preview_done_icon_gap)))
-            Icon(
-                painter = painterResource(appearance.doneIconRes),
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier
-                    .height(dimensionResource(R.dimen.auc_preview_selected_count_size))
-                    .wrapContentHeight()
-                    .widthIn(min = dimensionResource(R.dimen.auc_preview_selected_count_size)),
-            )
-        }
+
         Spacer(
             Modifier.width(
                 dimensionResource(R.dimen.auc_preview_done_text_margin_start),
             ),
         )
+
         Text(
             text = if (hasSelection) {
                 stringResource(R.string.auc_done)
@@ -1307,15 +1431,4 @@ private fun dimensionSp(@DimenRes resourceId: Int): TextUnit {
     return (dimension.value / LocalDensity.current.fontScale).sp
 }
 
-private fun systemBarStyle(color: Int): SystemBarStyle =
-    if (ColorUtils.calculateLuminance(color) > LIGHT_COLOR_LUMINANCE) {
-        SystemBarStyle.light(
-            scrim = color,
-            darkScrim = ColorUtils.blendARGB(color, android.graphics.Color.BLACK, 0.6f),
-        )
-    } else {
-        SystemBarStyle.dark(color)
-    }
-
-private const val LIGHT_COLOR_LUMINANCE = 0.5
 private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000

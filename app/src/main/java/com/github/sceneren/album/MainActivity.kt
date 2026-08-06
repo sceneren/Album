@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,8 +32,7 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerResult
 import com.github.sceneren.album.api.SingleSelectionFinishMode
-import com.github.sceneren.album.ui.compose.AlbumPickerContract as ComposePickerContract
-import com.github.sceneren.album.ui.compose.AlbumPickerRequest as ComposePickerRequest
+import com.github.sceneren.album.ui.compose.AlbumPicker
 import com.github.sceneren.album.ui.theme.AlbumTheme
 import com.github.sceneren.album.ui.view.AlbumPickerAppearance as ViewPickerAppearance
 import com.github.sceneren.album.ui.view.AlbumPickerContract as ViewPickerContract
@@ -40,66 +40,86 @@ import com.github.sceneren.album.ui.view.AlbumPickerRequest as ViewPickerRequest
 
 /** 仅用于演示两个可复用 UI 模块，媒体查询和选择状态均由模块负责。 */
 class MainActivity : ComponentActivity() {
-    private var selectedFilter by mutableStateOf(AlbumMediaFilter.IMAGES)
-    private var compressionEnabled by mutableStateOf(true)
-    private var requestPermissionEnable by mutableStateOf(true)
-    private var cameraEnable by mutableStateOf(true)
     private var lastResult by mutableStateOf<AlbumPickerResult?>(null)
 
     private val viewPicker = registerForActivityResult(ViewPickerContract()) { result ->
         lastResult = result
     }
 
-    private val composePicker = registerForActivityResult(ComposePickerContract()) { result ->
-        lastResult = result
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            var selectedFilter by rememberSaveable { mutableStateOf(AlbumMediaFilter.IMAGES) }
+            var compressionEnabled by rememberSaveable { mutableStateOf(true) }
+            var requestPermissionEnable by rememberSaveable { mutableStateOf(true) }
+            var cameraEnable by rememberSaveable { mutableStateOf(true) }
+            var showComposePicker by rememberSaveable { mutableStateOf(false) }
+            val pickerConfig = buildRequest(
+                mediaFilter = selectedFilter,
+                compressionEnabled = compressionEnabled,
+                showPermissionUpgrade = requestPermissionEnable,
+                cameraEnabled = cameraEnable,
+            )
             AlbumTheme {
-                Scaffold { paddingValues ->
-                    DemoScreen(
-                        filter = selectedFilter,
-                        compressionEnabled = compressionEnabled,
-                        requestPermissionEnable = requestPermissionEnable,
-                        cameraEnable= cameraEnable,
-                        result = lastResult,
-                        onFilter = { selectedFilter = it },
-                        onCompression = { compressionEnabled = it },
-                        onRequestPermission = { requestPermissionEnable = it },
-                        onCamera = { cameraEnable = it },
-                        onOpenView = {
-                            viewPicker.launch(
-                                ViewPickerRequest(
-                                    config = buildRequest(),
-                                    appearance = ViewPickerAppearance(
-                                        gridItemSpacingDp = 1,
-                                        gridSpanCount = 4,
-                                    ),
-                                ),
-                            )
+                if (showComposePicker) {
+                    AlbumPicker(
+                        config = pickerConfig,
+                        onResult = { result ->
+                            lastResult = result
+                            showComposePicker = false
                         },
-                        onOpenCompose = { composePicker.launch(ComposePickerRequest(buildRequest())) },
-                        modifier = Modifier.padding(paddingValues),
+                        onCancel = { showComposePicker = false },
                     )
+                } else {
+                    Scaffold { paddingValues ->
+                        DemoScreen(
+                            filter = selectedFilter,
+                            compressionEnabled = compressionEnabled,
+                            requestPermissionEnable = requestPermissionEnable,
+                            cameraEnable = cameraEnable,
+                            result = lastResult,
+                            onFilter = { selectedFilter = it },
+                            onCompression = { compressionEnabled = it },
+                            onRequestPermission = { requestPermissionEnable = it },
+                            onCamera = { cameraEnable = it },
+                            onOpenView = {
+                                viewPicker.launch(
+                                    ViewPickerRequest(
+                                        config = pickerConfig,
+                                        appearance = ViewPickerAppearance(
+                                            gridItemSpacingDp = 1,
+                                            gridSpanCount = 4,
+                                        ),
+                                    ),
+                                )
+                            },
+                            onOpenCompose = { showComposePicker = true },
+                            modifier = Modifier.padding(paddingValues),
+                        )
+                    }
                 }
             }
         }
     }
 
-    private fun buildRequest(): AlbumPickerConfig = AlbumPickerConfig(
-        mediaFilter = selectedFilter,
-        maxSelectionCount = 9,
-        singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
-        camera = AlbumCameraConfig(
-            enabled = cameraEnable,
-            mixedMediaCaptureType = AlbumCameraCaptureType.PHOTO,
-        ),
-        compression = AlbumCompressionConfig(enabled = compressionEnabled),
-        showPermissionUpgrade = requestPermissionEnable,
-    )
 }
+
+private fun buildRequest(
+    mediaFilter: AlbumMediaFilter,
+    compressionEnabled: Boolean,
+    showPermissionUpgrade: Boolean,
+    cameraEnabled: Boolean,
+): AlbumPickerConfig = AlbumPickerConfig(
+    mediaFilter = mediaFilter,
+    maxSelectionCount = 9,
+    singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
+    camera = AlbumCameraConfig(
+        enabled = cameraEnabled,
+        mixedMediaCaptureType = AlbumCameraCaptureType.PHOTO,
+    ),
+    compression = AlbumCompressionConfig(enabled = compressionEnabled),
+    showPermissionUpgrade = showPermissionUpgrade,
+)
 
 @Composable
 private fun DemoScreen(

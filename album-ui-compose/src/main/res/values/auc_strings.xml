@@ -21,6 +21,7 @@
     <string name="auc_add_cancelled">已取消添加</string>
     <string name="auc_add_failed">添加失败：%1$s</string>
     <string name="auc_camera_failed">拍摄失败</string>
+    <string name="auc_cancel_failed">取消失败</string>
     <string name="auc_select_first">请先选择媒体</string>
     <string name="auc_process_failed">处理失败：%1$s</string>
     <string name="auc_retry">请重试</string>

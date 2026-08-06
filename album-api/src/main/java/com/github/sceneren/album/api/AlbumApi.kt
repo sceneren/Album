@@ -47,6 +47,7 @@ class AlbumApi internal constructor(
     private val mediaStore: MediaStoreDataSource,
     private val pickedStore: PickedMediaStore,
     private val pickerRegistrar: PickerRegistrar,
+    private val photoPickerResultProcessor: PhotoPickerResultProcessor,
     private val grantManager: PersistableGrantManager,
     private val uriAccessChecker: UriAccessChecker,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -190,6 +191,25 @@ class AlbumApi internal constructor(
         onResult = onResult,
     )
 
+    /**
+     * Validates and persists URIs returned by a host-managed system Photo Picker launcher.
+     *
+     * This entry point lets non-Activity UI integrations own Activity Result registration while
+     * retaining the same grant, metadata, validation, and atomic persistence behavior as
+     * [registerPhotoPicker].
+     */
+    suspend fun processPhotoPickerResult(
+        uris: List<Uri>,
+        mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
+        maxSelectionCount: Int? = null,
+    ): PhotoPickResult = withContext(ioDispatcher) {
+        photoPickerResultProcessor.process(
+            uris,
+            mediaFilter,
+            maxSelectionCount,
+        )
+    }
+
     /** Removes one persisted picker selection and releases a grant owned by this library. */
     suspend fun removePersistedSelection(uri: Uri): Result<Boolean> = resultOnIo {
         val removed = pickedStore.remove(uri.toString()) ?: return@resultOnIo false
@@ -320,6 +340,7 @@ class AlbumApi internal constructor(
                 mediaStore = AndroidMediaStoreDataSource(appContext),
                 pickedStore = pickedStore,
                 pickerRegistrar = PhotoPickerRegistrar(processor, applicationScope),
+                photoPickerResultProcessor = processor,
                 grantManager = grantManager,
                 uriAccessChecker = ContentResolverUriAccessChecker(resolver),
             )

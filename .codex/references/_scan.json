@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-06 14:23:20",
+  "scan_time": "2026-08-06 15:10:17",
   "module_count": 4,
   "modules": [
     {
@@ -959,18 +959,14 @@
       "source_dirs": [
         {
           "root": "album-ui-compose\\src\\main\\java",
-          "file_count": 11,
+          "file_count": 7,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerActivity.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPicker.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerAppearance.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtras.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerRequest.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\IntentExtensions.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
           ],
           "top_packages": [
@@ -978,29 +974,21 @@
           ]
         }
       ],
-      "file_count": 11,
+      "file_count": 7,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerActivity.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPicker.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerAppearance.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContract.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtras.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerRequest.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\IntentExtensions.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
       ],
       "resource_dirs": [
         {
           "dir": "anim",
-          "count": 3,
-          "files": [
-            "auc_album_picker_enter.xml",
-            "auc_album_picker_exit.xml",
-            "auc_album_picker_hold.xml"
-          ]
+          "count": 0,
+          "files": []
         },
         {
           "dir": "drawable",
@@ -1018,17 +1006,16 @@
         },
         {
           "dir": "values",
-          "count": 4,
+          "count": 3,
           "files": [
             "auc_colors.xml",
             "auc_dimens.xml",
-            "auc_strings.xml",
-            "auc_styles.xml"
+            "auc_strings.xml"
           ]
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (11个文件)\n    └── github/  (11个文件)\n        └── sceneren/  (11个文件)\n            └── album/  (11个文件)",
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (7个文件)\n    └── github/  (7个文件)\n        └── sceneren/  (7个文件)\n            └── album/  (7个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -1040,17 +1027,17 @@
           "external": true
         },
         {
-          "name": "libs.androidx.activity.ktx",
-          "type": "implementation",
-          "external": true
-        },
-        {
           "name": "libs.androidx.core.ktx",
           "type": "implementation",
           "external": true
         },
         {
           "name": "libs.androidx.lifecycle.runtime.ktx",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.lifecycle.runtime.compose",
           "type": "implementation",
           "external": true
         },
@@ -1117,17 +1104,17 @@
             "external": true
           },
           {
-            "name": "libs.androidx.activity.ktx",
-            "type": "implementation",
-            "external": true
-          },
-          {
             "name": "libs.androidx.core.ktx",
             "type": "implementation",
             "external": true
           },
           {
             "name": "libs.androidx.lifecycle.runtime.ktx",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.lifecycle.runtime.compose",
             "type": "implementation",
             "external": true
           },
