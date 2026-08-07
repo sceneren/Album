@@ -268,7 +268,11 @@ class AlbumApi internal constructor(
             pickedStore = pickedStore,
         )
 
-    /** 删除本库生成且位于应用专属目录中的文件。 */
+    /**
+     * 删除本库生成且位于应用专属目录中的文件。
+     *
+     * `photo_picker` 文件可能由相同源媒体的多个选择结果共享；删除即驱逐该缓存文件。
+     */
     suspend fun deleteGeneratedMedia(context: Context, filePath: String): Result<Boolean> =
         resultOnIo {
             val file = generatedFile(context, filePath)

@@ -149,7 +149,7 @@ Compose 版本不声明独立 Activity。宿主负责把 `AlbumPicker` 放入自
 
 ## 结果与文件
 
-确认选择后，每个媒体都会先复制到应用专属外部存储目录。`AlbumPickerResultItem` 的主要字段：
+确认选择后，媒体会物化到应用专属外部存储目录；相同 URI、媒体版本和大小会复用已存在的完整文件。`AlbumPickerResultItem` 的主要字段：
 
 - `originalUri`：系统返回的原始媒体 URI。
 - `originalFilePath`：复制到 `files/photo_picker` 后的原始文件绝对路径。
@@ -157,7 +157,7 @@ Compose 版本不声明独立 Activity。宿主负责把 `AlbumPicker` 放入自
 - `resultUri`：最终文件对应的 URI，需要 URI 形式时使用。
 - `compressionStatus`：未启用、按大小跳过、已压缩或视频不适用。
 
-生成文件位于应用专属目录，卸载应用时会被系统清理。应用也可以通过 `AlbumApi.deleteGeneratedMedia()` 或 `AlbumApi.clearGeneratedMedia()` 主动清理。
+生成文件位于应用专属目录，卸载应用时会被系统清理。应用也可以通过 `AlbumApi.deleteGeneratedMedia()` 或 `AlbumApi.clearGeneratedMedia()` 主动清理。相同媒体的多个结果可能持有同一路径，因此 `deleteGeneratedMedia()` 表示驱逐共享缓存；调用前应确保该路径不再被使用。
 
 ## 更多文档
 

@@ -111,6 +111,7 @@ internal class AlbumPickerSessionStore(
                 putNullable("width", item.width)
                 putNullable("height", item.height)
                 putNullable("duration", item.durationMillis)
+                putNullable("dateModified", item.dateModifiedEpochSeconds)
                 put("source", item.source.name)
                 putNullable("filePath", item.filePath)
             })
@@ -131,6 +132,7 @@ internal class AlbumPickerSessionStore(
                     width = item.optNullableInt("width"),
                     height = item.optNullableInt("height"),
                     durationMillis = item.optNullableLong("duration"),
+                    dateModifiedEpochSeconds = item.optNullableLong("dateModified"),
                     source = AlbumPickerItemSource.valueOf(item.getString("source")),
                     filePath = item.optNullableString("filePath"),
                 ),

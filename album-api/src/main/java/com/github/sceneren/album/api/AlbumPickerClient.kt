@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.github.sceneren.album.api.internal.database.PickedMediaDraft
 import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import com.github.sceneren.album.api.internal.file.AlbumFileMaterializer
+import com.github.sceneren.album.api.internal.file.MaterializationRequest
 import com.github.sceneren.album.api.internal.session.AlbumPendingCameraCapture
 import com.github.sceneren.album.api.internal.session.AlbumPickerItemSource
 import com.github.sceneren.album.api.internal.session.AlbumPickerSelection
@@ -138,6 +139,9 @@ class AlbumPickerClient internal constructor(
                 width = null,
                 height = null,
                 durationMillis = null,
+                dateModifiedEpochSeconds = file.lastModified()
+                    .takeIf { it > 0L }
+                    ?.div(MILLIS_PER_SECOND),
                 source = AlbumPickerItemSource.CAMERA,
                 filePath = pending.filePath,
             )
@@ -181,7 +185,15 @@ class AlbumPickerClient internal constructor(
             check(state.pendingCamera == null) { "拍摄尚未完成" }
             check(state.selected.isNotEmpty()) { "至少选择一个媒体" }
             val copied = materializer.copyAll(
-                state.selected.map { it.uri to it.displayName },
+                state.selected.map { selection ->
+                    MaterializationRequest(
+                        uri = selection.uri,
+                        displayName = selection.displayName,
+                        mimeType = selection.mimeType,
+                        sizeBytes = selection.sizeBytes,
+                        dateModifiedEpochSeconds = selection.dateModifiedEpochSeconds,
+                    )
+                },
             )
             val compressedFiles = mutableListOf<File>()
             try {
@@ -209,7 +221,6 @@ class AlbumPickerClient internal constructor(
                 store.remove(sessionId)
                 AlbumPickerResult(items)
             } catch (failure: Throwable) {
-                copied.forEach { File(it.filePath).delete() }
                 compressedFiles.forEach(File::delete)
                 throw failure
             }
@@ -298,5 +309,6 @@ class AlbumPickerClient internal constructor(
         const val CAMERA_DIRECTORY = "camera"
         /** 表示 `LUBAN_DIRECTORY` 对应的数据。 */
         const val LUBAN_DIRECTORY = "luban"
+        const val MILLIS_PER_SECOND = 1_000L
     }
 }

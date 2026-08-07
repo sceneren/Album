@@ -55,4 +55,42 @@ class AlbumPickerClientResultTest {
         assertEquals(item.filePath, item.originalFilePath)
         assertEquals("picked", File(item.filePath).readText())
     }
+
+    @Test
+    fun repeatedConfirmationReusesMaterializedFileAcrossSessions() {
+        val context = RuntimeEnvironment.getApplication()
+        val source = File.createTempFile("album-reused-result", ".jpg", context.cacheDir).apply {
+            writeText("reused")
+        }
+        val client = AlbumPickerClient(context)
+        val media = AlbumMedia(
+            uri = Uri.fromFile(source),
+            mediaType = AlbumMediaType.IMAGE,
+            displayName = "same.jpg",
+            mimeType = "image/jpeg",
+            sizeBytes = source.length(),
+            dateAddedEpochSeconds = null,
+            dateModifiedEpochSeconds = source.lastModified() / 1_000L,
+            width = null,
+            height = null,
+            durationMillis = null,
+            bucketId = null,
+            bucketName = null,
+            selectedAtEpochMillis = null,
+            source = AlbumMediaSource.MEDIA_STORE,
+        )
+
+        val paths = kotlinx.coroutines.runBlocking {
+            List(2) {
+                val session = client.openSession(
+                    AlbumPickerConfig(AlbumMediaFilter.IMAGES, maxSelectionCount = 1),
+                )
+                client.toggleSelection(session.sessionId, media).getOrThrow()
+                client.confirm(session.sessionId).getOrThrow().items.single().filePath
+            }
+        }
+
+        assertEquals(paths.first(), paths.last())
+        assertEquals("reused", File(paths.first()).readText())
+    }
 }

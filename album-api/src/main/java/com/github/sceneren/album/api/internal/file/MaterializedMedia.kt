@@ -12,4 +12,16 @@ internal data class MaterializedMedia(
     val filePath: String,
     /** 文件大小，单位为字节。 */
     val sizeBytes: Long,
+    /** Whether an existing materialized file was reused. */
+    val reused: Boolean,
+)
+
+/** Metadata needed to identify and materialize one selected media item. */
+internal data class MaterializationRequest(
+    val uri: Uri,
+    val displayName: String?,
+    val mimeType: String?,
+    val sizeBytes: Long?,
+    val generationModified: Long? = null,
+    val dateModifiedEpochSeconds: Long? = null,
 )

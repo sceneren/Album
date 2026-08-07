@@ -23,6 +23,8 @@ internal data class AlbumPickerSelection(
     val durationMillis: Long?,
     /** 媒体数据来源。 */
     val source: AlbumPickerItemSource,
+    /** Source modification time in Unix seconds when available. */
+    val dateModifiedEpochSeconds: Long? = null,
     /** 文件的绝对路径。 */
     val filePath: String? = null,
 )
