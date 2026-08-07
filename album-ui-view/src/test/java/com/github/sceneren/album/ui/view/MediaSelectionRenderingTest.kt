@@ -5,6 +5,7 @@ import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ApplicationProvider
 import com.github.sceneren.album.api.AlbumMedia
@@ -83,6 +84,28 @@ class MediaSelectionRenderingTest {
         assertEquals(dp(8), check.paddingTop)
         assertEquals(dp(16), check.layoutParams.width - check.paddingLeft - check.paddingRight)
         assertEquals(dp(16), check.layoutParams.height - check.paddingTop - check.paddingBottom)
+    }
+
+    @Test
+    /** Verifies that recycled tiles bind and clear video duration metadata. */
+    fun videoTileShowsDurationAndClearRemovesIt() {
+        val holder = holder(AlbumImageLoader { _, _, _ -> })
+        val video = first.copy(
+            mediaType = AlbumMediaType.VIDEO,
+            mimeType = "video/mp4",
+            durationMillis = 65_000,
+        )
+        val duration = holder.itemView.findViewById<TextView>(R.id.auv_media_video_info)
+
+        holder.bind(video, selected = false, selectionBlocked = false, {}, {})
+
+        assertEquals(View.VISIBLE, duration.visibility)
+        assertEquals("01:05", duration.text.toString())
+
+        holder.clear()
+
+        assertEquals(View.GONE, duration.visibility)
+        assertEquals("", duration.text.toString())
     }
 
     @Test

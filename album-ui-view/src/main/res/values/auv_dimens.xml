@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="auv_toolbar_height">56dp</dimen>
+    <dimen name="auv_permission_height">56dp</dimen>
+    <dimen name="auv_permission_padding_horizontal">15dp</dimen>
+    <dimen name="auv_permission_info_size">22dp</dimen>
+    <dimen name="auv_permission_text_margin_horizontal">12dp</dimen>
+    <dimen name="auv_permission_text_size">14sp</dimen>
+    <dimen name="auv_permission_text_line_spacing_extra">2dp</dimen>
+    <dimen name="auv_permission_chevron_size">20dp</dimen>
     <dimen name="auv_directory_row_height">72dp</dimen>
     <dimen name="auv_directory_row_padding">8dp</dimen>
     <dimen name="auv_directory_cover_size">56dp</dimen>
@@ -9,6 +16,12 @@
     <dimen name="auv_directory_corner_radius">8dp</dimen>
     <dimen name="auv_media_check_size">32dp</dimen>
     <dimen name="auv_media_check_padding">8dp</dimen>
+    <dimen name="auv_media_label_height">18dp</dimen>
+    <dimen name="auv_media_label_margin">3dp</dimen>
+    <dimen name="auv_media_label_padding_horizontal">4dp</dimen>
+    <dimen name="auv_media_label_text_size">10sp</dimen>
+    <dimen name="auv_media_label_corner_radius">2dp</dimen>
+    <dimen name="auv_media_video_icon_gap">2dp</dimen>
     <dimen name="auv_processing_dialog_size">64dp</dimen>
     <dimen name="auv_processing_dialog_corner_radius">4dp</dimen>
     <dimen name="auv_processing_indicator_size">40dp</dimen>

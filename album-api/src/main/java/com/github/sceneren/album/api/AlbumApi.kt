@@ -81,6 +81,7 @@ class AlbumApi internal constructor(
                 width = media.width,
                 height = media.height,
                 durationMillis = media.durationMillis,
+                specialFormat = media.specialFormat,
                 selectedAtEpochMillis = selectedAtEpochMillis,
                 ownsPersistableGrant = false,
             )

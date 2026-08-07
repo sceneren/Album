@@ -28,6 +28,14 @@ internal fun Cursor.positiveLongOrNull(column: Int): Long? =
 internal fun Cursor.positiveIntOrNull(column: Int): Int? =
     if (isNull(column)) null else getInt(column).takeIf { it > 0 }
 
+/** Returns an integer when [column] exists and is not null. */
+internal fun Cursor.intOrNull(column: Int): Int? =
+    if (column < 0 || isNull(column)) null else getInt(column)
+
+/** Returns a blob when [column] exists and is not null. */
+internal fun Cursor.blobOrNull(column: Int): ByteArray? =
+    if (column < 0 || isNull(column)) null else getBlob(column)
+
 /** 表示 `AlbumMediaType` 对应的数据。 */
 internal val AlbumMediaType.contentUri: Uri
     get() = when (this) {

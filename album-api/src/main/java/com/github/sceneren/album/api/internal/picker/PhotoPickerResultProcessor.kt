@@ -107,6 +107,7 @@ internal class PhotoPickerResultProcessor(
                 width = item.width,
                 height = item.height,
                 durationMillis = item.durationMillis,
+                specialFormat = item.specialFormat,
                 selectedAtEpochMillis = selectedAt,
                 ownsPersistableGrant = item.uri in newlyOwned,
             )

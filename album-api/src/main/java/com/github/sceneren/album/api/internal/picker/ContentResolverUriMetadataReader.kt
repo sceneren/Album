@@ -2,6 +2,7 @@ package com.github.sceneren.album.api.internal.picker
 
 import android.content.ContentResolver
 import android.net.Uri
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 
 /** 负责 `ContentResolverUriMetadataReader` 相关的数据与行为。 */
@@ -24,7 +25,7 @@ internal class ContentResolverUriMetadataReader(
         val mimeType = resolver.getType(uri)
             ?: throw IllegalArgumentException("Unable to determine media MIME type")
         val optional = resolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type)
+            if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type, mimeType)
         }
 
         return PickedUriMetadata(
@@ -36,6 +37,8 @@ internal class ContentResolverUriMetadataReader(
             width = optional?.width,
             height = optional?.height,
             durationMillis = optional?.durationMillis,
+            specialFormat = optional?.specialFormat
+                ?: AlbumMediaSpecialFormat.NONE,
         )
     }
 

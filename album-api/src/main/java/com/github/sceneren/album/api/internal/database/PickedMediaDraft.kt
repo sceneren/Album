@@ -1,5 +1,7 @@
 package com.github.sceneren.album.api.internal.database
 
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
+
 /** 描述原子写入持久化选择记录前暂存的媒体元数据。 */
 internal data class PickedMediaDraft(
     /** 媒体内容 URI。 */
@@ -18,6 +20,8 @@ internal data class PickedMediaDraft(
     val height: Int?,
     /** 媒体时长，单位为毫秒。 */
     val durationMillis: Long?,
+    /** Special visual format. */
+    val specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
     /** 媒体选择时间，单位为 Unix 毫秒。 */
     val selectedAtEpochMillis: Long,
     /** 本库是否持有该 URI 的可持久化授权。 */
@@ -36,6 +40,7 @@ internal data class PickedMediaDraft(
         width = width,
         height = height,
         durationMillis = durationMillis,
+        specialFormat = specialFormat.name,
         selectedAtEpochMillis = selectedAtEpochMillis,
         sortOrder = sortOrder,
         ownsPersistableGrant = ownsPersistableGrant,

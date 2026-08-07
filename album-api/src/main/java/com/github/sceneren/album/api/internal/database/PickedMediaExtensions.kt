@@ -4,6 +4,7 @@ import androidx.core.net.toUri
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaSource
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 
 /** 将当前对象转换为 `toAlbumMedia` 对应的结果。 */
@@ -26,6 +27,8 @@ internal fun PickedMediaEntity.toAlbumMedia(): AlbumMedia = AlbumMedia(
     bucketName = null,
     selectedAtEpochMillis = selectedAtEpochMillis,
     source = AlbumMediaSource.PHOTO_PICKER,
+    specialFormat = runCatching { AlbumMediaSpecialFormat.valueOf(specialFormat) }
+        .getOrDefault(AlbumMediaSpecialFormat.NONE),
 )
 
 /** 执行 `databaseTypes` 方法定义的处理。 */

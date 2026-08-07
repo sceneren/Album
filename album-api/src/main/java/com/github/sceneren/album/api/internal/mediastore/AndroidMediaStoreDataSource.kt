@@ -7,12 +7,14 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.ext.SdkExtensions
 import android.provider.MediaStore
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
+import com.github.sceneren.album.api.resolveAlbumMediaSpecialFormat
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,7 +67,7 @@ internal class AndroidMediaStoreDataSource(
         limit: Int?,
         offset: Int?,
     ): List<AlbumMedia> {
-        val cursor = queryCursor(spec, PROJECTION, limit, offset)
+        val cursor = queryCursor(spec, mediaProjection(), limit, offset)
         return cursor?.use(::readMedia) ?: emptyList()
     }
 
@@ -128,17 +130,21 @@ internal class AndroidMediaStoreDataSource(
         val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_ID)
         val bucketNameColumn =
             cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME)
+        val specialFormatColumn = cursor.getColumnIndex(SPECIAL_FORMAT_COLUMN)
+        val xmpColumn = cursor.getColumnIndex(MediaStore.MediaColumns.XMP)
 
         return buildList(cursor.count) {
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
                 val mediaType = cursor.readMediaType(mediaTypeColumn)
+                val displayName = cursor.stringOrNull(displayNameColumn)
+                val mimeType = cursor.stringOrNull(mimeTypeColumn)
                 add(
                     AlbumMedia(
                         uri = ContentUris.withAppendedId(mediaType.contentUri, id),
                         mediaType = mediaType,
-                        displayName = cursor.stringOrNull(displayNameColumn),
-                        mimeType = cursor.stringOrNull(mimeTypeColumn),
+                        displayName = displayName,
+                        mimeType = mimeType,
                         sizeBytes = cursor.positiveLongOrNull(sizeColumn),
                         dateAddedEpochSeconds = cursor.positiveLongOrNull(dateAddedColumn),
                         dateModifiedEpochSeconds = cursor.positiveLongOrNull(dateModifiedColumn),
@@ -153,6 +159,12 @@ internal class AndroidMediaStoreDataSource(
                         bucketName = cursor.stringOrNull(bucketNameColumn),
                         selectedAtEpochMillis = null,
                         source = AlbumMediaSource.MEDIA_STORE,
+                        specialFormat = resolveAlbumMediaSpecialFormat(
+                            specialFormatCode = cursor.intOrNull(specialFormatColumn),
+                            mimeType = mimeType,
+                            displayName = displayName,
+                            xmp = cursor.blobOrNull(xmpColumn),
+                        ),
                     ),
                 )
             }
@@ -223,7 +235,7 @@ internal class AndroidMediaStoreDataSource(
         const val SORT_ORDER = "date_added DESC, _id DESC"
 
         /** 表示 `PROJECTION` 对应的数据。 */
-        val PROJECTION = arrayOf(
+        private val BASE_MEDIA_PROJECTION = arrayOf(
             MediaStore.Files.FileColumns._ID,
             MediaStore.Files.FileColumns.MEDIA_TYPE,
             MediaStore.MediaColumns.DISPLAY_NAME,
@@ -238,6 +250,22 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )
 
+        private fun mediaProjection(): Array<String> = when {
+            supportsSpecialFormatColumn() -> BASE_MEDIA_PROJECTION + SPECIAL_FORMAT_COLUMN
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                BASE_MEDIA_PROJECTION + MediaStore.MediaColumns.XMP
+            }
+            else -> BASE_MEDIA_PROJECTION
+        }
+
+        private fun supportsSpecialFormatColumn(): Boolean =
+            Build.VERSION.SDK_INT >= API_LEVEL_WITH_SPECIAL_FORMAT ||
+                (
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                        SdkExtensions.getExtensionVersion(Build.VERSION_CODES.S) >=
+                        SPECIAL_FORMAT_S_EXTENSION_VERSION
+                )
+
         /** 表示 `DIRECTORY_PROJECTION` 对应的数据。 */
         val DIRECTORY_PROJECTION = arrayOf(
             MediaStore.Files.FileColumns._ID,
@@ -246,5 +274,9 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.Images.ImageColumns.BUCKET_ID,
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )
+
+        private const val SPECIAL_FORMAT_COLUMN = "_special_format"
+        private const val API_LEVEL_WITH_SPECIAL_FORMAT = 37
+        private const val SPECIAL_FORMAT_S_EXTENSION_VERSION = 21
     }
 }

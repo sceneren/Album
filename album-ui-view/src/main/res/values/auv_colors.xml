@@ -6,13 +6,16 @@
     <color name="auv_accent">#FF00C853</color>
     <color name="auv_primary">#FFFFFFFF</color>
     <color name="auv_secondary">#FFD3D3D3</color>
-    <color name="auv_permission_background">#FFE0E0E0</color>
-    <color name="auv_permission_text">#FF303136</color>
+    <color name="auv_permission_background">#FF303136</color>
+    <color name="auv_permission_text">#FF8D8D92</color>
+    <color name="auv_permission_info">#FFB69D00</color>
+    <color name="auv_permission_chevron">#FF8D8D92</color>
     <color name="auv_directory_panel">#FFFFFFFF</color>
     <color name="auv_directory_selected">#FFE0E0E0</color>
     <color name="auv_directory_text">#FF424242</color>
     <color name="auv_directory_scrim">#99000000</color>
     <color name="auv_media_selected_scrim">#66000000</color>
     <color name="auv_media_blocked_scrim">#66FFFFFF</color>
+    <color name="auv_media_badge_background">#B36D8FAF</color>
     <color name="auv_processing_dialog_background">#CC454545</color>
 </resources>

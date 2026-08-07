@@ -14,8 +14,7 @@
     <string name="auv_done_count">完成(%1$d)</string>
     <string name="auv_capture">拍摄</string>
     <string name="auv_add_more">添加更多</string>
-    <string name="auv_partial_permission">当前只能访问部分媒体，点击申请全部访问</string>
-    <string name="auv_denied_permission">尚未获得相册权限，点击申请访问</string>
+    <string name="auv_denied_permission">你已设置%1$s只能访问相册部分照片，建议设为「允许访问所有照片」</string>
     <string name="auv_camera_failed">拍摄失败</string>
     <string name="auv_select_first">请先选择媒体</string>
     <string name="auv_process_failed">处理失败：%1$s</string>
@@ -29,4 +28,8 @@
     <string name="auv_unnamed_directory">未命名 (%1$d)</string>
     <string name="auv_directory_label">%1$s (%2$d)</string>
     <string name="auv_unnamed_directory_name">未命名</string>
+    <string name="auv_media_badge_gif">GIF</string>
+    <string name="auv_media_badge_long_image">长图</string>
+    <string name="auv_media_badge_live_photo">实况</string>
+    <string name="auv_video_duration">视频时长 %1$s</string>
 </resources>

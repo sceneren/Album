@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.github.sceneren.album.api.AlbumMediaFilter
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -65,6 +66,23 @@ class RoomPickedMediaStoreTest {
 
         assertEquals(1, store.all().size)
         assertEquals("VIDEO", store.all().single().mediaType)
+    }
+
+    @Test
+    /** Verifies special-format metadata survives Room persistence. */
+    fun specialFormatIsPersisted() = runTest {
+        store.upsertBatch(
+            listOf(
+                draft(
+                    uri = "content://picked/motion",
+                    mediaType = AlbumMediaType.IMAGE,
+                    selectedAt = 10,
+                    specialFormat = AlbumMediaSpecialFormat.MOTION_PHOTO,
+                ),
+            ),
+        )
+
+        assertEquals(AlbumMediaSpecialFormat.MOTION_PHOTO.name, store.all().single().specialFormat)
     }
 
     @Test
@@ -187,6 +205,7 @@ class RoomPickedMediaStoreTest {
         mediaType: AlbumMediaType,
         selectedAt: Long,
         ownsPersistableGrant: Boolean = false,
+        specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
     ) = PickedMediaDraft(
         uri = uri,
         mediaType = mediaType.name,
@@ -196,6 +215,7 @@ class RoomPickedMediaStoreTest {
         width = null,
         height = null,
         durationMillis = null,
+        specialFormat = specialFormat,
         selectedAtEpochMillis = selectedAt,
         ownsPersistableGrant = ownsPersistableGrant,
     )

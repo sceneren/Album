@@ -1,6 +1,7 @@
 package com.github.sceneren.album.api.internal.picker
 
 import android.net.Uri
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 
 /** 描述 `PickedUriMetadata` 数据。 */
@@ -21,4 +22,6 @@ internal data class PickedUriMetadata(
     val height: Int?,
     /** 媒体时长，单位为毫秒。 */
     val durationMillis: Long?,
+    /** Provider-reported special visual format. */
+    val specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
 )

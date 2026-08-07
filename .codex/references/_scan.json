@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-07 11:17:50",
+  "scan_time": "2026-08-07 18:21:02",
   "module_count": 4,
   "modules": [
     {
@@ -375,11 +375,6 @@
           }
         ],
         "plugin_type": "application",
-        "namespace": "com.github.sceneren.album",
-        "application_id": "com.github.sceneren.album",
-        "compile_sdk": "37",
-        "min_sdk": "24",
-        "target_sdk": "37",
         "compose": true,
         "view_binding": false
       }
@@ -393,7 +388,7 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 71,
+          "file_count": 72,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -409,6 +404,7 @@
             "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaSource.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumMediaSpecialFormat.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaType.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPhotoPickerLauncher.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
@@ -472,7 +468,7 @@
           ]
         }
       ],
-      "file_count": 71,
+      "file_count": 72,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -488,6 +484,7 @@
         "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaSource.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumMediaSpecialFormat.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaType.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPhotoPickerLauncher.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
@@ -556,7 +553,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (71个文件)\n    └── github/  (71个文件)\n        └── sceneren/  (71个文件)\n            └── album/  (71个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (72个文件)\n    └── github/  (72个文件)\n        └── sceneren/  (72个文件)\n            └── album/  (72个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",
@@ -703,9 +700,6 @@
           }
         ],
         "plugin_type": "library",
-        "namespace": "com.github.sceneren.album.api",
-        "compile_sdk": "37",
-        "min_sdk": "24",
         "compose": false,
         "view_binding": false
       }
@@ -788,9 +782,10 @@
         },
         {
           "dir": "drawable",
-          "count": 11,
+          "count": 15,
           "files": [
             "auv_bg_directory_panel.xml",
+            "auv_bg_media_badge.xml",
             "auv_bg_processing_dialog.xml",
             "auv_bg_select_count.xml",
             "auv_ic_album_add.xml",
@@ -800,6 +795,9 @@
             "auv_ic_album_expand_more.xml",
             "auv_ic_album_play.xml",
             "auv_ic_album_unchecked.xml",
+            "auv_ic_album_video.xml",
+            "auv_ic_permission_chevron.xml",
+            "auv_ic_permission_info.xml",
             "auv_progress_spinner.png"
           ]
         },
@@ -943,9 +941,6 @@
           }
         ],
         "plugin_type": "library",
-        "namespace": "com.github.sceneren.album.ui.view",
-        "compile_sdk": "37",
-        "min_sdk": "24",
         "compose": false,
         "view_binding": false
       }
@@ -992,7 +987,7 @@
         },
         {
           "dir": "drawable",
-          "count": 8,
+          "count": 11,
           "files": [
             "auc_ic_album_add.xml",
             "auc_ic_album_back.xml",
@@ -1001,6 +996,9 @@
             "auc_ic_album_expand_more.xml",
             "auc_ic_album_play.xml",
             "auc_ic_album_unchecked.xml",
+            "auc_ic_album_video.xml",
+            "auc_ic_permission_chevron.xml",
+            "auc_ic_permission_info.xml",
             "auc_progress_spinner.png"
           ]
         },
@@ -1180,9 +1178,6 @@
           }
         ],
         "plugin_type": "library",
-        "namespace": "com.github.sceneren.album.ui.compose",
-        "compile_sdk": "37",
-        "min_sdk": "24",
         "compose": true,
         "view_binding": false
       }

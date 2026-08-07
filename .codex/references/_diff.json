@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-08-06 15:10:17",
-  "new_scan_time": "2026-08-07 11:17:50",
+  "old_scan_time": "2026-08-07 11:17:50",
+  "new_scan_time": "2026-08-07 18:07:16",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -14,11 +14,13 @@
     "modules_unchanged": 3
   },
   "modules": {
-    "album-ui-compose": {
+    "album-api": {
       "status": "changed",
-      "dependencies": {
+      "files": {
+        "total_old": 71,
+        "total_new": 72,
         "added": [
-          "libs.androidx.compose.animation"
+          "com\\github\\sceneren\\album\\api\\AlbumMediaSpecialFormat.kt"
         ],
         "removed": []
       }

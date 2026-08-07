@@ -32,4 +32,6 @@ data class AlbumMedia(
     val selectedAtEpochMillis: Long?,
     /** 媒体数据来源。 */
     val source: AlbumMediaSource,
+    /** Special visual format reported by the media provider. */
+    val specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
 )

@@ -139,6 +139,7 @@ class AlbumPickerClient internal constructor(
                 width = null,
                 height = null,
                 durationMillis = null,
+                specialFormat = AlbumMediaSpecialFormat.NONE,
                 dateModifiedEpochSeconds = file.lastModified()
                     .takeIf { it > 0L }
                     ?.div(MILLIS_PER_SECOND),
@@ -169,6 +170,7 @@ class AlbumPickerClient internal constructor(
                         width = item.width,
                         height = item.height,
                         durationMillis = item.durationMillis,
+                        specialFormat = item.specialFormat,
                         selectedAtEpochMillis = System.currentTimeMillis(),
                         ownsPersistableGrant = false,
                     ),

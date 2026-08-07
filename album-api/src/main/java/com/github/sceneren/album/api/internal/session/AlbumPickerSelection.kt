@@ -1,6 +1,7 @@
 package com.github.sceneren.album.api.internal.session
 
 import android.net.Uri
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 
 /** 描述会话内的媒体选择，并包含相机文件所有权元数据。 */
@@ -21,6 +22,8 @@ internal data class AlbumPickerSelection(
     val height: Int?,
     /** 媒体时长，单位为毫秒。 */
     val durationMillis: Long?,
+    /** Special visual format. */
+    val specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
     /** 媒体数据来源。 */
     val source: AlbumPickerItemSource,
     /** Source modification time in Unix seconds when available. */

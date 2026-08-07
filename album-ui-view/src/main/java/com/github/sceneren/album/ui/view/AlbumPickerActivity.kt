@@ -74,7 +74,8 @@ class AlbumPickerActivity : ComponentActivity() {
     private lateinit var doneAction: LinearLayout
     private lateinit var selectedCount: TextView
     private lateinit var doneText: TextView
-    private lateinit var permissionButton: Button
+    private lateinit var permissionAction: View
+    private lateinit var permissionText: TextView
     private lateinit var actionAdapter: ActionAdapter
     private lateinit var cameraAdapter: CameraAdapter
     private lateinit var mediaAdapter: GalleryAdapter
@@ -190,7 +191,8 @@ class AlbumPickerActivity : ComponentActivity() {
         doneAction = findViewById(R.id.auv_picker_done_action)
         selectedCount = findViewById(R.id.auv_picker_selected_count)
         doneText = findViewById(R.id.auv_picker_done_text)
-        permissionButton = findViewById(R.id.auv_picker_permission)
+        permissionAction = findViewById(R.id.auv_picker_permission)
+        permissionText = findViewById(R.id.auv_picker_permission_text)
 
         findViewById<ImageButton>(R.id.auv_picker_back).setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
@@ -200,7 +202,7 @@ class AlbumPickerActivity : ComponentActivity() {
         cancelButton.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         previewButton.setOnClickListener { showPreview() }
         doneAction.setOnClickListener { confirmSelection() }
-        permissionButton.setOnClickListener { requestMediaPermission() }
+        permissionAction.setOnClickListener { requestMediaPermission() }
 
         val gridMetrics = GridMetrics(
             spanCount = appearance.gridSpanCount,
@@ -339,8 +341,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
         renderTitle()
         renderActions()
-        permissionButton.visibility = if (
-            shouldShowPermissionUpgradeButton(
+        permissionAction.visibility = if (shouldShowPermissionUpgradeButton(
                 isAllowedByHost = config.showPermissionUpgrade,
                 accessStatus = accessStatus,
             )
@@ -349,10 +350,13 @@ class AlbumPickerActivity : ComponentActivity() {
         } else {
             View.GONE
         }
-        permissionButton.text = when (accessStatus) {
-            MediaAccessStatus.PARTIAL -> getString(R.string.auv_partial_permission)
-            MediaAccessStatus.DENIED -> getString(R.string.auv_denied_permission)
+        val applicationName = applicationInfo.loadLabel(packageManager).toString().ifBlank { packageName }
+        permissionText.text = when (accessStatus) {
             MediaAccessStatus.FULL -> ""
+            else -> getString(
+                R.string.auv_denied_permission,
+                applicationName,
+            )
         }
         val feed = api.getMediaFeed(
             mediaFilter = config.mediaFilter,
@@ -370,9 +374,7 @@ class AlbumPickerActivity : ComponentActivity() {
         if (canBrowseDirectories) {
             directoryJob?.cancel()
             directoryJob = lifecycleScope.launch {
-                val updatedDirectories = api.getMediaDirectories(config.mediaFilter)
-                    .getOrNull()
-                    .orEmpty()
+                val updatedDirectories = api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
                 if (accessStatus == MediaAccessStatus.FULL) {
                     directories = updatedDirectories
                     renderTitle()
@@ -427,17 +429,12 @@ class AlbumPickerActivity : ComponentActivity() {
             bucketId = session.bucketId,
             directories = directories,
         )
-        title.text = directory?.bucketName?.takeIf(String::isNotBlank)
-            ?: directory?.let { getString(R.string.auv_unnamed_directory, it.mediaCount) }
-            ?: getString(R.string.auv_title)
+        title.text = directory?.bucketName?.takeIf(String::isNotBlank) ?: directory?.let { getString(R.string.auv_unnamed_directory, it.mediaCount) } ?: getString(R.string.auv_title)
     }
 
     /** 更新 `toggleMedia` 对应的状态。 */
     private fun toggleMedia(media: AlbumMedia) {
-        if (
-            media.uri !in session.selectedUris &&
-            session.selectedItems.size >= config.maxSelectionCount
-        ) {
+        if (media.uri !in session.selectedUris && session.selectedItems.size >= config.maxSelectionCount) {
             showSelectionLimitMessage()
             return
         }
@@ -453,11 +450,7 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 执行 `maybeAutoConfirm` 方法定义的处理。 */
     private fun maybeAutoConfirm() {
-        if (
-            config.maxSelectionCount == 1 &&
-            config.singleSelectionFinishMode == com.github.sceneren.album.api.SingleSelectionFinishMode.IMMEDIATE &&
-            session.selectedItems.size == 1
-        ) {
+        if (config.maxSelectionCount == 1 && config.singleSelectionFinishMode == com.github.sceneren.album.api.SingleSelectionFinishMode.IMMEDIATE && session.selectedItems.size == 1) {
             confirmSelection()
         }
     }
@@ -554,9 +547,7 @@ class AlbumPickerActivity : ComponentActivity() {
     private fun cameraMediaType() = when (config.mediaFilter) {
         AlbumMediaFilter.IMAGES -> AlbumMediaType.IMAGE
         AlbumMediaFilter.VIDEOS -> AlbumMediaType.VIDEO
-        AlbumMediaFilter.IMAGES_AND_VIDEOS -> if (
-            config.camera.mixedMediaCaptureType == AlbumCameraCaptureType.PHOTO
-        ) {
+        AlbumMediaFilter.IMAGES_AND_VIDEOS -> if (config.camera.mixedMediaCaptureType == AlbumCameraCaptureType.PHOTO) {
             AlbumMediaType.IMAGE
         } else {
             AlbumMediaType.VIDEO
@@ -679,16 +670,9 @@ class AlbumPickerActivity : ComponentActivity() {
         directoryList.alpha = 0f
         directoryList.pivotY = 0f
         directoryList.scaleY = 0f
-        directoryScrim.animate()
-            .alpha(1f)
-            .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
-            .start()
+        directoryScrim.animate().alpha(1f).setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS).start()
         if (directoryList.isVisible) {
-            directoryList.animate()
-                .alpha(1f)
-                .scaleY(1f)
-                .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
-                .start()
+            directoryList.animate().alpha(1f).scaleY(1f).setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS).start()
         } else {
             directoryList.alpha = 1f
             directoryList.scaleY = 1f
@@ -703,25 +687,16 @@ class AlbumPickerActivity : ComponentActivity() {
             titleArrow.animate().rotation(0f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
             return
         }
-        directoryScrim.animate()
-            .alpha(0f)
-            .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
-            .withEndAction {
+        directoryScrim.animate().alpha(0f).setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS).withEndAction {
                 directoryScrim.isVisible = false
                 directoryScrim.alpha = 1f
-            }
-            .start()
+            }.start()
         if (directoryList.isVisible) {
-            directoryList.animate()
-                .alpha(0f)
-                .scaleY(0f)
-                .setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS)
-                .withEndAction {
+            directoryList.animate().alpha(0f).scaleY(0f).setDuration(DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS).withEndAction {
                     directoryList.isVisible = false
                     directoryList.alpha = 1f
                     directoryList.scaleY = 1f
-                }
-                .start()
+                }.start()
         }
         titleArrow.animate().rotation(0f).setDuration(DIRECTORY_ARROW_DURATION_MILLIS).start()
     }
@@ -739,18 +714,21 @@ class AlbumPickerActivity : ComponentActivity() {
     private fun color(resourceId: Int): Int = ContextCompat.getColor(this, resourceId)
 
     /** 执行 `dpToPx` 方法定义的处理。 */
-    private fun dpToPx(value: Int): Int =
-        (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
+    private fun dpToPx(value: Int): Int = (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
 }
 
 /** 表示 `LIGHT_COLOR_LUMINANCE` 对应的数据。 */
 private const val LIGHT_COLOR_LUMINANCE = 0.5
+
 /** 表示 `DIRECTORY_ARROW_DURATION_MILLIS` 对应的数据。 */
 private const val DIRECTORY_ARROW_DURATION_MILLIS = 150L
+
 /** 表示 `DIRECTORY_PANEL_MAX_HEIGHT_RATIO` 对应的数据。 */
 private const val DIRECTORY_PANEL_MAX_HEIGHT_RATIO = 0.6f
+
 /** 表示 `DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS` 对应的数据。 */
 private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200L
+
 /** 表示 `PROCESSING_SPINNER_DURATION_MILLIS` 对应的数据。 */
 private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000L
 
@@ -773,5 +751,4 @@ internal fun selectedTitleDirectory(
 }
 
 /** 判断 `shouldUpdateDirectory` 条件是否成立。 */
-internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
-    currentBucketId != targetBucketId
+internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean = currentBucketId != targetBucketId

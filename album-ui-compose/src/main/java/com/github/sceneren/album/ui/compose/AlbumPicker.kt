@@ -28,6 +28,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -45,6 +46,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -54,8 +56,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -89,6 +89,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,6 +112,7 @@ import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFeed
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerResult
@@ -120,6 +122,7 @@ import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.SingleSelectionFinishMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.UUID
 import androidx.compose.foundation.lazy.items as lazyListItems
 
@@ -667,6 +670,13 @@ private fun AlbumPickerScreen(
     onConfirm: () -> Unit,
     isConfirming: Boolean,
 ) {
+    val applicationContext = LocalContext.current.applicationContext
+    val applicationName = remember(applicationContext) {
+        applicationContext.applicationInfo
+            .loadLabel(applicationContext.packageManager)
+            .toString()
+            .ifBlank { applicationContext.packageName }
+    }
     val toolbar = appearance.toolbarColor?.toColor() ?: colorResource(R.color.auc_toolbar)
     val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
     val accent = appearance.accentColor?.toColor() ?: colorResource(R.color.auc_accent)
@@ -802,28 +812,56 @@ private fun AlbumPickerScreen(
                         .navigationBarsPadding(),
                 ) {
                     if (accessStatus != MediaAccessStatus.FULL && config.showPermissionUpgrade) {
-                        Button(
-                            onClick = onRequestPermission,
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(dimensionResource(R.dimen.auc_permission_height))
-                                .padding(dimensionResource(R.dimen.auc_permission_inset)),
-                            shape = RoundedCornerShape(
-                                dimensionResource(R.dimen.auc_permission_corner_radius),
-                            ),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colorResource(R.color.auc_permission_background),
-                                contentColor = colorResource(R.color.auc_permission_text),
-                            ),
-                            contentPadding = PaddingValues(0.dp),
+                                .background(colorResource(R.color.auc_permission_background))
+                                .clickable(onClick = onRequestPermission)
+                                .padding(
+                                    horizontal = dimensionResource(
+                                        R.dimen.auc_permission_padding_horizontal,
+                                    ),
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            Icon(
+                                painter = painterResource(R.drawable.auc_ic_permission_info),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(
+                                    dimensionResource(R.dimen.auc_permission_info_size),
+                                ),
+                            )
+                            Spacer(
+                                Modifier.width(
+                                    dimensionResource(R.dimen.auc_permission_text_margin_horizontal),
+                                ),
+                            )
                             Text(
-                                text = if (accessStatus == MediaAccessStatus.PARTIAL) {
-                                    stringResource(R.string.auc_partial_permission)
-                                } else {
-                                    stringResource(R.string.auc_denied_permission)
-                                },
+                                text = stringResource(
+                                    R.string.auc_denied_permission,
+                                    applicationName,
+                                ),
+                                modifier = Modifier.weight(1f),
+                                color = colorResource(R.color.auc_permission_text),
                                 fontSize = dimensionSp(R.dimen.auc_permission_text_size),
+                                lineHeight = dimensionSp(R.dimen.auc_permission_text_line_height),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(
+                                Modifier.width(
+                                    dimensionResource(R.dimen.auc_permission_text_margin_horizontal),
+                                ),
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.auc_ic_permission_chevron),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(
+                                    dimensionResource(R.dimen.auc_permission_chevron_size),
+                                ),
                             )
                         }
                     }
@@ -1432,6 +1470,7 @@ private fun MediaTile(
                     ),
             )
         }
+        MediaInfo(media)
         Box(
             Modifier
                 .align(Alignment.TopEnd)
@@ -1451,6 +1490,80 @@ private fun MediaTile(
 }
 
 @Composable
+/** Displays duration or an image-format badge using only metadata already on [media]. */
+private fun BoxScope.MediaInfo(media: AlbumMedia) {
+    val labelShape = RoundedCornerShape(
+        dimensionResource(R.dimen.auc_media_label_corner_radius),
+    )
+    val durationLabel = remember(media.mediaType, media.durationMillis) {
+        media.videoDurationLabel()
+    }
+    durationLabel?.let { duration ->
+        val durationDescription = stringResource(R.string.auc_video_duration, duration)
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(dimensionResource(R.dimen.auc_media_label_margin))
+                .height(dimensionResource(R.dimen.auc_media_label_height))
+                .clearAndSetSemantics { contentDescription = durationDescription },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.auc_ic_album_video),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(
+                    dimensionResource(R.dimen.auc_media_video_icon_size),
+                ),
+            )
+            Spacer(Modifier.width(dimensionResource(R.dimen.auc_media_video_icon_gap)))
+            Text(
+                text = duration,
+                color = colorResource(R.color.auc_primary),
+                fontSize = dimensionSp(R.dimen.auc_media_label_text_size),
+                maxLines = 1,
+            )
+        }
+    }
+
+    val gridBadge = remember(
+        media.mediaType,
+        media.specialFormat,
+        media.mimeType,
+        media.displayName,
+        media.width,
+        media.height,
+    ) {
+        media.gridBadge()
+    }
+    val badge = when (gridBadge) {
+        MediaGridBadge.GIF -> stringResource(R.string.auc_media_badge_gif)
+        MediaGridBadge.LONG_IMAGE -> stringResource(R.string.auc_media_badge_long_image)
+        MediaGridBadge.LIVE_PHOTO -> stringResource(R.string.auc_media_badge_live_photo)
+        null -> null
+    }
+    badge?.let { label ->
+        Text(
+            text = label,
+            color = colorResource(R.color.auc_primary),
+            fontSize = dimensionSp(R.dimen.auc_media_label_text_size),
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(dimensionResource(R.dimen.auc_media_label_margin))
+                .height(dimensionResource(R.dimen.auc_media_label_height))
+                .background(colorResource(R.color.auc_media_badge_background), labelShape)
+                .padding(
+                    horizontal = dimensionResource(
+                        R.dimen.auc_media_label_padding_horizontal,
+                    ),
+                )
+                .wrapContentHeight(Alignment.CenterVertically),
+        )
+    }
+}
+
+@Composable
 /** 执行 `MediaThumbnail` 方法定义的处理。 */
 private fun MediaThumbnail(
     media: AlbumMedia,
@@ -1463,6 +1576,56 @@ private fun MediaThumbnail(
         contentScale = ContentScale.Crop,
     )
 }
+
+/** Labels supported by a media tile in the picker grid. */
+internal enum class MediaGridBadge {
+    GIF,
+    LONG_IMAGE,
+    LIVE_PHOTO,
+}
+
+/** Returns the highest-priority badge for an image tile. */
+internal fun AlbumMedia.gridBadge(): MediaGridBadge? {
+    if (mediaType != AlbumMediaType.IMAGE) return null
+    if (specialFormat == AlbumMediaSpecialFormat.MOTION_PHOTO) {
+        return MediaGridBadge.LIVE_PHOTO
+    }
+    if (
+        specialFormat == AlbumMediaSpecialFormat.GIF ||
+        mimeType.equals("image/gif", ignoreCase = true) ||
+        displayName?.endsWith(".gif", ignoreCase = true) == true
+    ) {
+        return MediaGridBadge.GIF
+    }
+    val imageWidth = width?.takeIf { it > 0 } ?: return null
+    val imageHeight = height?.takeIf { it > 0 } ?: return null
+    return if (imageHeight.toLong() >= imageWidth.toLong() * LONG_IMAGE_RATIO) {
+        MediaGridBadge.LONG_IMAGE
+    } else {
+        null
+    }
+}
+
+/** Formats video duration as `mm:ss`, or `h:mm:ss` for long videos. */
+internal fun AlbumMedia.videoDurationLabel(): String? {
+    if (mediaType != AlbumMediaType.VIDEO) return null
+    val totalSeconds = durationMillis?.takeIf { it >= 0L }?.div(MILLIS_PER_SECOND)
+        ?: return UNKNOWN_VIDEO_DURATION
+    val hours = totalSeconds / SECONDS_PER_HOUR
+    val minutes = totalSeconds % SECONDS_PER_HOUR / SECONDS_PER_MINUTE
+    val seconds = totalSeconds % SECONDS_PER_MINUTE
+    return if (hours > 0L) {
+        String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format(Locale.ROOT, "%02d:%02d", minutes, seconds)
+    }
+}
+
+private const val LONG_IMAGE_RATIO = 3L
+private const val MILLIS_PER_SECOND = 1_000L
+private const val SECONDS_PER_MINUTE = 60L
+private const val SECONDS_PER_HOUR = 3_600L
+private const val UNKNOWN_VIDEO_DURATION = "--:--"
 
 @Composable
 /** 执行 `ProcessingOverlay` 方法定义的处理。 */

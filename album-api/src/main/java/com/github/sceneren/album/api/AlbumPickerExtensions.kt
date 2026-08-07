@@ -25,6 +25,7 @@ internal fun AlbumMedia.toSelection() = AlbumPickerSelection(
     width = width,
     height = height,
     durationMillis = durationMillis,
+    specialFormat = specialFormat,
     dateModifiedEpochSeconds = dateModifiedEpochSeconds,
     source = when (source) {
         AlbumMediaSource.MEDIA_STORE -> AlbumPickerItemSource.MEDIA_STORE
@@ -53,4 +54,5 @@ internal fun AlbumPickerSelection.toAlbumMedia() = AlbumMedia(
         AlbumPickerItemSource.PHOTO_PICKER -> AlbumMediaSource.PHOTO_PICKER
         AlbumPickerItemSource.CAMERA -> AlbumMediaSource.CAMERA
     },
+    specialFormat = specialFormat,
 )

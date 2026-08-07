@@ -7,14 +7,17 @@
     <color name="auc_accent">#FF00C853</color>
     <color name="auc_primary">#FFFFFFFF</color>
     <color name="auc_secondary">#FFD3D3D3</color>
-    <color name="auc_permission_background">#FFE0E0E0</color>
-    <color name="auc_permission_text">#FF303136</color>
+    <color name="auc_permission_background">#FF303136</color>
+    <color name="auc_permission_text">#FF8D8D92</color>
+    <color name="auc_permission_info">#FFB69D00</color>
+    <color name="auc_permission_chevron">#FF8D8D92</color>
     <color name="auc_directory_panel">#FFFFFFFF</color>
     <color name="auc_directory_selected">#FFE0E0E0</color>
     <color name="auc_directory_text">#FF424242</color>
     <color name="auc_directory_scrim">#99000000</color>
     <color name="auc_media_selected_scrim">#66000000</color>
     <color name="auc_media_blocked_scrim">#66FFFFFF</color>
+    <color name="auc_media_badge_background">#B36D8FAF</color>
     <color name="auc_processing_screen_scrim">#73000000</color>
     <color name="auc_processing_dialog_background">#CC454545</color>
 </resources>

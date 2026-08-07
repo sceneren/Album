@@ -78,14 +78,44 @@
             android:background="@android:color/black"
             android:clipToPadding="false" />
 
-        <Button
+        <LinearLayout
             android:id="@+id/auv_picker_permission"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:backgroundTint="@color/auv_permission_background"
-            android:textColor="@color/auv_permission_text"
-            android:textSize="15sp"
-            android:visibility="gone" />
+            android:layout_height="@dimen/auv_permission_height"
+            android:background="@color/auv_permission_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/auv_permission_padding_horizontal"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="@dimen/auv_permission_info_size"
+                android:layout_height="@dimen/auv_permission_info_size"
+                android:contentDescription="@null"
+                android:src="@drawable/auv_ic_permission_info" />
+
+            <TextView
+                android:id="@+id/auv_picker_permission_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/auv_permission_text_margin_horizontal"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:lineSpacingExtra="@dimen/auv_permission_text_line_spacing_extra"
+                android:maxLines="2"
+                android:textColor="@color/auv_permission_text"
+                android:textSize="@dimen/auv_permission_text_size" />
+
+            <ImageView
+                android:layout_width="@dimen/auv_permission_chevron_size"
+                android:layout_height="@dimen/auv_permission_chevron_size"
+                android:contentDescription="@null"
+                android:src="@drawable/auv_ic_permission_chevron" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/auv_picker_bottom"

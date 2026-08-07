@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMediaFilter
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -94,6 +95,29 @@ class AndroidMediaStoreDataSourceTest {
             "date_added DESC, _id DESC",
             provider.lastQueryArgs?.getString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER),
         )
+    }
+
+    @Test
+    /** Verifies API 30 motion-photo detection from MediaStore's indexed XMP column. */
+    fun api30MapsMotionPhotoFromIndexedXmp() = runTest {
+        val provider = RecordingMediaProvider(
+            rows = listOf(
+                imageRow(
+                    id = 12,
+                    xmp = "<rdf GCamera:MotionPhoto=\"1\" />".encodeToByteArray(),
+                ),
+            ),
+        )
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        val source = AndroidMediaStoreDataSource(
+            context = ApplicationProvider.getApplicationContext(),
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        val result = async { source.loadPage(AlbumMediaFilter.IMAGES, -1, 0, 20) }
+        advanceUntilIdle()
+
+        assertEquals(AlbumMediaSpecialFormat.MOTION_PHOTO, result.await().single().specialFormat)
     }
 
     @Test
@@ -234,6 +258,7 @@ class AndroidMediaStoreDataSourceTest {
         bucketId: Long = 1,
         bucketName: String = "Camera",
         dateAdded: Long = 100,
+        xmp: ByteArray? = null,
     ) = mediaRow(
         id = id,
         mediaType = MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE,
@@ -242,6 +267,7 @@ class AndroidMediaStoreDataSourceTest {
         bucketName = bucketName,
         dateAdded = dateAdded,
         duration = 0,
+        xmp = xmp,
     )
 
     /** 执行 `videoRow` 方法定义的处理。 */
@@ -270,6 +296,7 @@ class AndroidMediaStoreDataSourceTest {
         bucketName: String,
         dateAdded: Long,
         duration: Long,
+        xmp: ByteArray? = null,
     ): Map<String, Any?> = mapOf(
         MediaStore.Files.FileColumns._ID to id,
         MediaStore.Files.FileColumns.MEDIA_TYPE to mediaType,
@@ -283,5 +310,6 @@ class AndroidMediaStoreDataSourceTest {
         MediaStore.Video.VideoColumns.DURATION to duration,
         MediaStore.Images.ImageColumns.BUCKET_ID to bucketId,
         MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME to bucketName,
+        MediaStore.MediaColumns.XMP to xmp,
     )
 }

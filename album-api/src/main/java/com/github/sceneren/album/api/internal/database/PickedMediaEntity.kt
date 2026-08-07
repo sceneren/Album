@@ -1,5 +1,6 @@
 package com.github.sceneren.album.api.internal.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -26,6 +27,8 @@ internal data class PickedMediaEntity(
     val height: Int?,
     /** 媒体时长，单位为毫秒。 */
     val durationMillis: Long?,
+    /** Persisted [com.github.sceneren.album.api.AlbumMediaSpecialFormat] name. */
+    @ColumnInfo(defaultValue = "'NONE'") val specialFormat: String = "NONE",
     /** 媒体选择时间，单位为 Unix 毫秒。 */
     val selectedAtEpochMillis: Long,
     /** 持久化记录的稳定排序值。 */

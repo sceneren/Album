@@ -19,6 +19,35 @@
         android:importantForAccessibility="no"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/auv_media_video_info"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/auv_media_label_height"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="@dimen/auv_media_label_margin"
+        android:drawableStart="@drawable/auv_ic_album_video"
+        android:drawablePadding="@dimen/auv_media_video_icon_gap"
+        android:gravity="center_vertical"
+        android:includeFontPadding="false"
+        android:textColor="@color/auv_primary"
+        android:textSize="@dimen/auv_media_label_text_size"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/auv_media_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/auv_media_label_height"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/auv_media_label_margin"
+        android:background="@drawable/auv_bg_media_badge"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:paddingStart="@dimen/auv_media_label_padding_horizontal"
+        android:paddingEnd="@dimen/auv_media_label_padding_horizontal"
+        android:textColor="@color/auv_primary"
+        android:textSize="@dimen/auv_media_label_text_size"
+        android:visibility="gone" />
+
     <ImageView
         android:id="@+id/auv_media_check"
         android:layout_width="@dimen/auv_media_check_size"

@@ -7,6 +7,7 @@ import android.database.MatrixCursor
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -31,12 +32,14 @@ class AndroidPickerAdaptersTest {
 
         val image = reader.read(uri("image"), reader.requiredType(uri("image")))
         val video = reader.read(uri("video"), reader.requiredType(uri("video")))
+        val motion = reader.read(uri("motion"), reader.requiredType(uri("motion")))
 
         assertEquals(AlbumMediaType.IMAGE, image.mediaType)
         assertEquals("picked-image", image.displayName)
         assertNull(image.durationMillis)
         assertEquals(AlbumMediaType.VIDEO, video.mediaType)
         assertEquals(2_000L, video.durationMillis)
+        assertEquals(AlbumMediaSpecialFormat.MOTION_PHOTO, motion.specialFormat)
     }
 
     @Test
@@ -79,7 +82,7 @@ class AndroidPickerAdaptersTest {
 
         /** 获取 `getType` 所需的数据。 */
         override fun getType(uri: Uri): String = when (uri.lastPathSegment) {
-            "image" -> "image/jpeg"
+            "image", "motion" -> "image/jpeg"
             "video" -> "video/mp4"
             else -> "application/octet-stream"
         }
@@ -98,9 +101,11 @@ class AndroidPickerAdaptersTest {
                 MediaStore.MediaColumns.WIDTH,
                 MediaStore.MediaColumns.HEIGHT,
                 MediaStore.Video.VideoColumns.DURATION,
+                "standard_mime_type_extension",
             ),
         ).apply {
             val video = uri.lastPathSegment == "video"
+            val motion = uri.lastPathSegment == "motion"
             addRow(
                 arrayOf<Any?>(
                     if (video) "picked-video" else "picked-image",
@@ -108,6 +113,7 @@ class AndroidPickerAdaptersTest {
                     10,
                     20,
                     if (video) 2_000L else 0L,
+                    if (motion) 2 else 0,
                 ),
             )
         }

@@ -15,7 +15,9 @@ internal object AlbumDatabaseFactory {
             context.applicationContext,
             AlbumDatabase::class.java,
             DATABASE_NAME,
-        ).build().also { database -> instance = database }
+        ).addMigrations(AlbumDatabase.MIGRATION_1_2)
+            .build()
+            .also { database -> instance = database }
     }
 
     /** 表示 `DATABASE_NAME` 对应的数据。 */

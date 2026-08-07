@@ -6,6 +6,7 @@ import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraConfig
 import com.github.sceneren.album.api.AlbumCompressionConfig
 import com.github.sceneren.album.api.AlbumMediaFilter
+import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.SingleSelectionFinishMode
@@ -111,6 +112,7 @@ internal class AlbumPickerSessionStore(
                 putNullable("width", item.width)
                 putNullable("height", item.height)
                 putNullable("duration", item.durationMillis)
+                put("specialFormat", item.specialFormat.name)
                 putNullable("dateModified", item.dateModifiedEpochSeconds)
                 put("source", item.source.name)
                 putNullable("filePath", item.filePath)
@@ -132,6 +134,9 @@ internal class AlbumPickerSessionStore(
                     width = item.optNullableInt("width"),
                     height = item.optNullableInt("height"),
                     durationMillis = item.optNullableLong("duration"),
+                    specialFormat = item.optNullableString("specialFormat")
+                        ?.let { runCatching { AlbumMediaSpecialFormat.valueOf(it) }.getOrNull() }
+                        ?: AlbumMediaSpecialFormat.NONE,
                     dateModifiedEpochSeconds = item.optNullableLong("dateModified"),
                     source = AlbumPickerItemSource.valueOf(item.getString("source")),
                     filePath = item.optNullableString("filePath"),
