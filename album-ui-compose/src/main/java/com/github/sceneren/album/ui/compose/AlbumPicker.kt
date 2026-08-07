@@ -170,6 +170,12 @@ fun AlbumPicker(
 ) {
     val context = LocalContext.current
     val applicationContext = context.applicationContext
+    val areMediaPermissionsDeclared = remember(applicationContext, config.mediaFilter) {
+        AlbumMediaPermissionRequestFactory.areDeclaredInManifest(
+            context = applicationContext,
+            filter = config.mediaFilter,
+        )
+    }
     val api = remember(applicationContext) { AlbumApi.create(applicationContext) }
     val client = remember(api, applicationContext) { api.createPickerClient(applicationContext) }
     val sessionId = rememberSaveable(config) { UUID.randomUUID().toString() }
@@ -523,6 +529,7 @@ fun AlbumPicker(
                     appearance = appearance,
                     session = session,
                     accessStatus = accessStatus,
+                    areMediaPermissionsDeclared = areMediaPermissionsDeclared,
                     directories = directories,
                     feed = feed,
                     preview = preview,
@@ -640,6 +647,15 @@ internal fun selectedTitleDirectory(
 internal fun shouldUpdateDirectory(currentBucketId: Long, targetBucketId: Long): Boolean =
     currentBucketId != targetBucketId
 
+/** 判断申请完整媒体权限入口是否应该显示。 */
+internal fun shouldShowPermissionUpgradeButton(
+    isAllowedByHost: Boolean,
+    arePermissionsDeclared: Boolean,
+    accessStatus: MediaAccessStatus,
+): Boolean = isAllowedByHost &&
+    arePermissionsDeclared &&
+    accessStatus != MediaAccessStatus.FULL
+
 /** 表示 `PREVIEW_PAGE_SIZE` 对应的数据。 */
 private const val PREVIEW_PAGE_SIZE = 30
 /** 表示 `PREVIEW_PREFETCH_DISTANCE` 对应的数据。 */
@@ -653,6 +669,7 @@ private fun AlbumPickerScreen(
     appearance: AlbumPickerAppearance,
     session: AlbumPickerSessionSnapshot,
     accessStatus: MediaAccessStatus,
+    areMediaPermissionsDeclared: Boolean,
     directories: List<AlbumDirectory>,
     feed: AlbumMediaFeed?,
     preview: PreviewState?,
@@ -811,7 +828,12 @@ private fun AlbumPickerScreen(
                         .background(bottom)
                         .navigationBarsPadding(),
                 ) {
-                    if (accessStatus != MediaAccessStatus.FULL && config.showPermissionUpgrade) {
+                    if (shouldShowPermissionUpgradeButton(
+                            isAllowedByHost = config.showPermissionUpgrade,
+                            arePermissionsDeclared = areMediaPermissionsDeclared,
+                            accessStatus = accessStatus,
+                        )
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

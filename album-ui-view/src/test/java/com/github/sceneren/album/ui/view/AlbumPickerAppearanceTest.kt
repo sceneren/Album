@@ -116,16 +116,23 @@ class AlbumPickerAppearanceTest {
     @Test
     /** 验证 `外部允许且未完全授权时显示权限按钮` 所描述的场景。 */
     fun `外部允许且未完全授权时显示权限按钮`() {
-        assertTrue(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.DENIED))
-        assertTrue(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.PARTIAL))
+        assertTrue(shouldShowPermissionUpgradeButton(true, true, MediaAccessStatus.DENIED))
+        assertTrue(shouldShowPermissionUpgradeButton(true, true, MediaAccessStatus.PARTIAL))
     }
 
     @Test
     /** 验证 `外部不允许或已完全授权时隐藏权限按钮` 所描述的场景。 */
     fun `外部不允许或已完全授权时隐藏权限按钮`() {
-        assertFalse(shouldShowPermissionUpgradeButton(false, MediaAccessStatus.DENIED))
-        assertFalse(shouldShowPermissionUpgradeButton(false, MediaAccessStatus.PARTIAL))
-        assertFalse(shouldShowPermissionUpgradeButton(true, MediaAccessStatus.FULL))
+        assertFalse(shouldShowPermissionUpgradeButton(false, true, MediaAccessStatus.DENIED))
+        assertFalse(shouldShowPermissionUpgradeButton(false, true, MediaAccessStatus.PARTIAL))
+        assertFalse(shouldShowPermissionUpgradeButton(true, true, MediaAccessStatus.FULL))
+    }
+
+    @Test
+    /** 验证 `Manifest未声明对应权限时隐藏权限按钮` 所描述的场景。 */
+    fun `Manifest未声明对应权限时隐藏权限按钮`() {
+        assertFalse(shouldShowPermissionUpgradeButton(true, false, MediaAccessStatus.DENIED))
+        assertFalse(shouldShowPermissionUpgradeButton(true, false, MediaAccessStatus.PARTIAL))
     }
 
     /** 执行 `assertAnimationStyle` 方法定义的处理。 */

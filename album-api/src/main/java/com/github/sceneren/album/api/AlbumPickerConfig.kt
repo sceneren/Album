@@ -3,7 +3,8 @@ package com.github.sceneren.album.api
 /**
  * 相册选择器的公共配置。最大选择数必须在 1 到 100 之间。
  *
- * @property showPermissionUpgrade 外部是否允许在未完全授权时显示“申请相册权限”入口；完全授权时始终隐藏。
+ * @property showPermissionUpgrade 外部是否允许显示“申请相册权限”入口；还需宿主 Manifest 声明当前筛选对应的全部权限，
+ * 且当前未完全授权。
  */
 data class AlbumPickerConfig(
     /** 媒体过滤条件。 */
@@ -17,7 +18,7 @@ data class AlbumPickerConfig(
     val camera: AlbumCameraConfig = AlbumCameraConfig(),
     /** 图片压缩配置。 */
     val compression: AlbumCompressionConfig = AlbumCompressionConfig(),
-    /** 是否显示申请完整媒体权限的入口。 */
+    /** 是否允许显示申请完整媒体权限的入口，最终还会检查宿主 Manifest 与授权状态。 */
     val showPermissionUpgrade: Boolean = true,
 ) {
     init {

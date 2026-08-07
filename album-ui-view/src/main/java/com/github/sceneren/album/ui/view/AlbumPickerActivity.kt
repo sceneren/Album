@@ -91,6 +91,7 @@ class AlbumPickerActivity : ComponentActivity() {
     private var processingSpinnerAnimator: ObjectAnimator? = null
     private var isConfirming = false
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
+    private var areMediaPermissionsDeclared = false
     private var directories: List<AlbumDirectory> = emptyList()
 
     private val permissionLauncher = registerForActivityResult(
@@ -112,6 +113,10 @@ class AlbumPickerActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         config = AlbumPickerIntentCodec.readConfig(intent)
+        areMediaPermissionsDeclared = AlbumMediaPermissionRequestFactory.areDeclaredInManifest(
+            context = this,
+            filter = config.mediaFilter,
+        )
         appearance = AlbumPickerExtras.readAppearance(intent)
         imageLoader = AlbumUi.requireImageLoader()
         api = AlbumApi.create(this)
@@ -343,6 +348,7 @@ class AlbumPickerActivity : ComponentActivity() {
         renderActions()
         permissionAction.visibility = if (shouldShowPermissionUpgradeButton(
                 isAllowedByHost = config.showPermissionUpgrade,
+                arePermissionsDeclared = areMediaPermissionsDeclared,
                 accessStatus = accessStatus,
             )
         ) {
@@ -735,8 +741,11 @@ private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000L
 /** 判断 `shouldShowPermissionUpgradeButton` 条件是否成立。 */
 internal fun shouldShowPermissionUpgradeButton(
     isAllowedByHost: Boolean,
+    arePermissionsDeclared: Boolean,
     accessStatus: MediaAccessStatus,
-): Boolean = isAllowedByHost && accessStatus != MediaAccessStatus.FULL
+): Boolean = isAllowedByHost &&
+    arePermissionsDeclared &&
+    accessStatus != MediaAccessStatus.FULL
 
 /** 执行 `selectedTitleDirectory` 方法定义的处理。 */
 internal fun selectedTitleDirectory(
