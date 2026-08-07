@@ -23,7 +23,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Album"
+rootProject.name = providers.gradleProperty("projectName").get()
 include(":app")
 include(":album-api")
 include(":album-ui-view")

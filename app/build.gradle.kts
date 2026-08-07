@@ -3,20 +3,23 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val publishedVersion = providers.environmentVariable("VERSION")
+    .orElse(providers.gradleProperty("publishedVersion"))
+
 android {
-    namespace = "com.github.sceneren.album"
+    namespace = providers.gradleProperty("appNamespace").get()
     compileSdk {
-        version = release(37)
+        version = release(providers.gradleProperty("androidCompileSdk").get().toInt())
     }
 
     defaultConfig {
-        applicationId = "com.github.sceneren.album"
-        minSdk = 24
-        targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        applicationId = providers.gradleProperty("appApplicationId").get()
+        minSdk = providers.gradleProperty("androidMinSdk").get().toInt()
+        targetSdk = providers.gradleProperty("androidTargetSdk").get().toInt()
+        versionCode = providers.gradleProperty("appVersionCode").get().toInt()
+        versionName = publishedVersion.get()
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = providers.gradleProperty("androidTestInstrumentationRunner").get()
     }
 
     buildTypes {
@@ -26,8 +29,9 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        val javaVersion = JavaVersion.toVersion(providers.gradleProperty("androidJavaVersion").get())
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
     buildFeatures {
         compose = true

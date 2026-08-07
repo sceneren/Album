@@ -3,18 +3,21 @@ plugins {
 }
 
 android {
-    namespace = "com.github.sceneren.album.ui.view"
-    compileSdk { version = release(37) }
+    namespace = providers.gradleProperty("albumUiViewNamespace").get()
+    compileSdk {
+        version = release(providers.gradleProperty("androidCompileSdk").get().toInt())
+    }
 
     defaultConfig {
-        minSdk = 24
+        minSdk = providers.gradleProperty("androidMinSdk").get().toInt()
         consumerProguardFiles("consumer-rules.pro")
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = providers.gradleProperty("androidTestInstrumentationRunner").get()
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        val javaVersion = JavaVersion.toVersion(providers.gradleProperty("androidJavaVersion").get())
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
 
     testOptions {

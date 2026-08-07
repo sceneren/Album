@@ -21,8 +21,9 @@
 - 使用 `maven-publish`。
 - 只发布 `release` 变体。
 - 同时生成 AAR、Gradle Module Metadata、POM 和源码 JAR。
-- 本地默认坐标为 `com.github.sceneren.Album:<模块名>:1.0.0-SNAPSHOT`。
-- 在 JitPack 环境中读取 `GROUP`、`ARTIFACT` 和 `VERSION`，自动得到与仓库和标签一致的坐标。
+- 项目名、发布 group/artifact/version、Android 包名和 SDK 等默认配置统一维护在 `gradle.properties`。
+- 本地默认坐标为 `com.github.sceneren.Album:<模块名>:1.0.0-SNAPSHOT`；`publishedVersion` 同时作为 demo app 的 `versionName`。
+- 在 JitPack 环境中读取 `GROUP`、`ARTIFACT` 和 `VERSION`，自动得到与仓库和标签一致的坐标；`VERSION` 也会同步覆盖 demo app 的 `versionName`。
 
 根目录的 `jitpack.yml` 执行以下工作：
 

@@ -10,13 +10,15 @@ plugins {
 }
 
 val publishedGroup = providers.environmentVariable("GROUP")
-    .orElse("com.github.sceneren")
+    .orElse(providers.gradleProperty("publishedGroup"))
     .map { group ->
-        val artifact = providers.environmentVariable("ARTIFACT").orElse(rootProject.name).get()
+        val artifact = providers.environmentVariable("ARTIFACT")
+            .orElse(providers.gradleProperty("publishedArtifact"))
+            .get()
         "$group.$artifact"
     }
 val publishedVersion = providers.environmentVariable("VERSION")
-    .orElse("1.0.0-SNAPSHOT")
+    .orElse(providers.gradleProperty("publishedVersion"))
 
 subprojects {
     group = publishedGroup.get()
