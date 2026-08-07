@@ -62,6 +62,32 @@ class MainActivity : ComponentActivity() {
                 cameraEnabled = cameraEnable,
             )
             AlbumTheme {
+                Scaffold { paddingValues ->
+                    DemoScreen(
+                        filter = selectedFilter,
+                        compressionEnabled = compressionEnabled,
+                        requestPermissionEnable = requestPermissionEnable,
+                        cameraEnable = cameraEnable,
+                        result = lastResult,
+                        onFilter = { selectedFilter = it },
+                        onCompression = { compressionEnabled = it },
+                        onRequestPermission = { requestPermissionEnable = it },
+                        onCamera = { cameraEnable = it },
+                        onOpenView = {
+                            viewPicker.launch(
+                                ViewPickerRequest(
+                                    config = pickerConfig,
+                                    appearance = ViewPickerAppearance(
+                                        gridItemSpacingDp = 1,
+                                        gridSpanCount = 4,
+                                    ),
+                                ),
+                            )
+                        },
+                        onOpenCompose = { showComposePicker = true },
+                        modifier = Modifier.padding(paddingValues),
+                    )
+                }
                 if (showComposePicker) {
                     AlbumPicker(
                         config = pickerConfig,
@@ -71,33 +97,6 @@ class MainActivity : ComponentActivity() {
                         },
                         onCancel = { showComposePicker = false },
                     )
-                } else {
-                    Scaffold { paddingValues ->
-                        DemoScreen(
-                            filter = selectedFilter,
-                            compressionEnabled = compressionEnabled,
-                            requestPermissionEnable = requestPermissionEnable,
-                            cameraEnable = cameraEnable,
-                            result = lastResult,
-                            onFilter = { selectedFilter = it },
-                            onCompression = { compressionEnabled = it },
-                            onRequestPermission = { requestPermissionEnable = it },
-                            onCamera = { cameraEnable = it },
-                            onOpenView = {
-                                viewPicker.launch(
-                                    ViewPickerRequest(
-                                        config = pickerConfig,
-                                        appearance = ViewPickerAppearance(
-                                            gridItemSpacingDp = 1,
-                                            gridSpanCount = 4,
-                                        ),
-                                    ),
-                                )
-                            },
-                            onOpenCompose = { showComposePicker = true },
-                            modifier = Modifier.padding(paddingValues),
-                        )
-                    }
                 }
             }
         }

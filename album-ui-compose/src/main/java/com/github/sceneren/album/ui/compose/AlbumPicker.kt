@@ -8,7 +8,11 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DimenRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -16,6 +20,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -82,6 +88,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,9 +124,35 @@ import java.util.UUID
 import androidx.compose.foundation.lazy.items as lazyListItems
 
 /**
+ * Compose 相册选择器打开和关闭时使用的动画。
+ *
+ * [enterTransition] 和 [exitTransition] 可使用 Compose Animation 提供的任意过渡动画，
+ * 包括通过 `+` 组合的滑动、淡入淡出和缩放动画。
+ */
+data class AlbumPickerAnimation(
+    /** 选择器加入组合时播放的动画。 */
+    val enterTransition: EnterTransition = defaultPickerEnterTransition(),
+    /** 选择器退出组合前播放的动画。 */
+    val exitTransition: ExitTransition = defaultPickerExitTransition(),
+) {
+    /** 提供默认动画和无动画预置配置。 */
+    companion object {
+        /** 默认的底部滑入和滑出动画。 */
+        val Default: AlbumPickerAnimation = AlbumPickerAnimation()
+
+        /** 不播放打开和关闭动画。 */
+        val None: AlbumPickerAnimation = AlbumPickerAnimation(
+            enterTransition = EnterTransition.None,
+            exitTransition = ExitTransition.None,
+        )
+    }
+}
+
+/**
  * 可嵌入宿主界面的 Compose 相册选择器。
  *
- * 宿主负责导航，并应在 [onResult] 或 [onCancel] 回调后移除此组件。
+ * 宿主负责导航，并应在退出动画完成后的 [onResult] 或 [onCancel] 回调中移除此组件。
+ * [animation] 为 null 或 [AlbumPickerAnimation.None] 时不播放打开和关闭动画。
  * [imageLoader] 为 null 时，使用通过 [AlbumUi] 配置的进程级图片加载器。
  */
 @Composable
@@ -130,6 +163,7 @@ fun AlbumPicker(
     modifier: Modifier = Modifier,
     appearance: AlbumPickerAppearance = AlbumPickerAppearance(),
     imageLoader: AlbumImageLoader? = null,
+    animation: AlbumPickerAnimation? = AlbumPickerAnimation.Default,
 ) {
     val context = LocalContext.current
     val applicationContext = context.applicationContext
@@ -143,6 +177,9 @@ fun AlbumPicker(
     val resolvedImageLoader = remember(imageLoader) {
         imageLoader ?: AlbumUi.requireImageLoader()
     }
+    val visibilityState = remember {
+        MutableTransitionState(false).apply { targetState = true }
+    }
 
     var session by remember(api, client, config, sessionId) {
         mutableStateOf(client.openSession(config, sessionId))
@@ -154,6 +191,7 @@ fun AlbumPicker(
     var isConfirming by remember { mutableStateOf(false) }
     var isCancelling by remember { mutableStateOf(false) }
     var isFinished by remember { mutableStateOf(false) }
+    var pendingCompletion by remember { mutableStateOf<PickerCompletion?>(null) }
     var isPhotoPickerInFlight by remember { mutableStateOf(false) }
     var previewLoadJob by remember { mutableStateOf<Job?>(null) }
     var messageToast by remember { mutableStateOf<Toast?>(null) }
@@ -188,7 +226,7 @@ fun AlbumPicker(
 
     /** 执行 `confirmSelection` 方法定义的处理。 */
     fun confirmSelection() {
-        if (isConfirming) return
+        if (isConfirming || isCancelling || isFinished) return
         if (session.selectedItems.isEmpty()) {
             showMessage(applicationContext.getString(R.string.auc_select_first))
             return
@@ -196,8 +234,9 @@ fun AlbumPicker(
         isConfirming = true
         scope.launch {
             client.confirm(session.sessionId).onSuccess { result ->
+                pendingCompletion = PickerCompletion.Result(result)
                 isFinished = true
-                currentOnResult(result)
+                visibilityState.targetState = false
             }.onFailure { failure ->
                 isConfirming = false
                 showMessage(
@@ -440,7 +479,7 @@ fun AlbumPicker(
 
     /** 判断 `cancelPicker` 条件是否成立。 */
     fun cancelPicker() {
-        if (isCancelling || isConfirming) return
+        if (isCancelling || isConfirming || isFinished) return
         if (preview != null) {
             closePreview()
             return
@@ -454,8 +493,9 @@ fun AlbumPicker(
                             ?: applicationContext.getString(R.string.auc_cancel_failed),
                     )
                 }
+            pendingCompletion = PickerCompletion.Cancelled
             isFinished = true
-            currentOnCancel()
+            visibilityState.targetState = false
         }
     }
 
@@ -478,49 +518,76 @@ fun AlbumPicker(
             messageToast?.cancel()
         }
     }
-    BackHandler(
-        enabled = !isConfirming && !isCancelling && !isFinished,
-        onBack = ::cancelPicker,
-    )
-
-    if (isFinished) return
-
-    AlbumPickerScreen(
-        modifier = modifier,
-        config = config,
-        appearance = appearance,
-        session = session,
-        accessStatus = accessStatus,
-        directories = directories,
-        feed = feed,
-        preview = preview,
-        imageLoader = resolvedImageLoader,
-        onBack = ::cancelPicker,
-        onDirectory = { bucketId ->
-            if (shouldUpdateDirectory(session.bucketId, bucketId)) {
-                scope.launch {
-                    client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
-                        session = updated
-                        refreshContentNow()
-                    }
-                }
+    BackHandler(onBack = ::cancelPicker)
+    LaunchedEffect(
+        isFinished,
+        visibilityState.currentState,
+        visibilityState.isIdle,
+    ) {
+        if (isFinished && !visibilityState.currentState && visibilityState.isIdle) {
+            when (val completion = pendingCompletion) {
+                is PickerCompletion.Result -> currentOnResult(completion.value)
+                PickerCompletion.Cancelled -> currentOnCancel()
+                null -> Unit
             }
-        },
-        onRequestPermission = {
-            permissionLauncher.launch(
-                AlbumMediaPermissionRequestFactory.create(config.mediaFilter),
-            )
-        },
-        onAddMore = ::launchPhotoPicker,
-        onCamera = ::launchCamera,
-        onToggle = ::toggleMedia,
-        onGridPreview = ::showGridPreview,
-        onSelectedPreview = ::showSelectedPreview,
-        onPreviewLoadMore = ::loadMorePreview,
-        onClosePreview = ::closePreview,
-        onConfirm = ::confirmSelection,
-        isConfirming = isConfirming,
-    )
+        }
+    }
+
+    Box(modifier) {
+        InteractionBlocker(blockBack = false)
+        AnimatedVisibility(
+            visibleState = visibilityState,
+            modifier = Modifier.fillMaxSize(),
+            enter = animation?.enterTransition ?: EnterTransition.None,
+            exit = animation?.exitTransition ?: ExitTransition.None,
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                AlbumPickerScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    config = config,
+                    appearance = appearance,
+                    session = session,
+                    accessStatus = accessStatus,
+                    directories = directories,
+                    feed = feed,
+                    preview = preview,
+                    imageLoader = resolvedImageLoader,
+                    onBack = ::cancelPicker,
+                    onDirectory = { bucketId ->
+                        if (shouldUpdateDirectory(session.bucketId, bucketId)) {
+                            scope.launch {
+                                client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
+                                    session = updated
+                                    refreshContentNow()
+                                }
+                            }
+                        }
+                    },
+                    onRequestPermission = {
+                        permissionLauncher.launch(
+                            AlbumMediaPermissionRequestFactory.create(config.mediaFilter),
+                        )
+                    },
+                    onAddMore = ::launchPhotoPicker,
+                    onCamera = ::launchCamera,
+                    onToggle = ::toggleMedia,
+                    onGridPreview = ::showGridPreview,
+                    onSelectedPreview = ::showSelectedPreview,
+                    onPreviewLoadMore = ::loadMorePreview,
+                    onClosePreview = ::closePreview,
+                    onConfirm = ::confirmSelection,
+                    isConfirming = isConfirming,
+                )
+                if (isCancelling || isFinished) InteractionBlocker()
+            }
+        }
+    }
+}
+
+private sealed interface PickerCompletion {
+    data class Result(val value: AlbumPickerResult) : PickerCompletion
+
+    data object Cancelled : PickerCompletion
 }
 
 /** 将当前对象转换为 `toVisualMediaType` 对应的结果。 */
@@ -563,6 +630,27 @@ internal fun shouldAutoConfirm(
 
 /** 表示 `MIN_MULTIPLE_PICK_COUNT` 对应的数据。 */
 private const val MIN_MULTIPLE_PICK_COUNT = 2
+
+/** Compose 选择器与 View 选择器使用相同的打开和关闭动画时长。 */
+private const val PICKER_ANIMATION_DURATION_MILLIS = 300
+
+/** 创建与 View 选择器一致的默认底部滑入动画。 */
+private fun defaultPickerEnterTransition(): EnterTransition = slideInVertically(
+    animationSpec = tween(
+        durationMillis = PICKER_ANIMATION_DURATION_MILLIS,
+        easing = FastOutSlowInEasing,
+    ),
+    initialOffsetY = { fullHeight -> fullHeight },
+)
+
+/** 创建与 View 选择器一致的默认底部滑出动画。 */
+private fun defaultPickerExitTransition(): ExitTransition = slideOutVertically(
+    animationSpec = tween(
+        durationMillis = PICKER_ANIMATION_DURATION_MILLIS,
+        easing = FastOutSlowInEasing,
+    ),
+    targetOffsetY = { fullHeight -> fullHeight },
+)
 
 /** 执行 `selectedTitleDirectory` 方法定义的处理。 */
 internal fun selectedTitleDirectory(
@@ -1466,3 +1554,20 @@ private fun dimensionSp(@DimenRes resourceId: Int): TextUnit {
 
 /** 表示 `PROCESSING_SPINNER_DURATION_MILLIS` 对应的数据。 */
 private const val PROCESSING_SPINNER_DURATION_MILLIS = 1_000
+
+@Composable
+/** 退出流程开始后拦截输入，避免动画期间重复触发选择器操作。 */
+private fun InteractionBlocker(blockBack: Boolean = true) {
+    if (blockBack) BackHandler { }
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {},
+            )
+            .clearAndSetSemantics { },
+    )
+}

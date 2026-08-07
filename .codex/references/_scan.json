@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-06 15:10:17",
+  "scan_time": "2026-08-07 11:17:50",
   "module_count": 4,
   "modules": [
     {
@@ -832,11 +832,11 @@
       "dependencies": [
         {
           "name": "album-api",
-          "type": "implementation"
+          "type": "api"
         },
         {
           "name": "libs.androidx.activity.ktx",
-          "type": "implementation",
+          "type": "api",
           "external": true
         },
         {
@@ -889,11 +889,11 @@
         "dependencies": [
           {
             "name": "album-api",
-            "type": "implementation"
+            "type": "api"
           },
           {
             "name": "libs.androidx.activity.ktx",
-            "type": "implementation",
+            "type": "api",
             "external": true
           },
           {
@@ -1019,7 +1019,27 @@
       "dependencies": [
         {
           "name": "album-api",
-          "type": "implementation"
+          "type": "api"
+        },
+        {
+          "name": "libs.androidx.compose.bom",
+          "type": "api",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.animation",
+          "type": "api",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui",
+          "type": "api",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.graphics",
+          "type": "api",
+          "external": true
         },
         {
           "name": "libs.androidx.activity.compose",
@@ -1038,21 +1058,6 @@
         },
         {
           "name": "libs.androidx.lifecycle.runtime.compose",
-          "type": "implementation",
-          "external": true
-        },
-        {
-          "name": "libs.androidx.compose.bom",
-          "type": "implementation",
-          "external": true
-        },
-        {
-          "name": "libs.androidx.compose.ui",
-          "type": "implementation",
-          "external": true
-        },
-        {
-          "name": "libs.androidx.compose.ui.graphics",
           "type": "implementation",
           "external": true
         },
@@ -1096,7 +1101,27 @@
         "dependencies": [
           {
             "name": "album-api",
-            "type": "implementation"
+            "type": "api"
+          },
+          {
+            "name": "libs.androidx.compose.bom",
+            "type": "api",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.animation",
+            "type": "api",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui",
+            "type": "api",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.graphics",
+            "type": "api",
+            "external": true
           },
           {
             "name": "libs.androidx.activity.compose",
@@ -1115,21 +1140,6 @@
           },
           {
             "name": "libs.androidx.lifecycle.runtime.compose",
-            "type": "implementation",
-            "external": true
-          },
-          {
-            "name": "libs.androidx.compose.bom",
-            "type": "implementation",
-            "external": true
-          },
-          {
-            "name": "libs.androidx.compose.ui",
-            "type": "implementation",
-            "external": true
-          },
-          {
-            "name": "libs.androidx.compose.ui.graphics",
             "type": "implementation",
             "external": true
           },

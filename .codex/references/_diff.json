@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-08-05 11:44:36",
-  "new_scan_time": "2026-08-05 12:04:35",
+  "old_scan_time": "2026-08-06 15:10:17",
+  "new_scan_time": "2026-08-07 11:17:50",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -10,8 +10,18 @@
     "modules_added": 0,
     "modules_removed": 0,
     "modules_renamed": 0,
-    "modules_changed": 0,
-    "modules_unchanged": 4
+    "modules_changed": 1,
+    "modules_unchanged": 3
   },
-  "modules": {}
+  "modules": {
+    "album-ui-compose": {
+      "status": "changed",
+      "dependencies": {
+        "added": [
+          "libs.androidx.compose.animation"
+        ],
+        "removed": []
+      }
+    }
+  }
 }

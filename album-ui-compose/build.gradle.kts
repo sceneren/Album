@@ -31,6 +31,7 @@ android {
 dependencies {
     api(project(":album-api"))
     api(platform(libs.androidx.compose.bom))
+    api(libs.androidx.compose.animation)
     api(libs.androidx.compose.ui)
     api(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.activity.compose)

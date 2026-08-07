@@ -1,6 +1,8 @@
 package com.github.sceneren.album.ui.compose
 
 import android.net.Uri
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraConfig
 import com.github.sceneren.album.api.AlbumDirectory
@@ -142,5 +144,21 @@ class AlbumPickerTitleTest {
                 session,
             ),
         )
+    }
+
+    @Test
+    /** 验证默认动画可按阶段覆盖，并可通过预置配置完全关闭。 */
+    fun pickerAnimationSupportsCustomizationAndDisabling() {
+        val custom = AlbumPickerAnimation.Default.copy(
+            enterTransition = EnterTransition.None,
+        )
+
+        assertSame(EnterTransition.None, custom.enterTransition)
+        assertSame(
+            AlbumPickerAnimation.Default.exitTransition,
+            custom.exitTransition,
+        )
+        assertSame(EnterTransition.None, AlbumPickerAnimation.None.enterTransition)
+        assertSame(ExitTransition.None, AlbumPickerAnimation.None.exitTransition)
     }
 }
