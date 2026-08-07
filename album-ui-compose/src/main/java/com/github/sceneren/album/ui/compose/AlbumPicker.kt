@@ -255,26 +255,9 @@ fun AlbumPicker(
             val result = api.processPhotoPickerResult(
                 uris = uris,
                 mediaFilter = config.mediaFilter,
-                maxSelectionCount = config.maxSelectionCount,
+                maxSelectionCount = null,
             )
             isPhotoPickerInFlight = false
-            showMessage(
-                when (result) {
-                    is PhotoPickResult.Selected -> applicationContext.getString(
-                        R.string.auc_added_count,
-                        result.media.size,
-                    )
-
-                    PhotoPickResult.Cancelled -> {
-                        applicationContext.getString(R.string.auc_add_cancelled)
-                    }
-
-                    is PhotoPickResult.Failed -> applicationContext.getString(
-                        R.string.auc_add_failed,
-                        result.reason.name,
-                    )
-                },
-            )
             if (result is PhotoPickResult.Selected) refreshContentNow()
         }
     }
@@ -284,15 +267,8 @@ fun AlbumPicker(
             .setMediaType(config.mediaFilter.toVisualMediaType())
             .build()
     }
-    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        handlePhotoPickerResult(uri?.let(::listOf).orEmpty())
-    }
     val multiplePhotoPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(
-            config.maxSelectionCount.coerceAtLeast(MIN_MULTIPLE_PICK_COUNT),
-        ),
+        ActivityResultContracts.PickMultipleVisualMedia(),
     ) { uris ->
         handlePhotoPickerResult(uris)
     }
@@ -345,11 +321,7 @@ fun AlbumPicker(
     fun launchPhotoPicker() {
         isPhotoPickerInFlight = true
         try {
-            if (config.maxSelectionCount == 1) {
-                singlePhotoPickerLauncher.launch(photoPickerRequest)
-            } else {
-                multiplePhotoPickerLauncher.launch(photoPickerRequest)
-            }
+            multiplePhotoPickerLauncher.launch(photoPickerRequest)
         } catch (failure: RuntimeException) {
             isPhotoPickerInFlight = false
             throw failure
@@ -627,9 +599,6 @@ internal fun shouldAutoConfirm(
                     config.singleSelectionFinishMode == SingleSelectionFinishMode.IMMEDIATE &&
                     session.selectedItems.size == 1
             )
-
-/** 表示 `MIN_MULTIPLE_PICK_COUNT` 对应的数据。 */
-private const val MIN_MULTIPLE_PICK_COUNT = 2
 
 /** Compose 选择器与 View 选择器使用相同的打开和关闭动画时长。 */
 private const val PICKER_ANIMATION_DURATION_MILLIS = 300

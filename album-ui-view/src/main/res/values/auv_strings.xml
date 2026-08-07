@@ -16,9 +16,6 @@
     <string name="auv_add_more">添加更多</string>
     <string name="auv_partial_permission">当前只能访问部分媒体，点击申请全部访问</string>
     <string name="auv_denied_permission">尚未获得相册权限，点击申请访问</string>
-    <string name="auv_added_count">已添加 %1$d 项，可在网格中手动选择</string>
-    <string name="auv_add_cancelled">已取消添加</string>
-    <string name="auv_add_failed">添加失败：%1$s</string>
     <string name="auv_camera_failed">拍摄失败</string>
     <string name="auv_select_first">请先选择媒体</string>
     <string name="auv_process_failed">处理失败：%1$s</string>

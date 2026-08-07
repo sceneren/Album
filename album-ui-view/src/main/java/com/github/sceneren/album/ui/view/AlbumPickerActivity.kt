@@ -45,7 +45,6 @@ import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.MediaAccessStatus
-import com.github.sceneren.album.api.PhotoPickResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -119,14 +118,7 @@ class AlbumPickerActivity : ComponentActivity() {
         val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
         session = client.openSession(config, sessionId)
 
-        photoPicker = api.registerPhotoPicker(this, config.mediaFilter, config.maxSelectionCount) { result ->
-            showMessage(
-                when (result) {
-                is PhotoPickResult.Selected -> getString(R.string.auv_added_count, result.media.size)
-                PhotoPickResult.Cancelled -> getString(R.string.auv_add_cancelled)
-                is PhotoPickResult.Failed -> getString(R.string.auv_add_failed, result.reason.name)
-                },
-            )
+        photoPicker = api.registerPhotoPicker(this, config.mediaFilter, maxSelectionCount = null) {
             refreshContent()
         }
         cameraLauncher = client.registerCamera(this, session.sessionId) { result ->

@@ -17,9 +17,6 @@
     <string name="auc_add_more">添加更多</string>
     <string name="auc_partial_permission">当前只能访问部分媒体，点击申请全部访问</string>
     <string name="auc_denied_permission">尚未获得相册权限，点击申请访问</string>
-    <string name="auc_added_count">已添加 %1$d 项，可在网格中手动选择</string>
-    <string name="auc_add_cancelled">已取消添加</string>
-    <string name="auc_add_failed">添加失败：%1$s</string>
     <string name="auc_camera_failed">拍摄失败</string>
     <string name="auc_cancel_failed">取消失败</string>
     <string name="auc_select_first">请先选择媒体</string>

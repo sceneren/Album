@@ -112,8 +112,8 @@ private fun buildRequest(
     cameraEnabled: Boolean,
 ): AlbumPickerConfig = AlbumPickerConfig(
     mediaFilter = mediaFilter,
-    maxSelectionCount = 9,
-    singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
+    maxSelectionCount = 1,
+    singleSelectionFinishMode = SingleSelectionFinishMode.IMMEDIATE,
     camera = AlbumCameraConfig(
         enabled = cameraEnabled,
         mixedMediaCaptureType = AlbumCameraCaptureType.PHOTO,
