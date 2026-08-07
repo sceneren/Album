@@ -22,7 +22,7 @@
 - 只发布 `release` 变体。
 - 同时生成 AAR、Gradle Module Metadata、POM 和源码 JAR。
 - 项目名、发布 group/artifact/version、Android 包名和 SDK 等默认配置统一维护在 `gradle.properties`。
-- 本地默认坐标为 `com.github.sceneren.Album:<模块名>:1.0.0-SNAPSHOT`；`publishedVersion` 同时作为 demo app 的 `versionName`。
+- 本地默认坐标为 `com.github.sceneren.Album:<模块名>:<publishedVersion>`；`publishedVersion` 同时作为 demo app 的 `versionName`。
 - 在 JitPack 环境中读取 `GROUP`、`ARTIFACT` 和 `VERSION`，自动得到与仓库和标签一致的坐标；`VERSION` 也会同步覆盖 demo app 的 `versionName`。
 
 根目录的 `jitpack.yml` 执行以下工作：
@@ -46,9 +46,9 @@
 
 ```text
 %USERPROFILE%\.m2\repository\com\github\sceneren\Album\
-├── album-api\1.0.0-SNAPSHOT\
-├── album-ui-view\1.0.0-SNAPSHOT\
-└── album-ui-compose\1.0.0-SNAPSHOT\
+├── album-api\<publishedVersion>\
+├── album-ui-view\<publishedVersion>\
+└── album-ui-compose\<publishedVersion>\
 ```
 
 每个目录应至少包含 `.aar`、`.pom`、`.module` 和 `-sources.jar`。重点检查两个 UI 模块的 POM/Module Metadata 是否包含对 `album-api` 的依赖。
@@ -59,11 +59,22 @@
 
 ```powershell
 git status
-git tag -a 1.0.0 -m "Release 1.0.0"
-git push origin 1.0.0
+git tag -a 0.0.2 -m "Release 0.0.2"
+git push origin 0.0.2
 ```
 
-标签应只指向已经通过上一步检查的提交。不要移动或覆盖已经公开使用的标签；修复后应发布新版本。
+示例中的 `0.0.2` 应替换为 `gradle.properties` 当前的 `publishedVersion`。标签应只指向已经通过上一步检查的提交。不要移动或覆盖已经公开使用的标签；修复后应发布新版本。
+
+### GitHub Release 自动化
+
+推送标签后，`.github/workflows/release.yml` 会自动执行以下步骤：
+
+1. 校验标签与 `gradle.properties` 的 `publishedVersion` 完全一致。
+2. 运行 `album-api` 和 `app` 单元测试。
+3. 构建 `album-api`、`album-ui-view` 和 `album-ui-compose` 的 release AAR。
+4. 创建 GitHub Release，自动生成 Release Notes，并上传三个带版本号的 AAR 和 `SHA256SUMS.txt`。
+
+workflow 使用仓库自动提供的 `GITHUB_TOKEN`，不需要配置个人访问令牌。仓库必须允许 Actions 对 Contents 进行写入；workflow 已声明 `contents: write`。任务失败时不会创建 Release，修复后可以在 Actions 页面重新运行，已有 Release 的资产会被覆盖更新。
 
 也可以在 GitHub 的 Releases 页面创建 Release 并填写标签。JitPack 同时支持标签、提交哈希和 `分支名-SNAPSHOT`，正式发布建议使用稳定标签。
 

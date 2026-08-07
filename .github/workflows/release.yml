@@ -1,0 +1,92 @@
+name: Create GitHub Release
+
+on:
+  push:
+    tags:
+      - "[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release libraries
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ github.ref_name }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          configured_version="$(awk -F= '$1 == "publishedVersion" { sub(/\r$/, "", $2); print $2 }' gradle.properties)"
+          if [[ -z "$configured_version" ]]; then
+            echo "publishedVersion is missing from gradle.properties" >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_NAME" != "$configured_version" ]]; then
+            echo "Tag '$GITHUB_REF_NAME' must equal publishedVersion '$configured_version'" >&2
+            exit 1
+          fi
+          echo "value=$configured_version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Test and build release AARs
+        run: |
+          ./gradlew --no-daemon \
+            :album-api:testDebugUnitTest \
+            :app:testDebugUnitTest \
+            :album-api:assembleRelease \
+            :album-ui-view:assembleRelease \
+            :album-ui-compose:assembleRelease
+
+      - name: Prepare release assets
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp album-api/build/outputs/aar/album-api-release.aar \
+            "release-assets/album-api-${RELEASE_VERSION}.aar"
+          cp album-ui-view/build/outputs/aar/album-ui-view-release.aar \
+            "release-assets/album-ui-view-${RELEASE_VERSION}.aar"
+          cp album-ui-compose/build/outputs/aar/album-ui-compose-release.aar \
+            "release-assets/album-ui-compose-${RELEASE_VERSION}.aar"
+          cd release-assets
+          sha256sum ./*.aar > SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/* \
+              --verify-tag \
+              --generate-notes \
+              --title "Album $GITHUB_REF_NAME"
+          fi
