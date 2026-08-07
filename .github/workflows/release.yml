@@ -26,6 +26,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
       - name: Verify release version
         id: version
         shell: bash
