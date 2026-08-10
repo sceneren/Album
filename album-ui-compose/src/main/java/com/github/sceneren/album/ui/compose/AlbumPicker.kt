@@ -81,6 +81,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -170,6 +171,12 @@ fun AlbumPicker(
 ) {
     val context = LocalContext.current
     val applicationContext = context.applicationContext
+    val toolbarColor = appearance.toolbarColor ?: colorResource(R.color.auc_toolbar).toArgb()
+    val bottomBarColor = appearance.bottomBarColor ?: colorResource(R.color.auc_bottom).toArgb()
+    AlbumPickerSystemBars(
+        statusBarColor = toolbarColor,
+        navigationBarColor = bottomBarColor,
+    )
     val areMediaPermissionsDeclared = remember(applicationContext, config.mediaFilter) {
         AlbumMediaPermissionRequestFactory.areDeclaredInManifest(
             context = applicationContext,

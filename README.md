@@ -4,6 +4,15 @@ Album 是一个 Android 相册选择器，提供数据 API、传统 View 界面�
 
 [![](https://jitpack.io/v/sceneren/Album.svg)](https://jitpack.io/#sceneren/Album)
 
+## 效果预览
+
+<p align="center">
+  <img src="picture/Screenshot_20260810_093813.png" alt="相册选择" width="24%" />
+  <img src="picture/Screenshot_20260810_093837.png" alt="媒体网格" width="24%" />
+  <img src="picture/Screenshot_20260810_093846.png" alt="目录切换" width="24%" />
+  <img src="picture/Screenshot_20260810_094027.png" alt="大图预览" width="24%" />
+</p>
+
 ## 模块
 
 | 模块 | 用途 |
@@ -146,6 +155,12 @@ if (showAlbum) {
 ```
 
 Compose 版本不声明独立 Activity。宿主负责把 `AlbumPicker` 放入自己的导航或条件布局，并在完成或取消后将其移除。
+
+### Compose 系统栏颜色
+
+`album-ui-compose` 会自动处理宿主 `Activity` 的系统栏，宿主无需调用 `enableEdgeToEdge()` 或手动设置 Window。选择器显示时，状态栏使用 `AlbumPickerAppearance.toolbarColor`，导航栏使用 `bottomBarColor`；未配置时使用组件默认颜色。组件还会根据颜色亮度自动选择深色或浅色系统图标，并在 Android 10 及以上关闭导航栏强制对比度遮罩。
+
+内部通过 `DisposableEffect` 保存宿主原有的系统栏颜色、图标明暗模式和导航栏对比度设置，在 `AlbumPicker` 离开组合时逐项恢复。因此完成或取消选择后，宿主页面原有的系统栏样式不会被永久修改。Android 15 及以上由组件现有的系统栏 inset 背景负责覆盖透明系统栏区域，旧版系统则同时使用 Window 系统栏颜色兼容非 edge-to-edge 宿主。
 
 ## 结果与文件
 
