@@ -208,6 +208,7 @@ fun AlbumPicker(
     var isCancelling by remember { mutableStateOf(false) }
     var isFinished by remember { mutableStateOf(false) }
     var pendingCompletion by remember { mutableStateOf<PickerCompletion?>(null) }
+    var isContentRefreshPending by remember(config, sessionId) { mutableStateOf(true) }
     var isPhotoPickerInFlight by remember { mutableStateOf(false) }
     var previewLoadJob by remember { mutableStateOf<Job?>(null) }
     var messageToast by remember { mutableStateOf<Toast?>(null) }
@@ -237,7 +238,7 @@ fun AlbumPicker(
 
     /** 更新 `refreshContent` 对应的状态。 */
     fun refreshContent() {
-        scope.launch { refreshContentNow() }
+        isContentRefreshPending = true
     }
 
     /** 执行 `confirmSelection` 方法定义的处理。 */
@@ -507,6 +508,25 @@ fun AlbumPicker(
         }
     }
     BackHandler(onBack = ::cancelPicker)
+    LaunchedEffect(
+        isContentRefreshPending,
+        visibilityState.currentState,
+        visibilityState.isIdle,
+        isFinished,
+    ) {
+        if (
+            isContentRefreshPending &&
+            visibilityState.currentState &&
+            visibilityState.isIdle &&
+            !isFinished
+        ) {
+            try {
+                refreshContentNow()
+            } finally {
+                isContentRefreshPending = false
+            }
+        }
+    }
     LaunchedEffect(
         isFinished,
         visibilityState.currentState,
