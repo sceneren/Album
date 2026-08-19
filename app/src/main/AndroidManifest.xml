@@ -16,7 +16,7 @@
         tools:ignore="PhotoAndVideoPolicy" />
 
     <application
-        android:name=".App"
+        android:name="com.github.sceneren.photopicker.App"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -26,7 +26,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Album">
         <activity
-            android:name=".MainActivity"
+            android:name="com.github.sceneren.photopicker.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Album">
             <intent-filter>

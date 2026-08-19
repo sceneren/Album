@@ -1,6 +1,5 @@
-package com.github.sceneren.album.ui.theme
+package com.github.sceneren.photopicker.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

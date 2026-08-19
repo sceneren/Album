@@ -1,4 +1,4 @@
-package com.github.sceneren.album.ui.theme
+package com.github.sceneren.photopicker.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

@@ -49,7 +49,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -101,6 +100,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -683,6 +683,12 @@ internal fun shouldShowPermissionUpgradeButton(
     arePermissionsDeclared &&
     accessStatus != MediaAccessStatus.FULL
 
+/** 当数据源尚未建立或分页首刷尚未完成时，媒体网格应保持加载状态。 */
+internal fun isMediaGridInitialLoading(
+    feed: AlbumMediaFeed?,
+    refreshLoadState: LoadState?,
+): Boolean = feed == null || refreshLoadState is LoadState.Loading
+
 /** 表示 `PREVIEW_PAGE_SIZE` 对应的数据。 */
 private const val PREVIEW_PAGE_SIZE = 30
 /** 表示 `PREVIEW_PREFETCH_DISTANCE` 对应的数据。 */
@@ -739,6 +745,10 @@ private fun AlbumPickerScreen(
     }
     val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
     val selectionLimitReached = session.selectedItems.size >= config.maxSelectionCount
+    val isInitialGridLoading = isMediaGridInitialLoading(
+        feed = feed,
+        refreshLoadState = pagingItems?.loadState?.refresh,
+    )
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         Scaffold(
@@ -962,61 +972,48 @@ private fun AlbumPickerScreen(
                 }
             },
         ) { padding ->
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(appearance.gridSpanCount),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                verticalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
-                horizontalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
-            ) {
-                if (config.camera.enabled) {
-                    item(key = "action_camera") {
-                        ActionTile(
-                            label = stringResource(R.string.auc_capture),
-                            customIconRes = appearance.cameraIconRes,
-                            defaultIconRes = R.drawable.auc_ic_album_camera,
-                            appearance = appearance,
-                            onClick = onCamera,
-                        )
-                    }
+            if (isInitialGridLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = accent)
                 }
-                if (accessStatus != MediaAccessStatus.FULL) {
-                    item(key = "action_add") {
-                        ActionTile(
-                            label = stringResource(R.string.auc_add_more),
-                            customIconRes = appearance.addIconRes,
-                            defaultIconRes = R.drawable.auc_ic_album_add,
-                            appearance = appearance,
-                            onClick = onAddMore,
-                        )
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(appearance.gridSpanCount),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    verticalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
+                    horizontalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
+                ) {
+                    if (config.camera.enabled) {
+                        item(key = "action_camera") {
+                            ActionTile(
+                                label = stringResource(R.string.auc_capture),
+                                customIconRes = appearance.cameraIconRes,
+                                defaultIconRes = R.drawable.auc_ic_album_camera,
+                                appearance = appearance,
+                                onClick = onCamera,
+                            )
+                        }
                     }
-                }
-                if (accessStatus == MediaAccessStatus.FULL) {
-                    items(session.cameraItems, key = { "camera:${it.uri}" }) { item ->
-                        MediaTile(
-                            item,
-                            item.uri in session.selectedUris,
-                            selectionLimitReached && item.uri !in session.selectedUris,
-                            appearance,
-                            imageLoader,
-                            onPreview = { selected ->
-                                onGridPreview(
-                                    selected,
-                                    pagingItems?.itemSnapshotList?.items.orEmpty(),
-                                )
-                            },
-                            onToggle = onToggle,
-                        )
+                    if (accessStatus != MediaAccessStatus.FULL) {
+                        item(key = "action_add") {
+                            ActionTile(
+                                label = stringResource(R.string.auc_add_more),
+                                customIconRes = appearance.addIconRes,
+                                defaultIconRes = R.drawable.auc_ic_album_add,
+                                appearance = appearance,
+                                onClick = onAddMore,
+                            )
+                        }
                     }
-                }
-                if (pagingItems != null) {
-                    items(
-                        count = pagingItems.itemCount,
-                        key = pagingItems.itemKey { it.uri.toString() },
-                        contentType = pagingItems.itemContentType { "media" },
-                    ) { index ->
-                        pagingItems[index]?.let { item ->
+                    if (accessStatus == MediaAccessStatus.FULL) {
+                        items(session.cameraItems, key = { "camera:${it.uri}" }) { item ->
                             MediaTile(
                                 item,
                                 item.uri in session.selectedUris,
@@ -1024,21 +1021,34 @@ private fun AlbumPickerScreen(
                                 appearance,
                                 imageLoader,
                                 onPreview = { selected ->
-                                    onGridPreview(selected, pagingItems.itemSnapshotList.items)
+                                    onGridPreview(
+                                        selected,
+                                        pagingItems?.itemSnapshotList?.items.orEmpty(),
+                                    )
                                 },
                                 onToggle = onToggle,
                             )
                         }
                     }
-                } else {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(dimensionResource(R.dimen.auc_loading_box_height)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(color = accent)
+                    if (pagingItems != null) {
+                        items(
+                            count = pagingItems.itemCount,
+                            key = pagingItems.itemKey { it.uri.toString() },
+                            contentType = pagingItems.itemContentType { "media" },
+                        ) { index ->
+                            pagingItems[index]?.let { item ->
+                                MediaTile(
+                                    item,
+                                    item.uri in session.selectedUris,
+                                    selectionLimitReached && item.uri !in session.selectedUris,
+                                    appearance,
+                                    imageLoader,
+                                    onPreview = { selected ->
+                                        onGridPreview(selected, pagingItems.itemSnapshotList.items)
+                                    },
+                                    onToggle = onToggle,
+                                )
+                            }
                         }
                     }
                 }
@@ -1600,13 +1610,9 @@ private fun BoxScope.MediaInfo(media: AlbumMedia) {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(dimensionResource(R.dimen.auc_media_label_margin))
-                .height(dimensionResource(R.dimen.auc_media_label_height))
+                .wrapContentHeight()
+                .padding(horizontal = dimensionResource(R.dimen.auc_media_label_padding_horizontal), vertical = 2.dp)
                 .background(colorResource(R.color.auc_media_badge_background), labelShape)
-                .padding(
-                    horizontal = dimensionResource(
-                        R.dimen.auc_media_label_padding_horizontal,
-                    ),
-                )
                 .wrapContentHeight(Alignment.CenterVertically),
         )
     }

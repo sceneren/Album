@@ -1,4 +1,4 @@
-package com.github.sceneren.album
+package com.github.sceneren.photopicker
 
 import com.github.sceneren.album.api.AlbumMediaFilter
 

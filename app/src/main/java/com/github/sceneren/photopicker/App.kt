@@ -1,4 +1,4 @@
-package com.github.sceneren.album
+package com.github.sceneren.photopicker
 
 import android.app.Application
 import android.widget.ImageView
@@ -45,26 +45,24 @@ class App : Application() {
                 }
             },
         )
-        ComposeUi.setImageLoader(
-            ComposeImageLoader { media, target ->
-                val isGridThumbnail = target == ComposeImageTarget.GRID_THUMBNAIL
-                val model = if (isGridThumbnail) {
-                    val sizeResolver = rememberDrawScopeSizeResolver()
-                    remember(media.uri, media.dateModifiedEpochSeconds, sizeResolver) {
-                        ImageRequest.Builder(this)
-                            .data(media.uri)
-                            .size(sizeResolver)
-                            .build()
-                    }
-                } else {
-                    media.uri
+        ComposeUi.setImageLoader { media, target ->
+            val isGridThumbnail = target == ComposeImageTarget.GRID_THUMBNAIL
+            val model = if (isGridThumbnail) {
+                val sizeResolver = rememberDrawScopeSizeResolver()
+                remember(media.uri, media.dateModifiedEpochSeconds, sizeResolver) {
+                    ImageRequest.Builder(this)
+                        .data(media.uri)
+                        .size(sizeResolver)
+                        .build()
                 }
-                rememberAsyncImagePainter(
-                    model = model,
-                    imageLoader = imageLoader,
-                    contentScale = if (isGridThumbnail) ContentScale.Crop else ContentScale.Fit,
-                )
-            },
-        )
+            } else {
+                media.uri
+            }
+            rememberAsyncImagePainter(
+                model = model,
+                imageLoader = imageLoader,
+                contentScale = if (isGridThumbnail) ContentScale.Crop else ContentScale.Fit,
+            )
+        }
     }
 }

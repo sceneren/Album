@@ -1,4 +1,4 @@
-package com.github.sceneren.album
+package com.github.sceneren.photopicker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -33,7 +33,7 @@ import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerResult
 import com.github.sceneren.album.api.SingleSelectionFinishMode
 import com.github.sceneren.album.ui.compose.AlbumPicker
-import com.github.sceneren.album.ui.theme.AlbumTheme
+import com.github.sceneren.photopicker.ui.theme.AlbumTheme
 import com.github.sceneren.album.ui.view.AlbumPickerAppearance as ViewPickerAppearance
 import com.github.sceneren.album.ui.view.AlbumPickerContract as ViewPickerContract
 import com.github.sceneren.album.ui.view.AlbumPickerRequest as ViewPickerRequest
