@@ -1,5 +1,6 @@
 package com.github.sceneren.album.ui.view
 
+import android.Manifest
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
@@ -37,6 +38,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
+import com.github.sceneren.album.api.AlbumCameraPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
@@ -90,6 +92,8 @@ class AlbumPickerActivity : ComponentActivity() {
     private var processingDialog: Dialog? = null
     private var processingSpinnerAnimator: ObjectAnimator? = null
     private var isConfirming = false
+    private var isCameraPermissionRequestInFlight = false
+    private var pendingCameraMediaType: AlbumMediaType? = null
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
     private var areMediaPermissionsDeclared = false
     private var directories: List<AlbumDirectory> = emptyList()
@@ -101,6 +105,15 @@ class AlbumPickerActivity : ComponentActivity() {
             api.syncPartialSelections(config.mediaFilter)
             refreshContent()
         }
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { isGranted ->
+        val mediaType = pendingCameraMediaType
+        pendingCameraMediaType = null
+        isCameraPermissionRequestInFlight = false
+        if (isGranted && mediaType != null) cameraLauncher?.launch(mediaType)
     }
 
     /** 处理 `onCreate` 回调。 */
@@ -218,7 +231,7 @@ class AlbumPickerActivity : ComponentActivity() {
         grid.itemAnimator = null
         actionAdapter = ActionAdapter(appearance, gridMetrics) { action ->
             when (action) {
-                Action.CAMERA -> cameraLauncher?.launch(cameraMediaType())
+                Action.CAMERA -> launchCamera()
                 Action.ADD -> photoPickerLaunch()
             }
         }
@@ -542,6 +555,25 @@ class AlbumPickerActivity : ComponentActivity() {
     /** 执行 `requestMediaPermission` 方法定义的处理。 */
     private fun requestMediaPermission() {
         permissionLauncher.launch(AlbumMediaPermissionRequestFactory.create(config.mediaFilter))
+    }
+
+    /** 检查宿主的相机权限声明，并在需要时先请求授权。 */
+    private fun launchCamera() {
+        if (isCameraPermissionRequestInFlight) return
+        val mediaType = cameraMediaType()
+        if (AlbumCameraPermissionRequestFactory.shouldRequest(this)) {
+            pendingCameraMediaType = mediaType
+            isCameraPermissionRequestInFlight = true
+            try {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            } catch (failure: RuntimeException) {
+                pendingCameraMediaType = null
+                isCameraPermissionRequestInFlight = false
+                throw failure
+            }
+            return
+        }
+        cameraLauncher?.launch(mediaType)
     }
 
     /** 执行 `photoPickerLaunch` 方法定义的处理。 */

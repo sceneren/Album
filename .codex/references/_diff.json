@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-08-07 11:17:50",
-  "new_scan_time": "2026-08-07 18:07:16",
+  "old_scan_time": "2026-08-07 18:21:02",
+  "new_scan_time": "2026-08-19 17:53:58",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -10,19 +10,53 @@
     "modules_added": 0,
     "modules_removed": 0,
     "modules_renamed": 0,
-    "modules_changed": 1,
-    "modules_unchanged": 3
+    "modules_changed": 3,
+    "modules_unchanged": 1
   },
   "modules": {
     "album-api": {
       "status": "changed",
       "files": {
-        "total_old": 71,
-        "total_new": 72,
+        "total_old": 72,
+        "total_new": 73,
         "added": [
-          "com\\github\\sceneren\\album\\api\\AlbumMediaSpecialFormat.kt"
+          "com\\github\\sceneren\\album\\api\\AlbumCameraPermissionRequestFactory.kt"
         ],
         "removed": []
+      }
+    },
+    "album-ui-compose": {
+      "status": "changed",
+      "files": {
+        "total_old": 7,
+        "total_new": 8,
+        "added": [
+          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt"
+        ],
+        "removed": []
+      }
+    },
+    "app": {
+      "status": "changed",
+      "files": {
+        "total_old": 6,
+        "total_new": 6,
+        "added": [
+          "com\\github\\sceneren\\photopicker\\AlbumMediaFilterExtensions.kt",
+          "com\\github\\sceneren\\photopicker\\App.kt",
+          "com\\github\\sceneren\\photopicker\\MainActivity.kt",
+          "com\\github\\sceneren\\photopicker\\ui\\theme\\Color.kt",
+          "com\\github\\sceneren\\photopicker\\ui\\theme\\Theme.kt",
+          "com\\github\\sceneren\\photopicker\\ui\\theme\\Type.kt"
+        ],
+        "removed": [
+          "com\\github\\sceneren\\album\\AlbumMediaFilterExtensions.kt",
+          "com\\github\\sceneren\\album\\App.kt",
+          "com\\github\\sceneren\\album\\MainActivity.kt",
+          "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
+          "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
+          "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
+        ]
       }
     }
   }

@@ -1,5 +1,6 @@
 package com.github.sceneren.album.ui.compose
 
+import android.Manifest
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -108,6 +109,7 @@ import androidx.paging.compose.itemKey
 import com.github.panpf.zoomimage.ZoomImage
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
+import com.github.sceneren.album.api.AlbumCameraPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFeed
@@ -210,6 +212,8 @@ fun AlbumPicker(
     var pendingCompletion by remember { mutableStateOf<PickerCompletion?>(null) }
     var isContentRefreshPending by remember(config, sessionId) { mutableStateOf(true) }
     var isPhotoPickerInFlight by remember { mutableStateOf(false) }
+    var isCameraPermissionRequestInFlight by remember { mutableStateOf(false) }
+    var pendingCameraMediaType by remember { mutableStateOf<AlbumMediaType?>(null) }
     var previewLoadJob by remember { mutableStateOf<Job?>(null) }
     var messageToast by remember { mutableStateOf<Toast?>(null) }
 
@@ -330,8 +334,34 @@ fun AlbumPicker(
                         failure.message
                             ?: applicationContext.getString(R.string.auc_camera_failed),
                     )
-                }
+            }
         }
+    }
+
+    /** 在无需请求权限或已获授权后准备输出文件并启动系统相机。 */
+    fun launchPreparedCamera(mediaType: AlbumMediaType) {
+        scope.launch {
+            client.prepareCamera(session.sessionId, mediaType).onSuccess { capture ->
+                if (mediaType == AlbumMediaType.IMAGE) {
+                    photoCameraLauncher.launch(capture.uri)
+                } else {
+                    videoCameraLauncher.launch(capture.uri)
+                }
+            }.onFailure { failure ->
+                showMessage(
+                    failure.message ?: applicationContext.getString(R.string.auc_camera_failed),
+                )
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { isGranted ->
+        val mediaType = pendingCameraMediaType
+        pendingCameraMediaType = null
+        isCameraPermissionRequestInFlight = false
+        if (isGranted && mediaType != null) launchPreparedCamera(mediaType)
     }
 
     /** 执行 `launchPhotoPicker` 方法定义的处理。 */
@@ -347,20 +377,21 @@ fun AlbumPicker(
 
     /** 执行 `launchCamera` 方法定义的处理。 */
     fun launchCamera() {
+        if (isCameraPermissionRequestInFlight) return
         val mediaType = config.cameraMediaType()
-        scope.launch {
-            client.prepareCamera(session.sessionId, mediaType).onSuccess { capture ->
-                if (mediaType == AlbumMediaType.IMAGE) {
-                    photoCameraLauncher.launch(capture.uri)
-                } else {
-                    videoCameraLauncher.launch(capture.uri)
-                }
-            }.onFailure { failure ->
-                showMessage(
-                    failure.message ?: applicationContext.getString(R.string.auc_camera_failed),
-                )
+        if (AlbumCameraPermissionRequestFactory.shouldRequest(applicationContext)) {
+            pendingCameraMediaType = mediaType
+            isCameraPermissionRequestInFlight = true
+            try {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            } catch (failure: RuntimeException) {
+                pendingCameraMediaType = null
+                isCameraPermissionRequestInFlight = false
+                throw failure
             }
+            return
         }
+        launchPreparedCamera(mediaType)
     }
 
     /** 执行 `showSelectionLimitMessage` 方法定义的处理。 */

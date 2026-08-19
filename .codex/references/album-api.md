@@ -23,6 +23,7 @@
 - `getMediaFeed(filter, bucketId, pageSize)`: returns source metadata and `Flow<PagingData<AlbumMedia>>`.
 - `getMediaDirectories(filter)`: returns MediaStore bucket summaries only under full access.
 - `registerPhotoPicker(activity, filter, maxSelectionCount, onResult)`: registers `PickVisualMedia` or `PickMultipleVisualMedia`; null count means no library-defined cap.
+- `AlbumCameraPermissionRequestFactory.shouldRequest(context)`: returns true only when the merged Manifest declares `CAMERA` and it is not granted; the UI host then requests it before launching the system camera.
 - `removePersistedSelection`, `clearPersistedSelections`, `reconcilePersistedSelections`: maintain stored selections and grants.
 - Models: `AlbumMedia`, `AlbumDirectory`, `AlbumMediaFilter`, `AlbumMediaType`, `AlbumMediaSource`, `AlbumMediaFeed`, `PhotoPickResult`.
 

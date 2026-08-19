@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-08-07 18:21:02",
+  "scan_time": "2026-08-19 17:53:58",
   "module_count": 4,
   "modules": [
     {
@@ -18,12 +18,12 @@
           "root": "app\\src\\main\\java",
           "file_count": 6,
           "file_list": [
-            "com\\github\\sceneren\\album\\AlbumMediaFilterExtensions.kt",
-            "com\\github\\sceneren\\album\\App.kt",
-            "com\\github\\sceneren\\album\\MainActivity.kt",
-            "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
-            "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
-            "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
+            "com\\github\\sceneren\\photopicker\\AlbumMediaFilterExtensions.kt",
+            "com\\github\\sceneren\\photopicker\\App.kt",
+            "com\\github\\sceneren\\photopicker\\MainActivity.kt",
+            "com\\github\\sceneren\\photopicker\\ui\\theme\\Color.kt",
+            "com\\github\\sceneren\\photopicker\\ui\\theme\\Theme.kt",
+            "com\\github\\sceneren\\photopicker\\ui\\theme\\Type.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
@@ -32,12 +32,12 @@
       ],
       "file_count": 6,
       "file_list": [
-        "com\\github\\sceneren\\album\\AlbumMediaFilterExtensions.kt",
-        "com\\github\\sceneren\\album\\App.kt",
-        "com\\github\\sceneren\\album\\MainActivity.kt",
-        "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
-        "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
-        "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
+        "com\\github\\sceneren\\photopicker\\AlbumMediaFilterExtensions.kt",
+        "com\\github\\sceneren\\photopicker\\App.kt",
+        "com\\github\\sceneren\\photopicker\\MainActivity.kt",
+        "com\\github\\sceneren\\photopicker\\ui\\theme\\Color.kt",
+        "com\\github\\sceneren\\photopicker\\ui\\theme\\Theme.kt",
+        "com\\github\\sceneren\\photopicker\\ui\\theme\\Type.kt"
       ],
       "resource_dirs": [
         {
@@ -114,7 +114,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "app\\src\\main\\java/\n└── com/  (6个文件)\n    └── github/  (6个文件)\n        └── sceneren/  (6个文件)\n            └── album/  (6个文件)",
+      "tree": "app\\src\\main\\java/\n└── com/  (6个文件)\n    └── github/  (6个文件)\n        └── sceneren/  (6个文件)\n            └── photopicker/  (6个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -388,13 +388,14 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 72,
+          "file_count": 73,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCaptureType.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraConfig.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraLauncher.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumCameraPermissionRequestFactory.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCompressionConfig.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCompressionPolicy.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCompressionStatus.kt",
@@ -468,13 +469,14 @@
           ]
         }
       ],
-      "file_count": 72,
+      "file_count": 73,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCaptureType.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraConfig.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraLauncher.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumCameraPermissionRequestFactory.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCompressionConfig.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCompressionPolicy.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCompressionStatus.kt",
@@ -553,7 +555,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (72个文件)\n    └── github/  (72个文件)\n        └── sceneren/  (72个文件)\n            └── album/  (72个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (73个文件)\n    └── github/  (73个文件)\n        └── sceneren/  (73个文件)\n            └── album/  (73个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",
@@ -954,13 +956,14 @@
       "source_dirs": [
         {
           "root": "album-ui-compose\\src\\main\\java",
-          "file_count": 7,
+          "file_count": 8,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPicker.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerAppearance.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
           ],
@@ -969,13 +972,14 @@
           ]
         }
       ],
-      "file_count": 7,
+      "file_count": 8,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPicker.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerAppearance.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
       ],
@@ -1013,7 +1017,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (7个文件)\n    └── github/  (7个文件)\n        └── sceneren/  (7个文件)\n            └── album/  (7个文件)",
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (8个文件)\n    └── github/  (8个文件)\n        └── sceneren/  (8个文件)\n            └── album/  (8个文件)",
       "dependencies": [
         {
           "name": "album-api",
