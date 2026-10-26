@@ -31,6 +31,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
@@ -46,6 +47,7 @@ import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
+import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.MediaAccessStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
@@ -137,7 +139,8 @@ class AlbumPickerActivity : ComponentActivity() {
         val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
         session = client.openSession(config, sessionId)
 
-        photoPicker = api.registerPhotoPicker(this, config.mediaFilter, maxSelectionCount = null) {
+        photoPicker = api.registerPhotoPicker(this, config.mediaFilter, maxSelectionCount = null) { result ->
+            if (result is PhotoPickResult.Failed) showMessage(getString(R.string.auv_selection_failed))
             refreshContent()
         }
         cameraLauncher = client.registerCamera(this, session.sessionId) { result ->
@@ -252,6 +255,11 @@ class AlbumPickerActivity : ComponentActivity() {
             ::toggleMedia,
         )
         grid.adapter = ConcatAdapter(actionAdapter, cameraAdapter, mediaAdapter)
+        val retryButton = findViewById<Button>(R.id.auv_picker_retry)
+        retryButton.setOnClickListener { mediaAdapter.retry() }
+        mediaAdapter.addLoadStateListener { states ->
+            retryButton.isVisible = states.refresh is LoadState.Error || states.append is LoadState.Error
+        }
         directoryAdapter = DirectoryAdapter(imageLoader, ::selectDirectory)
         directoryList.layoutManager = LinearLayoutManager(this)
         directoryList.adapter = directoryAdapter

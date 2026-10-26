@@ -28,7 +28,7 @@ internal fun resolveAlbumMediaSpecialFormat(
     if (normalizedMimeType == GIF_MIME_TYPE || displayName.hasExtension("gif")) {
         return AlbumMediaSpecialFormat.GIF
     }
-    if (xmp.isMotionPhotoXmp() || displayName.isMotionPhotoFileName(normalizedMimeType)) {
+    if (xmp.isMotionPhotoXmp(normalizedMimeType)) {
         return AlbumMediaSpecialFormat.MOTION_PHOTO
     }
     return AlbumMediaSpecialFormat.NONE
@@ -38,13 +38,12 @@ private fun String?.hasExtension(extension: String): Boolean =
     this?.substringAfterLast('.', missingDelimiterValue = "")
         ?.equals(extension, ignoreCase = true) == true
 
-private fun String?.isMotionPhotoFileName(mimeType: String?): Boolean =
-    mimeType == JPEG_MIME_TYPE && this?.startsWith(MOTION_PHOTO_FILE_PREFIX, ignoreCase = true) == true
-
-private fun ByteArray?.isMotionPhotoXmp(): Boolean {
+private fun ByteArray?.isMotionPhotoXmp(mimeType: String?): Boolean {
+    if (mimeType != JPEG_MIME_TYPE && mimeType != HEIC_MIME_TYPE && mimeType != HEIF_MIME_TYPE) return false
     if (this == null || isEmpty()) return false
     val metadata = toString(StandardCharsets.UTF_8)
-    return MOTION_PHOTO_XMP_MARKERS.any(metadata::contains)
+    return MOTION_PHOTO_XMP_ATTRIBUTE.containsMatchIn(metadata) ||
+        MOTION_PHOTO_XMP_ELEMENT.containsMatchIn(metadata)
 }
 
 private const val SPECIAL_FORMAT_GIF = 1
@@ -52,10 +51,13 @@ private const val SPECIAL_FORMAT_MOTION_PHOTO = 2
 private const val SPECIAL_FORMAT_ANIMATED_WEBP = 3
 private const val GIF_MIME_TYPE = "image/gif"
 private const val JPEG_MIME_TYPE = "image/jpeg"
-private const val MOTION_PHOTO_FILE_PREFIX = "MVIMG_"
-private val MOTION_PHOTO_XMP_MARKERS = listOf(
-    "MotionPhoto=\"1\"",
-    "MotionPhoto>1<",
-    "MicroVideo=\"1\"",
-    "MicroVideo>1<",
+private const val HEIC_MIME_TYPE = "image/heic"
+private const val HEIF_MIME_TYPE = "image/heif"
+private val MOTION_PHOTO_XMP_ATTRIBUTE = Regex(
+    "(?:^|[\\s:<])(?:MotionPhoto|MicroVideo)(?:Version)?\\s*=\\s*(['\\\"]?)1\\1(?:\\s|/?>)",
+    RegexOption.IGNORE_CASE,
+)
+private val MOTION_PHOTO_XMP_ELEMENT = Regex(
+    "<(?:[\\w.-]+:)?(?:MotionPhoto|MicroVideo)(?:Version)?\\s*>\\s*1\\s*</",
+    RegexOption.IGNORE_CASE,
 )

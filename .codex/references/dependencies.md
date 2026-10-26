@@ -5,7 +5,11 @@
 ```mermaid
 graph TD
     App[":app — host UI"] --> Api[":album-api — reusable data library"]
-    App --> Compose["Compose / Material3 / Paging Compose"]
+    App --> ComposeUI[":album-ui-compose"]
+    App --> ViewUI[":album-ui-view"]
+    ComposeUI --> Api
+    ViewUI --> Api
+    ComposeUI --> Compose["Compose / Material3 / Paging Compose"]
     App --> Coil["Coil image, GIF, video"]
     Api --> Activity["AndroidX Activity Result"]
     Api --> Paging["Paging Runtime"]
@@ -15,7 +19,9 @@ graph TD
 
 | Module | Type | Project dependencies | Compose enabled |
 |---|---|---|---|
-| `:app` | Android application | `:album-api` | yes |
+| `:app` | Android application | `:album-api`, `:album-ui-compose`, `:album-ui-view` | yes |
+| `:album-ui-compose` | Android library | `:album-api` | yes |
+| `:album-ui-view` | Android library | `:album-api` | no |
 | `:album-api` | Android library | none | no |
 
 ## Important Aliases
@@ -30,7 +36,7 @@ graph TD
 
 ## Rules
 
-- Dependency direction is one-way: `:app` to `:album-api`.
+- Dependency direction is one-way: `:app` to UI libraries and `:album-api`; both UI libraries depend on `:album-api`. Coil stays in the demo host.
 - Add dependencies through `gradle/libs.versions.toml` and use catalog aliases.
 - Keep Compose UI, Material3, Coil, permission-prompt libraries, and app-only utilities out of `:album-api`.
 - Regenerate `.codex/references/_scan.json` after module, dependency, or source-layout changes.

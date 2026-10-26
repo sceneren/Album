@@ -41,14 +41,37 @@ class AlbumMediaSpecialFormatTest {
     }
 
     @Test
-    fun legacyPixelFileNameRecognizesMotionPhoto() {
+    fun fileNameAloneDoesNotRecognizeMotionPhoto() {
         assertEquals(
-            AlbumMediaSpecialFormat.MOTION_PHOTO,
+            AlbumMediaSpecialFormat.NONE,
             resolveAlbumMediaSpecialFormat(null, "image/jpeg", "MVIMG_001.jpg", null),
         )
         assertEquals(
             AlbumMediaSpecialFormat.NONE,
             resolveAlbumMediaSpecialFormat(null, "image/png", "MVIMG_001.png", null),
+        )
+    }
+    @Test
+    fun motionXmpSupportsHeicElementsAndSingleQuotedAttributes() {
+        for (xmp in listOf("<rdf GCamera:MotionPhoto = '1' />", "<GCamera:MicroVideo> 1 </GCamera:MicroVideo>")) {
+            assertEquals(
+                AlbumMediaSpecialFormat.MOTION_PHOTO,
+                resolveAlbumMediaSpecialFormat(null, "image/heic", "image.heic", xmp.encodeToByteArray()),
+            )
+        }
+    }
+
+    @Test
+    fun disabledAndUnrelatedMetadataDoNotRecognizeMotionPhoto() {
+        for (xmp in listOf("<rdf GCamera:MotionPhoto='0' />", "<rdf NotMotionPhoto='1' />", "<rdf GCamera:MotionPhoto='10' />")) {
+            assertEquals(
+                AlbumMediaSpecialFormat.NONE,
+                resolveAlbumMediaSpecialFormat(null, "image/jpeg", "image.jpg", xmp.encodeToByteArray()),
+            )
+        }
+        assertEquals(
+            AlbumMediaSpecialFormat.NONE,
+            resolveAlbumMediaSpecialFormat(null, "image/png", "image.png", "<rdf MotionPhoto='1' />".encodeToByteArray()),
         )
     }
 }

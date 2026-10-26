@@ -18,6 +18,26 @@ import org.robolectric.annotation.Config
 @Config(sdk = [Build.VERSION_CODES.Q])
 class AlbumPickerSystemBarsTest {
     @Test
+    fun explicitIconStylesOverrideBackgroundLuminance() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = View(activity)
+        activity.setContentView(view)
+        val controller = WindowCompat.getInsetsController(activity.window, view)
+        val bars = AlbumPickerSystemBarController(activity.window, view)
+        bars.applyPickerStyle(
+            statusBarColor = Color.WHITE,
+            navigationBarColor = Color.BLACK,
+            darkStatusBarIcons = false,
+            darkNavigationBarIcons = true,
+            navigationBarContrastEnforced = true,
+        )
+        assertFalse(controller.isAppearanceLightStatusBars)
+        assertTrue(controller.isAppearanceLightNavigationBars)
+        assertTrue(activity.window.isNavigationBarContrastEnforced)
+        bars.restoreHostStyle()
+    }
+
+    @Test
     @Suppress("DEPRECATION")
     fun pickerStyleIsAppliedAndHostStyleIsRestored() {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()

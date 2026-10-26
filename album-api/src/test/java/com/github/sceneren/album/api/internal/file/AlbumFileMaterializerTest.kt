@@ -178,6 +178,39 @@ class AlbumFileMaterializerTest {
         assertTrue(cacheFiles(root).none { it.name.endsWith(".part") })
     }
 
+    @Test
+    fun oversizedImageIsRejectedWithoutLeavingCacheFiles() = runTest {
+        val source = sourceFile("oversized")
+        val root = externalRoot("oversized")
+        val result = runCatching { materializer(root).copy(request(source).copy(maxBytes = 2L)) }
+        assertTrue(result.isFailure)
+        assertTrue(cacheFiles(root).isEmpty())
+    }
+
+    @Test
+    fun unknownSizeIsLimitedDuringCopyAndPartialFileIsRemoved() = runTest {
+        val source = sourceFile("unknown size")
+        val root = externalRoot("unknown-size")
+        val result = runCatching {
+            materializer(root).copy(request(source).copy(sizeBytes = null, maxBytes = 2L))
+        }
+        assertTrue(result.isFailure)
+        assertTrue(cacheFiles(root).isEmpty())
+    }
+
+    @Test
+    fun exactLimitSucceedsAndSmallerLimitPreservesCompletedSharedCache() = runTest {
+        val source = sourceFile("cached")
+        val root = externalRoot("limited-cache")
+        val materializer = materializer(root)
+        val request = request(source).copy(sizeBytes = null)
+        val first = materializer.copy(request.copy(maxBytes = source.length()))
+        source.delete()
+        assertTrue(runCatching { materializer.copy(request.copy(maxBytes = 1L)) }.isFailure)
+        assertTrue(File(first.filePath).isFile)
+        assertTrue(materializer.copy(request).reused)
+    }
+
     private fun materializer(root: File) = AlbumFileMaterializer(
         context = context,
         resolver = context.contentResolver,

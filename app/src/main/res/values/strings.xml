@@ -21,4 +21,9 @@
     <string name="picker_selected_count">已保存 %1$d 项选择</string>
     <string name="picker_cancelled">已取消选择</string>
     <string name="picker_failed">选择失败：%1$s</string>
+    <string name="open_embedded_picker">打开嵌入式相册</string>
+    <string name="embedded_picker_title">宿主页面 · 选择照片</string>
+    <string name="embedded_picker_cancel">取消</string>
+    <string name="embedded_picker_preview">预览</string>
+    <string name="embedded_picker_confirm">确认(%1$d)</string>
 </resources>

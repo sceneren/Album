@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-08-07 18:21:02",
-  "new_scan_time": "2026-08-19 17:53:58",
+  "old_scan_time": "2026-08-19 17:53:58",
+  "new_scan_time": "2026-10-26 14:54:45",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -17,10 +17,10 @@
     "album-api": {
       "status": "changed",
       "files": {
-        "total_old": 72,
-        "total_new": 73,
+        "total_old": 73,
+        "total_new": 74,
         "added": [
-          "com\\github\\sceneren\\album\\api\\AlbumCameraPermissionRequestFactory.kt"
+          "com\\github\\sceneren\\album\\api\\internal\\database\\PreparedPickedMediaPagingSource.kt"
         ],
         "removed": []
       }
@@ -28,10 +28,11 @@
     "album-ui-compose": {
       "status": "changed",
       "files": {
-        "total_old": 7,
-        "total_new": 8,
+        "total_old": 8,
+        "total_new": 10,
         "added": [
-          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt"
+          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContent.kt",
+          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerState.kt"
         ],
         "removed": []
       }
@@ -40,23 +41,11 @@
       "status": "changed",
       "files": {
         "total_old": 6,
-        "total_new": 6,
+        "total_new": 7,
         "added": [
-          "com\\github\\sceneren\\photopicker\\AlbumMediaFilterExtensions.kt",
-          "com\\github\\sceneren\\photopicker\\App.kt",
-          "com\\github\\sceneren\\photopicker\\MainActivity.kt",
-          "com\\github\\sceneren\\photopicker\\ui\\theme\\Color.kt",
-          "com\\github\\sceneren\\photopicker\\ui\\theme\\Theme.kt",
-          "com\\github\\sceneren\\photopicker\\ui\\theme\\Type.kt"
+          "com\\github\\sceneren\\photopicker\\PhotoPickerImageFetcher.kt"
         ],
-        "removed": [
-          "com\\github\\sceneren\\album\\AlbumMediaFilterExtensions.kt",
-          "com\\github\\sceneren\\album\\App.kt",
-          "com\\github\\sceneren\\album\\MainActivity.kt",
-          "com\\github\\sceneren\\album\\ui\\theme\\Color.kt",
-          "com\\github\\sceneren\\album\\ui\\theme\\Theme.kt",
-          "com\\github\\sceneren\\album\\ui\\theme\\Type.kt"
-        ]
+        "removed": []
       }
     }
   }

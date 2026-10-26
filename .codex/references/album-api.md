@@ -12,7 +12,7 @@
 | Gradle path | `:album-api` |
 | Namespace | `com.github.sceneren.album.api` |
 | Min / compile SDK | 24 / 37 |
-| Main source files | 25 |
+| Main source files | 74 |
 | Compose / View Binding | disabled / disabled |
 
 ## Public API
@@ -31,7 +31,7 @@
 
 - Permission policy evaluates the requested media types by SDK level.
 - Full access uses `AndroidMediaStoreDataSource` and `MediaStoreMediaPagingSource` with deterministic offset paging.
-- Partial/denied access uses Room `picked_media`, ordered by selection order then URI.
+- Partial/denied access uses Room `picked_media`, ordered by selection order then URI. `PreparedPickedMediaPagingSource` prepares owned grants inside Paging loads so failures can be retried, without opening historical media content. Explicit reconciliation still verifies readability.
 - PARTIAL 刷新前通过 `syncPartialSelections` 将系统选定媒体写入同一 Room 表；系统记录不拥有可持久化 URI 授权。
 - Picker processing deduplicates and validates the whole batch, retains new read grants, reads metadata, and commits one Room transaction. Failures roll back newly acquired grants best-effort.
 - 相机拍摄成功后会立即写入同一持久列表；DENIED/PARTIAL 下可在后续会话中继续分页展示，已完成拍摄不会在取消当前会话时删除。
@@ -49,3 +49,8 @@
 - Never add Compose/UI/rendering dependencies or app resources.
 - Do not request runtime permissions; report access and let the host decide when to prompt.
 - Keep URIs as the durable media identity and release only grants marked as library-owned.
+
+## Result and format handling
+
+- Image materialization enforces a 256 MiB limit before and during streaming copies; partial files are removed on failure/cancellation, completed shared caches are retained.
+- Special-format resolution uses provider codes or XMP rather than motion-photo filename prefixes. Picker metadata fallback reads at most 1 MiB for JPEG/HEIC/HEIF.

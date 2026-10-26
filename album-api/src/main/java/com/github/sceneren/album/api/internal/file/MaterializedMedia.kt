@@ -16,7 +16,16 @@ internal data class MaterializedMedia(
     val reused: Boolean,
 )
 
-/** Metadata needed to identify and materialize one selected media item. */
+/**
+ * 识别并复制一项所选媒体所需的元数据。
+ * @property uri 原始内容地址。
+ * @property displayName 原始显示名称。
+ * @property mimeType 原始 MIME。
+ * @property sizeBytes 提供方声明的字节数。
+ * @property generationModified MediaStore 世代版本。
+ * @property dateModifiedEpochSeconds 最后修改秒数。
+ * @property maxBytes 复制前及复制期间执行的字节上限；null 表示不限制。
+ */
 internal data class MaterializationRequest(
     val uri: Uri,
     val displayName: String?,
@@ -24,4 +33,5 @@ internal data class MaterializationRequest(
     val sizeBytes: Long?,
     val generationModified: Long? = null,
     val dateModifiedEpochSeconds: Long? = null,
+    val maxBytes: Long? = null,
 )

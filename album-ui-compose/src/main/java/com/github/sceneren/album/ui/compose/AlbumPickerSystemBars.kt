@@ -14,20 +14,40 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
+/**
+ * 完整页面的系统栏样式。颜色为空时跟随工具栏；图标明暗为空时由背景亮度决定。
+ * @property darkStatusBarIcons true 使用深色状态栏图标，false 使用浅色图标。
+ * @property darkNavigationBarIcons true 使用深色导航栏图标（API 26+）。
+ * @property navigationBarContrastEnforced 是否让系统为三键导航栏强制提供对比度（API 29+）。
+ */
+data class AlbumPickerSystemBarStyle(
+    @param:ColorInt val statusBarColor: Int? = null,
+    @param:ColorInt val navigationBarColor: Int? = null,
+    val darkStatusBarIcons: Boolean? = null,
+    val darkNavigationBarIcons: Boolean? = null,
+    val navigationBarContrastEnforced: Boolean = false,
+)
+
 /** 在选择器显示期间同步系统栏，并在退出组合时恢复宿主 Window。 */
 @Composable
 internal fun AlbumPickerSystemBars(
     @ColorInt statusBarColor: Int,
     @ColorInt navigationBarColor: Int,
+    darkStatusBarIcons: Boolean? = null,
+    darkNavigationBarIcons: Boolean? = null,
+    navigationBarContrastEnforced: Boolean = false,
 ) {
     val view = LocalView.current
-    DisposableEffect(view, statusBarColor, navigationBarColor) {
+    DisposableEffect(view, statusBarColor, navigationBarColor, darkStatusBarIcons, darkNavigationBarIcons, navigationBarContrastEnforced) {
         val window = view.context.findActivity()?.window
         if (window == null || view.isInEditMode) {
             onDispose {}
         } else {
             val systemBars = AlbumPickerSystemBarController(window, view)
-            systemBars.applyPickerStyle(statusBarColor, navigationBarColor)
+            systemBars.applyPickerStyle(
+                statusBarColor, navigationBarColor, darkStatusBarIcons,
+                darkNavigationBarIcons, navigationBarContrastEnforced,
+            )
             onDispose { systemBars.restoreHostStyle() }
         }
     }
@@ -58,14 +78,17 @@ internal class AlbumPickerSystemBarController(
     internal fun applyPickerStyle(
         @ColorInt statusBarColor: Int,
         @ColorInt navigationBarColor: Int,
+        darkStatusBarIcons: Boolean? = null,
+        darkNavigationBarIcons: Boolean? = null,
+        navigationBarContrastEnforced: Boolean = false,
     ) {
         window.statusBarColor = statusBarColor
         window.navigationBarColor = navigationBarColor
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.isNavigationBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = navigationBarContrastEnforced
         }
-        insetsController.isAppearanceLightStatusBars = statusBarColor.isLightColor()
-        insetsController.isAppearanceLightNavigationBars = navigationBarColor.isLightColor()
+        insetsController.isAppearanceLightStatusBars = darkStatusBarIcons ?: statusBarColor.isLightColor()
+        insetsController.isAppearanceLightNavigationBars = darkNavigationBarIcons ?: navigationBarColor.isLightColor()
     }
 
     @Suppress("DEPRECATION")

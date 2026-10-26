@@ -108,12 +108,16 @@ class AlbumApiTest {
     }
 
     @Test
-    /** 验证 `persistedPickerFeedRemovesDeletedMediaBeforePaging` 所描述的场景。 */
-    fun persistedPickerFeedRemovesDeletedMediaBeforePaging() = runTest {
+    /**
+     * 验证无相册权限时保留有效单图授权，移除已撤销授权，且分页不打开历史图片。
+     * @return 无返回值，断言分页数据及内容读取次数。
+     */
+    fun persistedPickerFeedOnlyRemovesRevokedGrantsBeforePaging() = runTest {
         permissions.result = MediaAccessStatus.DENIED
-        pickedStore.seed(entity("keep", ownsGrant = false))
-        pickedStore.seed(entity("deleted", ownsGrant = false))
-        accessChecker.readable += uri("keep")
+        pickedStore.seed(entity("keep", ownsGrant = true))
+        pickedStore.seed(entity("deleted", ownsGrant = true))
+        grants.persisted += uri("keep")
+        accessChecker.failOnRead = true
 
         val items = api.getMediaFeed(AlbumMediaFilter.IMAGES)
             .pagingData
@@ -121,6 +125,22 @@ class AlbumApiTest {
 
         assertEquals(listOf(uri("keep")), items.map(AlbumMedia::uri))
         assertEquals(listOf("content://picker/keep"), pickedStore.rows.keys.toList())
+    }
+
+    @Test
+    /**
+     * 验证复用外部持久授权与非持久记录都不触发首屏文件读取。
+     * @return 无返回值，断言外部授权条目与本地记录仍可分页展示。
+     */
+    fun persistedPickerFeedDoesNotProbeNonOwnedContent() = runTest {
+        pickedStore.seed(entity("external", ownsGrant = false))
+        pickedStore.seed(entity("local", ownsGrant = false))
+        grants.persisted += uri("external")
+        accessChecker.failOnRead = true
+
+        val items = api.getMediaFeed().pagingData.asSnapshot()
+
+        assertEquals(2, items.size)
     }
 
     @Test
@@ -537,9 +557,13 @@ class AlbumApiTest {
     /** 负责 `FakeUriAccessChecker` 相关的数据与行为。 */
     private class FakeUriAccessChecker : UriAccessChecker {
         val readable = mutableSetOf<Uri>()
+        var failOnRead = false
 
         /** 判断 `canRead` 条件是否成立。 */
-        override fun canRead(uri: Uri): Boolean = uri in readable
+        override fun canRead(uri: Uri): Boolean {
+            check(!failOnRead) { "Paging must not open historical media" }
+            return uri in readable
+        }
     }
 
     /** 负责 `FakeUriMetadataReader` 相关的数据与行为。 */

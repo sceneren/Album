@@ -14,6 +14,8 @@ import coil3.video.VideoFrameDecoder
 import com.github.sceneren.album.ui.compose.AlbumImageLoader as ComposeImageLoader
 import com.github.sceneren.album.ui.compose.AlbumImageTarget as ComposeImageTarget
 import com.github.sceneren.album.ui.compose.AlbumUi as ComposeUi
+import com.github.sceneren.album.api.AlbumMediaSource
+import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.ui.view.AlbumImageLoader as ViewImageLoader
 import com.github.sceneren.album.ui.view.AlbumImageTarget as ViewImageTarget
@@ -36,7 +38,12 @@ class App : Application() {
                     media: AlbumMedia,
                     target: ViewImageTarget,
                 ) {
-                    imageView.load(media.uri, imageLoader)
+                    imageView.load(media.uri, imageLoader) {
+                        if (media.source == AlbumMediaSource.PHOTO_PICKER &&
+                            media.mediaType == AlbumMediaType.IMAGE) {
+                            fetcherFactory(PhotoPickerImageFetcher.Factory())
+                        }
+                    }
                 }
 
                 /** 清理 `clear` 对应的数据或资源。 */
@@ -47,16 +54,18 @@ class App : Application() {
         )
         ComposeUi.setImageLoader { media, target ->
             val isGridThumbnail = target == ComposeImageTarget.GRID_THUMBNAIL
-            val model = if (isGridThumbnail) {
-                val sizeResolver = rememberDrawScopeSizeResolver()
-                remember(media.uri, media.dateModifiedEpochSeconds, sizeResolver) {
-                    ImageRequest.Builder(this)
-                        .data(media.uri)
-                        .size(sizeResolver)
-                        .build()
-                }
-            } else {
-                media.uri
+            val sizeResolver = if (isGridThumbnail) rememberDrawScopeSizeResolver() else null
+            val model = remember(media, sizeResolver) {
+                ImageRequest.Builder(this)
+                    .data(media.uri)
+                    .apply {
+                        if (sizeResolver != null) size(sizeResolver)
+                        if (media.source == AlbumMediaSource.PHOTO_PICKER &&
+                            media.mediaType == AlbumMediaType.IMAGE) {
+                            fetcherFactory(PhotoPickerImageFetcher.Factory())
+                        }
+                    }
+                    .build()
             }
             rememberAsyncImagePainter(
                 model = model,

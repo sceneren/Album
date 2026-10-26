@@ -10,6 +10,7 @@ import androidx.paging.map
 import com.github.sceneren.album.api.internal.database.AlbumDatabaseFactory
 import com.github.sceneren.album.api.internal.database.PickedMediaDraft
 import com.github.sceneren.album.api.internal.database.PickedMediaEntity
+import com.github.sceneren.album.api.internal.database.PreparedPickedMediaPagingSource
 import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import com.github.sceneren.album.api.internal.database.RoomPickedMediaStore
 import com.github.sceneren.album.api.internal.database.toAlbumMedia
@@ -31,8 +32,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -92,7 +91,7 @@ class AlbumApi internal constructor(
 
     /**
      * 为 [mediaFilter] 创建冷启动分页媒体流；使用 MediaStore 时同时应用 [bucketId]。
-     * 持久化选择器数据流会在分页开始前移除不可访问的 URI 记录。
+     * 持久化分页仅清理已丢失的持久授权，不逐张打开历史媒体；整理失败通过 Paging 重试。
      */
     fun getMediaFeed(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -119,17 +118,17 @@ class AlbumApi internal constructor(
                 )
             }.flow
 
-            else -> flow {
-                withContext(ioDispatcher) {
-                    reconcilePersistedSelectionsInternal()
-                }
-                emitAll(
-                    Pager(config) {
-                        pickedStore.pagingSource(mediaFilter)
-                    }.flow.map { pagingData ->
-                        pagingData.map(PickedMediaEntity::toAlbumMedia)
+            else -> Pager(config) {
+                PreparedPickedMediaPagingSource(
+                    prepare = {
+                        withContext(ioDispatcher) {
+                            reconcilePersistedSelectionsInternal(verifyContent = false)
+                        }
                     },
+                    createSource = { pickedStore.pagingSource(mediaFilter) },
                 )
+            }.flow.map { pagingData ->
+                pagingData.map(PickedMediaEntity::toAlbumMedia)
             }
         }
         return AlbumMediaFeed(
@@ -242,15 +241,15 @@ class AlbumApi internal constructor(
         reconcilePersistedSelectionsInternal()
     }
 
-    /** 执行 `reconcilePersistedSelectionsInternal` 方法定义的处理。 */
-    private suspend fun reconcilePersistedSelectionsInternal(): Int {
+    /** 整理授权；仅在显式维护时检查内容，避免分页启动触发云端图片下载。 */
+    private suspend fun reconcilePersistedSelectionsInternal(verifyContent: Boolean = true): Int {
         val persistedUris = grantManager.persistedReadUris()
         var removedCount = 0
         pickedStore.all().forEach { item ->
             val uri = item.uri.toUri()
             val hasPersistedGrant = uri in persistedUris
-            val stale = !uriAccessChecker.canRead(uri) ||
-                (item.ownsPersistableGrant && !hasPersistedGrant)
+            val stale = (item.ownsPersistableGrant && !hasPersistedGrant) ||
+                (verifyContent && !uriAccessChecker.canRead(uri))
             if (stale) {
                 val removed = pickedStore.remove(item.uri) ?: return@forEach
                 if (removed.ownsPersistableGrant && hasPersistedGrant) {

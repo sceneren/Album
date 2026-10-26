@@ -3,6 +3,7 @@ package com.github.sceneren.album.api
 import android.net.Uri
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,6 +15,51 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 /** 验证 `AlbumPickerClientResultTest` 覆盖的行为。 */
 class AlbumPickerClientResultTest {
+    @Test
+    fun selectionChangesOnlyCopyFinalSelectionOnConfirmation() = kotlinx.coroutines.runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val outputRoot = File(context.cacheDir, "selection-output")
+        val sources = List(3) { index ->
+            File.createTempFile("album-selection-$index", ".jpg", context.cacheDir).apply {
+                writeText("image-$index")
+            }
+        }
+        val client = AlbumPickerClient(context, externalRootOverride = outputRoot)
+        val session = client.openSession(
+            AlbumPickerConfig(AlbumMediaFilter.IMAGES, maxSelectionCount = 3),
+        )
+        assertFalse(outputRoot.exists())
+
+        client.toggleSelection(session.sessionId, sources[0].asMedia()).getOrThrow()
+        client.toggleSelection(session.sessionId, sources[1].asMedia()).getOrThrow()
+        client.toggleSelection(session.sessionId, sources[0].asMedia()).getOrThrow()
+        assertEquals(setOf(Uri.fromFile(sources[1])), client.snapshot(session.sessionId).selectedUris)
+        assertFalse("Selection changes must not copy media", outputRoot.exists())
+
+        val result = client.confirm(session.sessionId).getOrThrow()
+
+        assertEquals(listOf(Uri.fromFile(sources[1])), result.items.map { it.originalUri })
+        assertEquals("image-1", File(result.items.single().filePath).readText())
+        assertEquals(1, outputRoot.walkTopDown().count { it.isFile })
+    }
+
+    @Test
+    fun cancellingSelectionDoesNotCreateMediaCopies() = kotlinx.coroutines.runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val outputRoot = File(context.cacheDir, "cancel-output")
+        val source = File.createTempFile("album-cancel", ".jpg", context.cacheDir).apply {
+            writeText("original")
+        }
+        val client = AlbumPickerClient(context, externalRootOverride = outputRoot)
+        val session = client.openSession(AlbumPickerConfig(AlbumMediaFilter.IMAGES, maxSelectionCount = 1))
+
+        client.toggleSelection(session.sessionId, source.asMedia()).getOrThrow()
+        client.cancel(session.sessionId)
+
+        assertFalse(outputRoot.exists())
+        assertEquals("original", source.readText())
+    }
+
     @Test
     /** 验证 `confirmationReturnsCopiedPhotoPickerPathForEverySelectedFile` 所描述的场景。 */
     fun confirmationReturnsCopiedPhotoPickerPathForEverySelectedFile() {
@@ -93,4 +139,21 @@ class AlbumPickerClientResultTest {
         assertEquals(paths.first(), paths.last())
         assertEquals("reused", File(paths.first()).readText())
     }
+
+    private fun File.asMedia() = AlbumMedia(
+        uri = Uri.fromFile(this),
+        mediaType = AlbumMediaType.IMAGE,
+        displayName = name,
+        mimeType = "image/jpeg",
+        sizeBytes = length(),
+        dateAddedEpochSeconds = null,
+        dateModifiedEpochSeconds = null,
+        width = null,
+        height = null,
+        durationMillis = null,
+        bucketId = null,
+        bucketName = null,
+        selectedAtEpochMillis = null,
+        source = AlbumMediaSource.MEDIA_STORE,
+    )
 }

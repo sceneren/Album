@@ -51,7 +51,7 @@ class AlbumPickerClient internal constructor(
     fun snapshot(sessionId: String): AlbumPickerSessionSnapshot =
         requireNotNull(store.load(sessionId)) { "相册选择会话不存在: $sessionId" }.toSnapshot()
 
-    /** 更新 `toggleSelection` 对应的状态。 */
+    /** 仅更新选择状态，不读取或复制媒体内容；文件复制延迟到 [confirm]。 */
     suspend fun toggleSelection(
         sessionId: String,
         media: AlbumMedia,
@@ -180,7 +180,7 @@ class AlbumPickerClient internal constructor(
         }
     }
 
-    /** 执行 `confirm` 方法定义的处理。 */
+    /** 用户确认选择后，仅复制最终选中项并按配置压缩；列表读取和勾选操作不得调用此方法。 */
     suspend fun confirm(sessionId: String): Result<AlbumPickerResult> = runCatching {
         withContext(Dispatchers.IO) {
             val state = requireState(sessionId)
@@ -194,6 +194,7 @@ class AlbumPickerClient internal constructor(
                         mimeType = selection.mimeType,
                         sizeBytes = selection.sizeBytes,
                         dateModifiedEpochSeconds = selection.dateModifiedEpochSeconds,
+                        maxBytes = if (selection.mediaType == AlbumMediaType.IMAGE) MAX_IMAGE_BYTES else null,
                     )
                 },
             )
@@ -311,6 +312,8 @@ class AlbumPickerClient internal constructor(
         const val CAMERA_DIRECTORY = "camera"
         /** 表示 `LUBAN_DIRECTORY` 对应的数据。 */
         const val LUBAN_DIRECTORY = "luban"
+        /** 单张图片复制上限，避免异常提供方耗尽应用存储。 */
+        const val MAX_IMAGE_BYTES = 256L * 1024 * 1024
         const val MILLIS_PER_SECOND = 1_000L
     }
 }

@@ -32,4 +32,5 @@
     <string name="auv_media_badge_long_image">长图</string>
     <string name="auv_media_badge_live_photo">实况</string>
     <string name="auv_video_duration">视频时长 %1$s</string>
+    <string name="auv_load_failed_retry">加载失败，点击重试</string>
 </resources>

@@ -10,16 +10,20 @@ import android.webkit.MimeTypeMap
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/** Materializes selected content URIs as reusable app-owned files. */
+/** 将所选内容 URI 复制为可复用的应用私有文件。 */
 internal class AlbumFileMaterializer(
     context: Context,
     private val resolver: ContentResolver,
@@ -38,6 +42,10 @@ internal class AlbumFileMaterializer(
     private suspend fun copyOnIo(request: MaterializationRequest): MaterializedMedia {
         val root = externalRoot ?: throw IOException("App-specific external storage is unavailable")
         val metadata = resolveSourceMetadata(request)
+        if (request.maxBytes != null && metadata.sizeBytes != null &&
+            metadata.sizeBytes > request.maxBytes) {
+            throw IOException("Selected media exceeds the allowed size")
+        }
         val cacheKey = cacheKey(request.uri, metadata)
         val directory = File(File(root, PHOTO_PICKER_DIRECTORY), cacheKey.take(SHARD_LENGTH)).apply {
             if (!isDirectory && !mkdirs() && !isDirectory) {
@@ -52,12 +60,15 @@ internal class AlbumFileMaterializer(
         }
     }
 
-    private fun materializeLocked(
+    private suspend fun materializeLocked(
         request: MaterializationRequest,
         metadata: SourceMetadata,
         target: File,
     ): MaterializedMedia {
         if (isReusable(target, metadata.sizeBytes)) {
+            if (request.maxBytes != null && target.length() > request.maxBytes) {
+                throw IOException("Selected media exceeds the allowed size")
+            }
             return target.toMaterializedMedia(request.uri, reused = true)
         }
 
@@ -65,7 +76,11 @@ internal class AlbumFileMaterializer(
         return try {
             openInput(request.uri).use { input ->
                 FileOutputStream(temporary).use { output ->
-                    input.copyTo(output, BUFFER_SIZE)
+                    copyWithLimit(
+                        input = input,
+                        output = output,
+                        maxBytes = request.maxBytes,
+                    )
                     output.fd.sync()
                 }
             }
@@ -74,7 +89,8 @@ internal class AlbumFileMaterializer(
             }
 
             // Another writer outside this process may have committed while this copy was running.
-            if (isReusable(target, metadata.sizeBytes)) {
+            if (isReusable(target, metadata.sizeBytes) &&
+                (request.maxBytes == null || target.length() <= request.maxBytes)) {
                 temporary.delete()
                 return target.toMaterializedMedia(request.uri, reused = true)
             }
@@ -88,6 +104,32 @@ internal class AlbumFileMaterializer(
         } catch (failure: Throwable) {
             temporary.delete()
             throw failure
+        }
+    }
+
+    /**
+     * 将输入流复制到临时文件，并在写入前执行可选硬上限。
+     * @param input 原始媒体输入流。
+     * @param output 临时文件输出流。
+     * @param maxBytes 最大允许字节数；null 表示不限制。
+     * @return 实际复制字节数。
+     */
+    private suspend fun copyWithLimit(
+        input: InputStream,
+        output: OutputStream,
+        maxBytes: Long?,
+    ): Long {
+        val buffer = ByteArray(BUFFER_SIZE)
+        var total = 0L
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val count = input.read(buffer)
+            if (count < 0) return total
+            total += count
+            if (maxBytes != null && total > maxBytes) {
+                throw IOException("Selected media exceeds the allowed size")
+            }
+            output.write(buffer, 0, count)
         }
     }
 

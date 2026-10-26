@@ -25,6 +25,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.github.sceneren.album.ui.compose.AlbumPickerContent
+import com.github.sceneren.album.ui.compose.AlbumPickerSystemBarStyle
+import com.github.sceneren.album.ui.compose.rememberAlbumPickerState
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraConfig
 import com.github.sceneren.album.api.AlbumCompressionConfig
@@ -55,6 +59,7 @@ class MainActivity : ComponentActivity() {
             var requestPermissionEnable by rememberSaveable { mutableStateOf(true) }
             var cameraEnable by rememberSaveable { mutableStateOf(true) }
             var showComposePicker by rememberSaveable { mutableStateOf(false) }
+            var showEmbeddedPicker by rememberSaveable { mutableStateOf(false) }
             val pickerConfig = buildRequest(
                 mediaFilter = selectedFilter,
                 compressionEnabled = compressionEnabled,
@@ -63,7 +68,17 @@ class MainActivity : ComponentActivity() {
             )
             AlbumTheme {
                 Scaffold { paddingValues ->
-                    DemoScreen(
+                    if (showEmbeddedPicker) {
+                        EmbeddedPickerDemo(
+                            config = pickerConfig.copy(
+                                maxSelectionCount = 9,
+                                singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
+                            ),
+                            onResult = { lastResult = it; showEmbeddedPicker = false },
+                            onCancel = { showEmbeddedPicker = false },
+                            modifier = Modifier.padding(paddingValues),
+                        )
+                    } else DemoScreen(
                         filter = selectedFilter,
                         compressionEnabled = compressionEnabled,
                         requestPermissionEnable = requestPermissionEnable,
@@ -85,6 +100,7 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         onOpenCompose = { showComposePicker = true },
+                        onOpenEmbedded = { showEmbeddedPicker = true },
                         modifier = Modifier.padding(paddingValues),
                     )
                 }
@@ -96,6 +112,12 @@ class MainActivity : ComponentActivity() {
                             showComposePicker = false
                         },
                         onCancel = { showComposePicker = false },
+                        systemBarStyle = AlbumPickerSystemBarStyle(
+                            statusBarColor = android.graphics.Color.BLACK,
+                            navigationBarColor = android.graphics.Color.BLACK,
+                            darkStatusBarIcons = false,
+                            darkNavigationBarIcons = false,
+                        ),
                     )
                 }
             }
@@ -136,6 +158,7 @@ private fun DemoScreen(
     onCamera: (Boolean) -> Unit,
     onOpenView: () -> Unit,
     onOpenCompose: () -> Unit,
+    onOpenEmbedded: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -175,6 +198,7 @@ private fun DemoScreen(
             Button(onClick = onOpenView) { Text("打开 View 相册") }
             Button(onClick = onOpenCompose) { Text("打开 Compose 相册") }
         }
+        Button(onClick = onOpenEmbedded) { Text(stringResource(R.string.open_embedded_picker)) }
         Spacer(Modifier.height(8.dp))
         result?.let { pickerResult ->
             Text("已返回 ${pickerResult.items.size} 项", style = MaterialTheme.typography.titleMedium)
@@ -185,6 +209,42 @@ private fun DemoScreen(
                 items(pickerResult.items) { item ->
                     Text("${item.mediaType}: ${item.filePath}", style = MaterialTheme.typography.bodySmall)
                 }
+            }
+        }
+    }
+}
+
+/** 宿主提供标题及操作栏，内容组件只占 Column 分配的区域。 */
+@Composable
+private fun EmbeddedPickerDemo(
+    config: AlbumPickerConfig,
+    onResult: (AlbumPickerResult) -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state = rememberAlbumPickerState()
+    Column(modifier.fillMaxSize()) {
+        Text(
+            stringResource(R.string.embedded_picker_title),
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.titleLarge,
+        )
+        AlbumPickerContent(
+            config = config,
+            state = state,
+            onResult = onResult,
+            onCancel = onCancel,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+        )
+        Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = state::cancel, enabled = !state.isProcessing) {
+                Text(stringResource(R.string.embedded_picker_cancel))
+            }
+            Button(onClick = state::preview, enabled = state.canConfirm) {
+                Text(stringResource(R.string.embedded_picker_preview))
+            }
+            Button(onClick = state::confirm, enabled = state.canConfirm) {
+                Text(stringResource(R.string.embedded_picker_confirm, state.selectedItems.size))
             }
         }
     }

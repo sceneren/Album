@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,8 +48,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -61,9 +63,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -76,6 +80,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -92,6 +97,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -155,11 +161,13 @@ data class AlbumPickerAnimation(
 }
 
 /**
- * 可嵌入宿主界面的 Compose 相册选择器。
+ * 完整的 Compose 相册页面，包含标题栏、内容区、底部确认栏及页面转场。
  *
  * 宿主负责导航，并应在退出动画完成后的 [onResult] 或 [onCancel] 回调中移除此组件。
  * [animation] 为 null 或 [AlbumPickerAnimation.None] 时不播放打开和关闭动画。
  * [imageLoader] 为 null 时，使用通过 [AlbumUi] 配置的进程级图片加载器。
+ * [systemBarStyle] 控制系统栏颜色和图标明暗；null 表示完全由宿主管理。
+ * 需要嵌入已有页面时使用 [AlbumPickerContent]。
  */
 @Composable
 fun AlbumPicker(
@@ -170,15 +178,49 @@ fun AlbumPicker(
     appearance: AlbumPickerAppearance = AlbumPickerAppearance(),
     imageLoader: AlbumImageLoader? = null,
     animation: AlbumPickerAnimation? = AlbumPickerAnimation.Default,
+    systemBarStyle: AlbumPickerSystemBarStyle? = AlbumPickerSystemBarStyle(),
+) {
+    key(config) {
+        AlbumPickerHost(
+            config = config,
+            onResult = onResult,
+            onCancel = onCancel,
+            modifier = modifier,
+            appearance = appearance,
+            imageLoader = imageLoader,
+            animation = animation,
+            systemBarStyle = systemBarStyle,
+        )
+    }
+}
+
+/** 两种展示模式共用同一选择、权限、拍摄及结果处理流程。 */
+@Composable
+internal fun AlbumPickerHost(
+    config: AlbumPickerConfig,
+    onResult: (AlbumPickerResult) -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier,
+    appearance: AlbumPickerAppearance,
+    imageLoader: AlbumImageLoader?,
+    animation: AlbumPickerAnimation?,
+    embedded: Boolean = false,
+    state: AlbumPickerState? = null,
+    systemBarStyle: AlbumPickerSystemBarStyle? = null,
 ) {
     val context = LocalContext.current
     val applicationContext = context.applicationContext
     val toolbarColor = appearance.toolbarColor ?: colorResource(R.color.auc_toolbar).toArgb()
     val bottomBarColor = appearance.bottomBarColor ?: colorResource(R.color.auc_bottom).toArgb()
-    AlbumPickerSystemBars(
-        statusBarColor = toolbarColor,
-        navigationBarColor = bottomBarColor,
-    )
+    if (!embedded && systemBarStyle != null) {
+        AlbumPickerSystemBars(
+            statusBarColor = systemBarStyle.statusBarColor ?: toolbarColor,
+            navigationBarColor = systemBarStyle.navigationBarColor ?: bottomBarColor,
+            darkStatusBarIcons = systemBarStyle.darkStatusBarIcons,
+            darkNavigationBarIcons = systemBarStyle.darkNavigationBarIcons,
+            navigationBarContrastEnforced = systemBarStyle.navigationBarContrastEnforced,
+        )
+    }
     val areMediaPermissionsDeclared = remember(applicationContext, config.mediaFilter) {
         AlbumMediaPermissionRequestFactory.areDeclaredInManifest(
             context = applicationContext,
@@ -273,13 +315,19 @@ fun AlbumPicker(
     /** 执行 `handlePhotoPickerResult` 方法定义的处理。 */
     fun handlePhotoPickerResult(uris: List<Uri>) {
         scope.launch {
-            val result = api.processPhotoPickerResult(
-                uris = uris,
-                mediaFilter = config.mediaFilter,
-                maxSelectionCount = null,
-            )
-            isPhotoPickerInFlight = false
-            if (result is PhotoPickResult.Selected) refreshContentNow()
+            try {
+                val result = api.processPhotoPickerResult(
+                    uris = uris,
+                    mediaFilter = config.mediaFilter,
+                    maxSelectionCount = null,
+                )
+                if (result is PhotoPickResult.Failed) {
+                    showMessage(applicationContext.getString(R.string.auc_selection_failed))
+                }
+            } finally {
+                isPhotoPickerInFlight = false
+                refreshContent()
+            }
         }
     }
 
@@ -538,7 +586,25 @@ fun AlbumPicker(
             messageToast?.cancel()
         }
     }
-    BackHandler(onBack = ::cancelPicker)
+    val stateOwner = remember { Any() }
+    DisposableEffect(state, stateOwner) {
+        state?.attach(stateOwner)
+        onDispose { state?.detach(stateOwner) }
+    }
+    SideEffect {
+        state?.update(
+            token = stateOwner,
+            selected = session.selectedItems,
+            processing = isConfirming || isCancelling || isFinished,
+            callbacks = AlbumPickerState.Actions(
+                confirm = ::confirmSelection,
+                preview = ::showSelectedPreview,
+                cancel = ::cancelPicker,
+                refresh = ::refreshContent,
+            ),
+        )
+    }
+    BackHandler(enabled = !embedded || preview != null, onBack = ::cancelPicker)
     LaunchedEffect(
         isContentRefreshPending,
         visibilityState.currentState,
@@ -572,7 +638,7 @@ fun AlbumPicker(
         }
     }
 
-    Box(modifier) {
+    Box(modifier.clipToBounds()) {
         InteractionBlocker(blockBack = false)
         AnimatedVisibility(
             visibleState = visibilityState,
@@ -582,6 +648,8 @@ fun AlbumPicker(
         ) {
             Box(Modifier.fillMaxSize()) {
                 AlbumPickerScreen(
+                    embedded = embedded,
+                    systemBarStyle = systemBarStyle,
                     modifier = Modifier.fillMaxSize(),
                     config = config,
                     appearance = appearance,
@@ -618,7 +686,7 @@ fun AlbumPicker(
                     onConfirm = ::confirmSelection,
                     isConfirming = isConfirming,
                 )
-                if (isCancelling || isFinished) InteractionBlocker()
+                if (isCancelling || isFinished) InteractionBlocker(blockBack = !embedded)
             }
         }
     }
@@ -728,6 +796,8 @@ private const val PREVIEW_PREFETCH_DISTANCE = 3
 @Composable
 /** 执行 `AlbumPickerScreen` 方法定义的处理。 */
 private fun AlbumPickerScreen(
+    embedded: Boolean,
+    systemBarStyle: AlbumPickerSystemBarStyle?,
     modifier: Modifier,
     config: AlbumPickerConfig,
     appearance: AlbumPickerAppearance,
@@ -784,221 +854,259 @@ private fun AlbumPickerScreen(
     BoxWithConstraints(modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Black,
+            contentWindowInsets = if (embedded) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
             topBar = {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(toolbar)
-                        .statusBarsPadding()
-                        .height(dimensionResource(R.dimen.auc_toolbar_height))
-                        .padding(
-                            horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
-                            vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                        ),
-                ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.align(Alignment.CenterStart),
+                if (embedded) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .height(dimensionResource(R.dimen.auc_toolbar_height))
+                            .background(toolbar),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            painter = painterResource(
-                                appearance.backIconRes ?: R.drawable.auc_ic_album_back,
-                            ),
-                            contentDescription = stringResource(R.string.auc_back),
-                            tint = Color.Unspecified,
-                        )
-                    }
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal = dimensionResource(
-                                    R.dimen.auc_toolbar_title_margin_horizontal,
-                                ),
-                            )
-                            .align(Alignment.Center),
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(dimensionResource(R.dimen.auc_toolbar_back_size))
-                                .clickable(enabled = accessStatus == MediaAccessStatus.FULL) {
-                                    directoryMenu = !directoryMenu
-                                },
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
+                        TextButton(
+                            onClick = { directoryMenu = !directoryMenu },
+                            enabled = accessStatus == MediaAccessStatus.FULL,
+                            modifier = Modifier.weight(1f),
                         ) {
                             Text(
-                                text = title,
+                                title,
+                                modifier = Modifier.weight(1f, fill = false),
                                 color = primary,
-                                textAlign = TextAlign.Center,
-                                fontSize = dimensionSp(R.dimen.auc_toolbar_title_text_size),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             if (accessStatus == MediaAccessStatus.FULL) {
-                                Icon(
-                                    painter = painterResource(
-                                        appearance.folderIconRes
-                                            ?: R.drawable.auc_ic_album_expand_more,
-                                    ),
-                                    contentDescription = null,
-                                    tint = if (appearance.folderIconRes == null) {
-                                        primary
-                                    } else {
-                                        Color.Unspecified
-                                    },
-                                    modifier = Modifier
-                                        .padding(
-                                            start = dimensionResource(
-                                                R.dimen.auc_toolbar_title_arrow_margin_start,
-                                            ),
-                                        )
-                                        .size(
-                                            dimensionResource(
-                                                R.dimen.auc_toolbar_title_arrow_size,
-                                            ),
-                                        )
-                                        .graphicsLayer {
-                                            rotationZ = if (directoryMenu) 180f else 0f
-                                        },
-                                )
+                                Icon(painterResource(R.drawable.auc_ic_album_expand_more), null, tint = primary)
+                            }
+                        }
+                        if (shouldShowPermissionUpgradeButton(
+                                config.showPermissionUpgrade, areMediaPermissionsDeclared, accessStatus,
+                            )) {
+                            TextButton(onClick = onRequestPermission) {
+                                Text(stringResource(R.string.auc_manage_access), color = primary)
                             }
                         }
                     }
+                } else {
                     Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .height(dimensionResource(R.dimen.auc_toolbar_back_size))
-                            .clickable(onClick = onBack)
+                        Modifier
+                            .fillMaxWidth()
+                            .background(systemBarStyle?.statusBarColor?.toColor() ?: toolbar)
+                            .then(if (embedded) Modifier else Modifier.statusBarsPadding())
+                            .background(toolbar)
+                            .height(dimensionResource(R.dimen.auc_toolbar_height))
                             .padding(
-                                start = dimensionResource(
-                                    R.dimen.auc_toolbar_cancel_padding_start,
-                                ),
-                                end = dimensionResource(
-                                    R.dimen.auc_toolbar_cancel_padding_end,
-                                ),
+                                horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                                vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
                             ),
-                        contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            text = stringResource(R.string.auc_cancel),
-                            color = primary,
-                            fontSize = dimensionSp(R.dimen.auc_toolbar_cancel_text_size),
-                        )
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.align(Alignment.CenterStart),
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    appearance.backIconRes ?: R.drawable.auc_ic_album_back,
+                                ),
+                                contentDescription = stringResource(R.string.auc_back),
+                                tint = Color.Unspecified,
+                            )
+                        }
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = dimensionResource(
+                                        R.dimen.auc_toolbar_title_margin_horizontal,
+                                    ),
+                                )
+                                .align(Alignment.Center),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(dimensionResource(R.dimen.auc_toolbar_back_size))
+                                    .clickable(enabled = accessStatus == MediaAccessStatus.FULL) {
+                                        directoryMenu = !directoryMenu
+                                    },
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = primary,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = dimensionSp(R.dimen.auc_toolbar_title_text_size),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (accessStatus == MediaAccessStatus.FULL) {
+                                    Icon(
+                                        painter = painterResource(
+                                            appearance.folderIconRes
+                                                ?: R.drawable.auc_ic_album_expand_more,
+                                        ),
+                                        contentDescription = null,
+                                        tint = if (appearance.folderIconRes == null) {
+                                            primary
+                                        } else {
+                                            Color.Unspecified
+                                        },
+                                        modifier = Modifier
+                                            .padding(
+                                                start = dimensionResource(
+                                                    R.dimen.auc_toolbar_title_arrow_margin_start,
+                                                ),
+                                            )
+                                            .size(
+                                                dimensionResource(
+                                                    R.dimen.auc_toolbar_title_arrow_size,
+                                                ),
+                                            )
+                                            .graphicsLayer {
+                                                rotationZ = if (directoryMenu) 180f else 0f
+                                            },
+                                    )
+                                }
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .height(dimensionResource(R.dimen.auc_toolbar_back_size))
+                                .clickable(onClick = onBack)
+                                .padding(
+                                    start = dimensionResource(
+                                        R.dimen.auc_toolbar_cancel_padding_start,
+                                    ),
+                                    end = dimensionResource(
+                                        R.dimen.auc_toolbar_cancel_padding_end,
+                                    ),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.auc_cancel),
+                                color = primary,
+                                fontSize = dimensionSp(R.dimen.auc_toolbar_cancel_text_size),
+                            )
+                        }
                     }
                 }
             },
             bottomBar = {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(bottom)
-                        .navigationBarsPadding(),
-                ) {
-                    if (shouldShowPermissionUpgradeButton(
-                            isAllowedByHost = config.showPermissionUpgrade,
-                            arePermissionsDeclared = areMediaPermissionsDeclared,
-                            accessStatus = accessStatus,
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(dimensionResource(R.dimen.auc_permission_height))
-                                .background(colorResource(R.color.auc_permission_background))
-                                .clickable(onClick = onRequestPermission)
-                                .padding(
-                                    horizontal = dimensionResource(
-                                        R.dimen.auc_permission_padding_horizontal,
-                                    ),
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.auc_ic_permission_info),
-                                contentDescription = null,
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(
-                                    dimensionResource(R.dimen.auc_permission_info_size),
-                                ),
-                            )
-                            Spacer(
-                                Modifier.width(
-                                    dimensionResource(R.dimen.auc_permission_text_margin_horizontal),
-                                ),
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.auc_denied_permission,
-                                    applicationName,
-                                ),
-                                modifier = Modifier.weight(1f),
-                                color = colorResource(R.color.auc_permission_text),
-                                fontSize = dimensionSp(R.dimen.auc_permission_text_size),
-                                lineHeight = dimensionSp(R.dimen.auc_permission_text_line_height),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Spacer(
-                                Modifier.width(
-                                    dimensionResource(R.dimen.auc_permission_text_margin_horizontal),
-                                ),
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.auc_ic_permission_chevron),
-                                contentDescription = null,
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(
-                                    dimensionResource(R.dimen.auc_permission_chevron_size),
-                                ),
-                            )
-                        }
-                    }
-                    Row(
+                if (!embedded) {
+                    Column(
                         Modifier
                             .fillMaxWidth()
-                            .height(dimensionResource(R.dimen.auc_bottom_height))
-                            .padding(vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical)),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .background(systemBarStyle?.navigationBarColor?.toColor() ?: bottom)
+                            .then(if (embedded) Modifier else Modifier.navigationBarsPadding())
+                            .background(bottom),
                     ) {
-                        // 预览按钮
-                        TextButton(
-                            onClick = onSelectedPreview,
-                            modifier = Modifier
-                                .height(dimensionResource(R.dimen.auc_bottom_button_height))
-                                .defaultMinSize(
-                                    minWidth = dimensionResource(
-                                        R.dimen.auc_bottom_min_button_width,
+                        if (shouldShowPermissionUpgradeButton(
+                                isAllowedByHost = config.showPermissionUpgrade,
+                                arePermissionsDeclared = areMediaPermissionsDeclared,
+                                accessStatus = accessStatus,
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(dimensionResource(R.dimen.auc_permission_height))
+                                    .background(colorResource(R.color.auc_permission_background))
+                                    .clickable(onClick = onRequestPermission)
+                                    .padding(
+                                        horizontal = dimensionResource(
+                                            R.dimen.auc_permission_padding_horizontal,
+                                        ),
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.auc_ic_permission_info),
+                                    contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(
+                                        dimensionResource(R.dimen.auc_permission_info_size),
+                                    ),
+                                )
+                                Spacer(
+                                    Modifier.width(
+                                        dimensionResource(R.dimen.auc_permission_text_margin_horizontal),
+                                    ),
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.auc_denied_permission,
+                                        applicationName,
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                    color = colorResource(R.color.auc_permission_text),
+                                    fontSize = dimensionSp(R.dimen.auc_permission_text_size),
+                                    lineHeight = dimensionSp(R.dimen.auc_permission_text_line_height),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(
+                                    Modifier.width(
+                                        dimensionResource(R.dimen.auc_permission_text_margin_horizontal),
+                                    ),
+                                )
+                                Icon(
+                                    painter = painterResource(R.drawable.auc_ic_permission_chevron),
+                                    contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(
+                                        dimensionResource(R.dimen.auc_permission_chevron_size),
+                                    ),
+                                )
+                            }
+                        }
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(dimensionResource(R.dimen.auc_bottom_height))
+                                .padding(vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical)),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // 预览按钮
+                            TextButton(
+                                onClick = onSelectedPreview,
+                                modifier = Modifier
+                                    .height(dimensionResource(R.dimen.auc_bottom_button_height))
+                                    .defaultMinSize(
+                                        minWidth = dimensionResource(
+                                            R.dimen.auc_bottom_min_button_width,
+                                        ),
+                                    ),
+                                shape = RectangleShape,
+                                contentPadding = PaddingValues(
+                                    horizontal = dimensionResource(
+                                        R.dimen.auc_bottom_padding_horizontal,
                                     ),
                                 ),
-                            shape = RectangleShape,
-                            contentPadding = PaddingValues(
-                                horizontal = dimensionResource(
-                                    R.dimen.auc_bottom_padding_horizontal,
-                                ),
-                            ),
-                        ) {
-                            Text(
-                                text = if (session.selectedItems.isEmpty()) {
-                                    stringResource(R.string.auc_preview)
-                                } else {
-                                    stringResource(
-                                        R.string.auc_preview_count,
-                                        session.selectedItems.size,
-                                    )
-                                },
-                                color = primary,
-                                fontSize = dimensionSp(R.dimen.auc_bottom_done_text_size),
+                            ) {
+                                Text(
+                                    text = if (session.selectedItems.isEmpty()) {
+                                        stringResource(R.string.auc_preview)
+                                    } else {
+                                        stringResource(
+                                            R.string.auc_preview_count,
+                                            session.selectedItems.size,
+                                        )
+                                    },
+                                    color = primary,
+                                    fontSize = dimensionSp(R.dimen.auc_bottom_done_text_size),
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                            // 完成按钮
+                            SelectionFinishAction(
+                                selectedCount = session.selectedItems.size,
+                                appearance = appearance,
+                                onConfirm = onConfirm,
                             )
                         }
-                        Spacer(Modifier.weight(1f))
-                        // 完成按钮
-                        SelectionFinishAction(
-                            selectedCount = session.selectedItems.size,
-                            appearance = appearance,
-                            onConfirm = onConfirm,
-                        )
                     }
                 }
             },
@@ -1061,6 +1169,14 @@ private fun AlbumPickerScreen(
                             )
                         }
                     }
+                    if (pagingItems?.loadState?.refresh is LoadState.Error ||
+                        pagingItems?.loadState?.append is LoadState.Error) {
+                        item(key = "load_error", span = { GridItemSpan(maxLineSpan) }) {
+                            TextButton(onClick = { pagingItems.retry() }) {
+                                Text(stringResource(R.string.auc_load_failed_retry))
+                            }
+                        }
+                    }
                     if (pagingItems != null) {
                         items(
                             count = pagingItems.itemCount,
@@ -1112,7 +1228,7 @@ private fun AlbumPickerScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
+                    .then(if (embedded) Modifier else Modifier.statusBarsPadding())
                     .padding(top = dimensionResource(R.dimen.auc_toolbar_height))
                     .background(colorResource(R.color.auc_directory_scrim))
                     .clickable { directoryMenu = false },
@@ -1121,7 +1237,7 @@ private fun AlbumPickerScreen(
         Box(
             Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
+                .then(if (embedded) Modifier else Modifier.statusBarsPadding())
                 .padding(top = dimensionResource(R.dimen.auc_toolbar_height)),
         ) {
             if (directoryPanelTransition.currentState || directoryPanelTransition.targetState) {
@@ -1150,6 +1266,8 @@ private fun AlbumPickerScreen(
         preview?.let { state ->
             key(state.id) {
                 AlbumPreviewScreen(
+                    embedded = embedded,
+                    systemBarStyle = systemBarStyle,
                     state = state,
                     session = session,
                     appearance = appearance,
@@ -1161,7 +1279,7 @@ private fun AlbumPickerScreen(
                 )
             }
         }
-        if (isConfirming) ProcessingOverlay()
+        if (isConfirming) ProcessingOverlay(blockBack = !embedded)
     }
 }
 
@@ -1261,6 +1379,8 @@ private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200
 @Composable
 /** 执行 `AlbumPreviewScreen` 方法定义的处理。 */
 private fun AlbumPreviewScreen(
+    embedded: Boolean,
+    systemBarStyle: AlbumPickerSystemBarStyle?,
     state: PreviewState,
     session: AlbumPickerSessionSnapshot,
     appearance: AlbumPickerAppearance,
@@ -1299,8 +1419,9 @@ private fun AlbumPreviewScreen(
         Box(
             Modifier
                 .fillMaxWidth()
+                .background(systemBarStyle?.statusBarColor?.toColor() ?: toolbar)
+                .then(if (embedded) Modifier else Modifier.statusBarsPadding())
                 .background(toolbar)
-                .statusBarsPadding()
                 .height(dimensionResource(R.dimen.auc_toolbar_height))
                 .padding(
                     horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
@@ -1368,6 +1489,7 @@ private fun AlbumPreviewScreen(
                     contentDescription = media.displayName,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit,
+                    scrollBar = null,
                 )
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1395,26 +1517,29 @@ private fun AlbumPreviewScreen(
                 }
             }
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(bottom)
-                .navigationBarsPadding()
-                .height(dimensionResource(R.dimen.auc_bottom_height))
-                .padding(
-                    start = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
-                    top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                    end = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
-                    bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                ),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            SelectionFinishAction(
-                selectedCount = session.selectedItems.size,
-                appearance = appearance,
-                onConfirm = onConfirm,
-            )
+        if (!embedded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(systemBarStyle?.navigationBarColor?.toColor() ?: bottom)
+                    .then(if (embedded) Modifier else Modifier.navigationBarsPadding())
+                    .background(bottom)
+                    .height(dimensionResource(R.dimen.auc_bottom_height))
+                    .padding(
+                        start = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                        top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                        end = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                        bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                    ),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SelectionFinishAction(
+                    selectedCount = session.selectedItems.size,
+                    appearance = appearance,
+                    onConfirm = onConfirm,
+                )
+            }
         }
     }
 }
@@ -1637,14 +1762,24 @@ private fun BoxScope.MediaInfo(media: AlbumMedia) {
             text = label,
             color = colorResource(R.color.auc_primary),
             fontSize = dimensionSp(R.dimen.auc_media_label_text_size),
+            lineHeight = dimensionSp(R.dimen.auc_media_label_text_size),
+            style = LocalTextStyle.current.copy(
+                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both,
+                ),
+            ),
             maxLines = 1,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(dimensionResource(R.dimen.auc_media_label_margin))
-                .wrapContentHeight()
-                .padding(horizontal = dimensionResource(R.dimen.auc_media_label_padding_horizontal), vertical = 2.dp)
+                .wrapContentSize()
                 .background(colorResource(R.color.auc_media_badge_background), labelShape)
-                .wrapContentHeight(Alignment.CenterVertically),
+                .padding(
+                    horizontal = dimensionResource(R.dimen.auc_media_label_padding_horizontal),
+                    vertical = dimensionResource(R.dimen.auc_media_label_padding_vertical),
+                ),
         )
     }
 }
@@ -1715,8 +1850,8 @@ private const val UNKNOWN_VIDEO_DURATION = "--:--"
 
 @Composable
 /** 执行 `ProcessingOverlay` 方法定义的处理。 */
-private fun ProcessingOverlay() {
-    BackHandler { }
+private fun ProcessingOverlay(blockBack: Boolean) {
+    BackHandler(enabled = blockBack) { }
     val interactionSource = remember { MutableInteractionSource() }
     val spinnerTransition = rememberInfiniteTransition(label = "processingSpinner")
     val spinnerRotation by spinnerTransition.animateFloat(

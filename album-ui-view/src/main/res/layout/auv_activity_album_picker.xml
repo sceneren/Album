@@ -70,6 +70,13 @@
                 android:textSize="15sp" />
         </RelativeLayout>
 
+        <Button
+            android:id="@+id/auv_picker_retry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/auv_load_failed_retry"
+            android:visibility="gone" />
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/auv_picker_grid"
             android:layout_width="match_parent"
