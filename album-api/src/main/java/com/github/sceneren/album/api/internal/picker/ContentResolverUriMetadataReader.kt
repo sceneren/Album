@@ -2,20 +2,25 @@ package com.github.sceneren.album.api.internal.picker
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.provider.MediaStore
 import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.resolveAlbumMediaSpecialFormat
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 
 /** 负责 `ContentResolverUriMetadataReader` 相关的数据与行为。 */
 internal class ContentResolverUriMetadataReader(
     private val resolver: ContentResolver,
+    private val metadataCache: MutableMap<Uri, PickedUriMetadata> = ConcurrentHashMap(),
 ) : UriMetadataReader {
+    private val mimeCache = ConcurrentHashMap<Uri, String>()
+
     /** 执行 `requiredType` 方法定义的处理。 */
     override fun requiredType(uri: Uri): AlbumMediaType {
-        val mimeType = resolver.getType(uri)
-            ?: throw IllegalArgumentException("Unable to determine media MIME type")
+        metadataCache[uri]?.let { cached -> return cached.mediaType }
+        val mimeType = resolveMimeType(uri)
         return when {
             mimeType.startsWith(IMAGE_MIME_PREFIX) -> AlbumMediaType.IMAGE
             mimeType.startsWith(VIDEO_MIME_PREFIX) -> AlbumMediaType.VIDEO
@@ -24,23 +29,36 @@ internal class ContentResolverUriMetadataReader(
     }
 
     /** 获取 `read` 所需的数据。 */
-    override fun read(uri: Uri, type: AlbumMediaType): PickedUriMetadata {
-        val mimeType = resolver.getType(uri)
-            ?: throw IllegalArgumentException("Unable to determine media MIME type")
-        val optional = resolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type, mimeType)
+    override fun read(
+        uri: Uri,
+        type: AlbumMediaType,
+        allowStreamProbe: Boolean,
+    ): PickedUriMetadata {
+        metadataCache[uri]?.let { cached ->
+            if (cached.mediaType == type) return cached
         }
+        val mimeType = resolveMimeType(uri)
+        val optional = queryOptionalMetadata(uri, type, mimeType)
 
-        val resolvedSpecialFormat = optional?.specialFormat?.takeIf { it != AlbumMediaSpecialFormat.NONE }
-            ?: resolveAlbumMediaSpecialFormat(
+        val resolvedSpecialFormat = when {
+            optional != null &&
+                (optional.specialFormat != AlbumMediaSpecialFormat.NONE || optional.hasProviderSpecialFormat) -> {
+                optional.specialFormat
+            }
+            else -> resolveAlbumMediaSpecialFormat(
                 specialFormatCode = null,
                 mimeType = mimeType,
                 displayName = optional?.displayName,
-                xmp = readMotionMetadataPrefix(
-                    uri = uri,
-                    mimeType = mimeType,
-                ),
+                xmp = if (allowStreamProbe) {
+                    readMotionMetadataPrefix(
+                        uri = uri,
+                        mimeType = mimeType,
+                    )
+                } else {
+                    null
+                },
             )
+        }
         return PickedUriMetadata(
             uri = uri,
             mediaType = type,
@@ -51,7 +69,35 @@ internal class ContentResolverUriMetadataReader(
             height = optional?.height,
             durationMillis = optional?.durationMillis,
             specialFormat = resolvedSpecialFormat,
-        )
+        ).also { resolved ->
+            metadataCache[uri] = resolved
+        }
+    }
+
+    private fun resolveMimeType(uri: Uri): String =
+        mimeCache[uri] ?: (resolver.getType(uri)?.also { mimeCache[uri] = it }
+            ?: throw IllegalArgumentException("Unable to determine media MIME type"))
+
+    private fun queryOptionalMetadata(
+        uri: Uri,
+        type: AlbumMediaType,
+        mimeType: String,
+    ): OptionalMetadata? {
+        val projected = try {
+            resolver.query(uri, METADATA_PROJECTION, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type, mimeType)
+            }
+        } catch (_: RuntimeException) {
+            null
+        }
+        if (projected != null) return projected
+        return try {
+            resolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type, mimeType)
+            }
+        } catch (_: RuntimeException) {
+            null
+        }
     }
 
     /**
@@ -109,5 +155,14 @@ internal class ContentResolverUriMetadataReader(
         const val METADATA_BUFFER_BYTES = 16 * 1024
         /** 实况标识兜底探测的最大读取字节数。 */
         const val MAX_METADATA_BYTES = 1024 * 1024
+        val METADATA_PROJECTION = arrayOf(
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.WIDTH,
+            MediaStore.MediaColumns.HEIGHT,
+            MediaStore.Video.VideoColumns.DURATION,
+            "_special_format",
+            "standard_mime_type_extension",
+        )
     }
 }

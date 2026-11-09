@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-10-26 14:54:45",
+  "scan_time": "2026-11-09 11:36:35",
   "module_count": 4,
   "modules": [
     {
@@ -390,7 +390,7 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 74,
+          "file_count": 66,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -421,15 +421,6 @@
             "com\\github\\sceneren\\album\\api\\PhotoPickFailure.kt",
             "com\\github\\sceneren\\album\\api\\PhotoPickResult.kt",
             "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabase.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabaseFactory.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDao.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDraft.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaEntity.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaExtensions.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaStore.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\PreparedPickedMediaPagingSource.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\database\\RoomPickedMediaStore.kt",
             "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
             "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
@@ -444,6 +435,7 @@
             "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaPermissionSnapshot.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\AlbumMediaFilterExtensions.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\AndroidPersistableGrantManager.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\picker\\AuthorizedMediaPagingSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriAccessChecker.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriMetadataReader.kt",
             "com\\github\\sceneren\\album\\api\\internal\\picker\\CursorExtensions.kt",
@@ -472,7 +464,7 @@
           ]
         }
       ],
-      "file_count": 74,
+      "file_count": 66,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -503,15 +495,6 @@
         "com\\github\\sceneren\\album\\api\\PhotoPickFailure.kt",
         "com\\github\\sceneren\\album\\api\\PhotoPickResult.kt",
         "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabase.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\AlbumDatabaseFactory.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDao.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaDraft.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaEntity.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaExtensions.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\PickedMediaStore.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\PreparedPickedMediaPagingSource.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\database\\RoomPickedMediaStore.kt",
         "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
         "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
@@ -526,6 +509,7 @@
         "com\\github\\sceneren\\album\\api\\internal\\permission\\MediaPermissionSnapshot.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\AlbumMediaFilterExtensions.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\AndroidPersistableGrantManager.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\picker\\AuthorizedMediaPagingSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriAccessChecker.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\ContentResolverUriMetadataReader.kt",
         "com\\github\\sceneren\\album\\api\\internal\\picker\\CursorExtensions.kt",
@@ -559,7 +543,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (74个文件)\n    └── github/  (74个文件)\n        └── sceneren/  (74个文件)\n            └── album/  (74个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (66个文件)\n    └── github/  (66个文件)\n        └── sceneren/  (66个文件)\n            └── album/  (66个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",
@@ -578,16 +562,6 @@
         },
         {
           "name": "libs.androidx.lifecycle.runtime.ktx",
-          "type": "implementation",
-          "external": true
-        },
-        {
-          "name": "libs.androidx.room.runtime",
-          "type": "implementation",
-          "external": true
-        },
-        {
-          "name": "libs.androidx.room.paging",
           "type": "implementation",
           "external": true
         },
@@ -613,11 +587,6 @@
         },
         {
           "name": "libs.androidx.paging.testing",
-          "type": "testImplementation",
-          "external": true
-        },
-        {
-          "name": "libs.androidx.room.testing",
           "type": "testImplementation",
           "external": true
         },
@@ -655,16 +624,6 @@
             "external": true
           },
           {
-            "name": "libs.androidx.room.runtime",
-            "type": "implementation",
-            "external": true
-          },
-          {
-            "name": "libs.androidx.room.paging",
-            "type": "implementation",
-            "external": true
-          },
-          {
             "name": "libs.kotlinx.coroutines.android",
             "type": "implementation",
             "external": true
@@ -686,11 +645,6 @@
           },
           {
             "name": "libs.androidx.paging.testing",
-            "type": "testImplementation",
-            "external": true
-          },
-          {
-            "name": "libs.androidx.room.testing",
             "type": "testImplementation",
             "external": true
           },
@@ -788,7 +742,7 @@
         },
         {
           "dir": "drawable",
-          "count": 15,
+          "count": 14,
           "files": [
             "auv_bg_directory_panel.xml",
             "auv_bg_media_badge.xml",
@@ -803,7 +757,13 @@
             "auv_ic_album_unchecked.xml",
             "auv_ic_album_video.xml",
             "auv_ic_permission_chevron.xml",
-            "auv_ic_permission_info.xml",
+            "auv_ic_permission_info.xml"
+          ]
+        },
+        {
+          "dir": "drawable-nodpi",
+          "count": 1,
+          "files": [
             "auv_progress_spinner.png"
           ]
         },
@@ -993,13 +953,8 @@
       ],
       "resource_dirs": [
         {
-          "dir": "anim",
-          "count": 0,
-          "files": []
-        },
-        {
           "dir": "drawable",
-          "count": 11,
+          "count": 10,
           "files": [
             "auc_ic_album_add.xml",
             "auc_ic_album_back.xml",
@@ -1010,7 +965,13 @@
             "auc_ic_album_unchecked.xml",
             "auc_ic_album_video.xml",
             "auc_ic_permission_chevron.xml",
-            "auc_ic_permission_info.xml",
+            "auc_ic_permission_info.xml"
+          ]
+        },
+        {
+          "dir": "drawable-nodpi",
+          "count": 1,
+          "files": [
             "auc_progress_spinner.png"
           ]
         },

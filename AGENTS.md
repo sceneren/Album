@@ -6,13 +6,13 @@ This project has completed Codex AI assistance initialization.
 ## Project
 
 - Name: Album
-- Platform: Android application
+- Platform: Android application & reusable libraries
 - Build system: Gradle Kotlin DSL
 - Language: Kotlin
-- UI: Jetpack Compose Material3 in host module only
-- Modules: `:app` host demo and reusable data-only Android Library `:album-api`
-- App package, namespace, and application id: `com.github.sceneren.album`
-- Library namespace: `com.github.sceneren.album.api`
+- UI: Android View (`:album-ui-view`) and Jetpack Compose Material3 (`:album-ui-compose` and `:app` host demo)
+- Modules: `:app` host demo, `:album-api` data-only Android Library, `:album-ui-view` View picker library, and `:album-ui-compose` Compose picker library
+- App package, namespace, and application id: `com.github.sceneren.photopicker`
+- Library namespaces: `com.github.sceneren.album.api`, `com.github.sceneren.album.ui.view`, `com.github.sceneren.album.ui.compose`
 - NDK/C++: no
 - References mode: full mode through `.codex/references/_scan.json`
 
@@ -22,7 +22,7 @@ Before changing code:
 
 1. Read `.codex/rules/project_rule.md`.
 2. Read `.codex/references/_scan.json`.
-3. Read the relevant reference file: `.codex/references/app.md` or `.codex/references/album-api.md`.
+3. Read the relevant reference file: `.codex/references/app.md`, `.codex/references/album-api.md`, `.codex/references/album-ui-view.md`, or `.codex/references/album-ui-compose.md`.
 4. Inspect the source files being changed.
 
 Do not invent APIs, modules, Gradle aliases, permissions, or resources. The source tree and references are the authority.

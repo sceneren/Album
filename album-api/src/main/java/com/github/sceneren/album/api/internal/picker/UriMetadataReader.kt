@@ -9,5 +9,9 @@ internal interface UriMetadataReader {
     fun requiredType(uri: Uri): AlbumMediaType
 
     /** 获取 `read` 所需的数据。 */
-    fun read(uri: Uri, type: AlbumMediaType): PickedUriMetadata
+    fun read(
+        uri: Uri,
+        type: AlbumMediaType,
+        allowStreamProbe: Boolean = true,
+    ): PickedUriMetadata
 }

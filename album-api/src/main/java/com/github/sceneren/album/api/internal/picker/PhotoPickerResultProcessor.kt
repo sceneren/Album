@@ -1,12 +1,11 @@
 package com.github.sceneren.album.api.internal.picker
 
 import android.net.Uri
+import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
+import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.PhotoPickFailure
 import com.github.sceneren.album.api.PhotoPickResult
-import com.github.sceneren.album.api.internal.database.PickedMediaDraft
-import com.github.sceneren.album.api.internal.database.PickedMediaStore
-import com.github.sceneren.album.api.internal.database.toAlbumMedia
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -14,7 +13,6 @@ import kotlinx.coroutines.sync.withLock
 internal class PhotoPickerResultProcessor(
     private val grantManager: PersistableGrantManager,
     private val metadataReader: UriMetadataReader,
-    private val store: PickedMediaStore,
     private val clockMillis: () -> Long = System::currentTimeMillis,
 ) {
     private val mutex = Mutex()
@@ -29,7 +27,7 @@ internal class PhotoPickerResultProcessor(
     }
 
     /** 执行 `processLocked` 方法定义的处理。 */
-    private suspend fun processLocked(
+    private fun processLocked(
         uris: List<Uri>,
         mediaFilter: AlbumMediaFilter,
         maxSelectionCount: Int?,
@@ -84,8 +82,11 @@ internal class PhotoPickerResultProcessor(
             )
         }
 
+        val allowStreamProbe = typedUris.size <= STREAM_PROBE_BATCH_LIMIT
         val metadata = try {
-            typedUris.map { (uri, type) -> metadataReader.read(uri, type) }
+            typedUris.map { (uri, type) ->
+                metadataReader.read(uri, type, allowStreamProbe = allowStreamProbe)
+            }
         } catch (exception: Exception) {
             exception.rethrowCancellationAfter { releaseNewGrants(newGrants) }
             releaseNewGrants(newGrants)
@@ -95,36 +96,12 @@ internal class PhotoPickerResultProcessor(
             )
         }
 
-        val newlyOwned = newGrants.toSet()
         val selectedAt = clockMillis()
-        val drafts = metadata.map { item ->
-            PickedMediaDraft(
-                uri = item.uri.toString(),
-                mediaType = item.mediaType.name,
-                displayName = item.displayName,
-                mimeType = item.mimeType,
-                sizeBytes = item.sizeBytes,
-                width = item.width,
-                height = item.height,
-                durationMillis = item.durationMillis,
-                specialFormat = item.specialFormat,
-                selectedAtEpochMillis = selectedAt,
-                ownsPersistableGrant = item.uri in newlyOwned,
-            )
+        val media = metadata.map { item ->
+            item.toAlbumMedia(selectedAtEpochMillis = selectedAt)
         }
 
-        val entities = try {
-            store.upsertBatch(drafts)
-        } catch (exception: Exception) {
-            exception.rethrowCancellationAfter { releaseNewGrants(newGrants) }
-            releaseNewGrants(newGrants)
-            return PhotoPickResult.Failed(
-                reason = PhotoPickFailure.DATABASE_WRITE_FAILED,
-                cause = exception,
-            )
-        }
-
-        return PhotoPickResult.Selected(entities.map { it.toAlbumMedia() })
+        return PhotoPickResult.Selected(media)
     }
 
     /** 清理 `releaseNewGrants` 对应的数据或资源。 */
@@ -138,4 +115,28 @@ internal class PhotoPickerResultProcessor(
         }
     }
 
+    private companion object {
+        /** 批量选择超过该阈值时不逐张打开输入流探测 XMP，仅使用游标元数据以保证大批量返回秒开。 */
+        const val STREAM_PROBE_BATCH_LIMIT = 5
+    }
 }
+
+internal fun PickedUriMetadata.toAlbumMedia(
+    selectedAtEpochMillis: Long?,
+): AlbumMedia = AlbumMedia(
+    uri = uri,
+    mediaType = mediaType,
+    displayName = displayName,
+    mimeType = mimeType,
+    sizeBytes = sizeBytes,
+    dateAddedEpochSeconds = null,
+    dateModifiedEpochSeconds = null,
+    width = width,
+    height = height,
+    durationMillis = durationMillis,
+    bucketId = null,
+    bucketName = null,
+    selectedAtEpochMillis = selectedAtEpochMillis,
+    source = AlbumMediaSource.PHOTO_PICKER,
+    specialFormat = specialFormat,
+)

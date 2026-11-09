@@ -23,6 +23,7 @@ import com.github.sceneren.album.api.AlbumMedia
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /** 使用 XML、ViewPager2 和 ZoomImageView 实现的全屏媒体预览。 */
 internal class AlbumPreviewDialog(
@@ -79,6 +80,7 @@ internal class AlbumPreviewDialog(
         }
     }
 
+    @Suppress("DEPRECATION")
     /** 执行 `show` 方法定义的处理。 */
     fun show() {
         dialog.window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
@@ -135,7 +137,10 @@ internal class AlbumPreviewDialog(
             adapter.itemAt(currentPosition)?.let(onToggleSelection)
         }
         doneAction.setOnClickListener {
-            if (selectedUris.isNotEmpty()) onConfirm()
+            if (selectedUris.isNotEmpty()) {
+                dismiss()
+                onConfirm()
+            }
         }
     }
 
@@ -225,7 +230,7 @@ internal class AlbumPreviewDialog(
 
         val hasSelection = selectedUris.isNotEmpty()
         selectedCount.visibility = if (hasSelection) View.VISIBLE else View.GONE
-        selectedCount.text = selectedUris.size.toString()
+        selectedCount.text = String.format(Locale.getDefault(), "%d", selectedUris.size)
         doneText.text = activity.getString(
             if (hasSelection) R.string.auv_done else R.string.auv_please_select,
         )

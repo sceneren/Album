@@ -1,0 +1,220 @@
+> Task :album-api:preBuild UP-TO-DATE
+> Task :album-api:preDebugBuild UP-TO-DATE
+> Task :album-api:generateDebugResources
+> Task :album-api:packageDebugResources
+> Task :album-api:processDebugNavigationResources
+> Task :album-ui-compose:preBuild UP-TO-DATE
+> Task :album-ui-compose:preDebugBuild UP-TO-DATE
+> Task :album-ui-compose:generateDebugResources
+> Task :album-api:javaPreCompileDebug
+> Task :album-ui-compose:packageDebugResources
+> Task :album-api:parseDebugLocalResources
+> Task :album-ui-compose:processDebugNavigationResources
+> Task :album-ui-view:preBuild UP-TO-DATE
+> Task :album-ui-view:preDebugBuild UP-TO-DATE
+> Task :album-ui-compose:javaPreCompileDebug
+> Task :album-ui-view:generateDebugResources
+> Task :album-ui-compose:parseDebugLocalResources
+> Task :album-ui-view:packageDebugResources
+> Task :album-api:generateDebugRFile
+> Task :album-ui-compose:generateDebugRFile
+> Task :album-ui-view:processDebugNavigationResources
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :album-ui-view:javaPreCompileDebug
+> Task :app:generateDebugResources
+> Task :album-ui-view:parseDebugLocalResources
+> Task :app:packageDebugResources
+> Task :album-ui-view:generateDebugRFile
+> Task :app:processDebugNavigationResources
+> Task :app:javaPreCompileDebug
+> Task :album-api:mapDebugSourceSetPaths
+> Task :app:parseDebugLocalResources
+> Task :album-ui-compose:mapDebugSourceSetPaths
+> Task :app:generateDebugRFile
+> Task :album-ui-view:mapDebugSourceSetPaths
+> Task :album-api:compileDebugLibraryResources
+> Task :album-ui-compose:compileDebugLibraryResources
+> Task :app:mapDebugSourceSetPaths
+> Task :album-api:writeDebugAarMetadata
+> Task :album-ui-view:writeDebugAarMetadata
+> Task :album-ui-compose:writeDebugAarMetadata
+> Task :album-ui-view:compileDebugLibraryResources
+> Task :app:compileDebugNavigationResources
+> Task :app:checkDebugAarMetadata
+> Task :app:createDebugCompatibleScreenManifests
+> Task :album-api:extractDeepLinksDebug
+> Task :album-ui-compose:extractDeepLinksDebug
+> Task :album-ui-view:extractDeepLinksDebug
+> Task :app:extractDeepLinksDebug
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestResources
+> Task :app:packageDebugAndroidTestResources
+> Task :app:processDebugAndroidTestNavigationResources
+> Task :album-api:generateDebugAssets UP-TO-DATE
+> Task :app:javaPreCompileDebugAndroidTest
+> Task :app:parseDebugAndroidTestLocalResources
+> Task :album-api:mergeDebugAssets
+> Task :album-ui-compose:generateDebugAssets UP-TO-DATE
+> Task :album-ui-compose:mergeDebugAssets
+> Task :album-ui-view:generateDebugAssets UP-TO-DATE
+> Task :app:generateDebugAndroidTestRFile
+> Task :album-ui-view:mergeDebugAssets
+> Task :app:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :app:mergeDebugResources
+> Task :album-ui-view:processDebugManifest
+> Task :album-ui-compose:processDebugManifest
+> Task :album-api:processDebugManifest
+> Task :app:mergeDebugAndroidTestAssets
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:compressDebugAndroidTestAssets
+> Task :app:generateDebugAndroidTestGlobalSynthetics
+> Task :app:desugarDebugAndroidTestFileDependencies
+> Task :app:checkDebugAndroidTestDuplicateClasses
+> Task :app:checkDebugAndroidTestAarMetadata
+> Task :album-api:compileDebugKotlin
+> Task :app:processDebugManifestForPackage
+> Task :album-api:compileDebugJavaWithJavac NO-SOURCE
+> Task :album-api:compressDebugJavaRes
+> Task :album-api:bundleLibCompileToJarDebug
+> Task :app:mergeExtDexDebugAndroidTest
+> Task :album-api:bundleLibRuntimeToDirDebug
+> Task :app:mapDebugAndroidTestSourceSetPaths
+> Task :app:compileDebugAndroidTestNavigationResources
+> Task :app:mergeDebugAndroidTestResources
+> Task :app:mergeDebugAndroidTestManifest
+> Task :app:processDebugAndroidTestManifest
+> Task :album-api:mergeDebugJniLibFolders
+> Task :album-api:mergeDebugNativeLibs NO-SOURCE
+> Task :album-ui-compose:mergeDebugJniLibFolders
+> Task :album-ui-compose:mergeDebugNativeLibs NO-SOURCE
+> Task :album-ui-compose:copyDebugJniLibsProjectOnly
+> Task :album-api:copyDebugJniLibsProjectOnly
+> Task :album-ui-view:mergeDebugJniLibFolders
+> Task :album-ui-view:mergeDebugNativeLibs NO-SOURCE
+> Task :album-ui-view:copyDebugJniLibsProjectOnly
+> Task :app:mergeDebugAndroidTestJniLibFolders
+> Task :app:mergeDebugJniLibFolders
+> Task :app:processDebugResources
+> Task :app:mergeDebugNativeLibs
+> Task :app:validateSigningDebugAndroidTest
+> Task :app:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :app:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :app:writeDebugAndroidTestSigningConfigVersions
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:processDebugAndroidTestResources
+> Task :album-api:bundleLibRuntimeToJarDebug
+> Task :album-api:checkDebugAarMetadata
+> Task :album-api:extractDebugAnnotations
+> Task :album-api:extractDeepLinksForAarDebug
+> Task :album-api:mergeDebugGeneratedProguardFiles
+> Task :album-api:mergeDebugConsumerProguardFiles
+> Task :album-api:prepareDebugArtProfile
+> Task :album-api:prepareLintJarForPublish
+> Task :album-api:createFullJarDebug
+> Task :album-api:preDebugAndroidTestBuild UP-TO-DATE
+> Task :album-api:writeDebugLintModelMetadata
+> Task :album-api:mergeDebugJavaResource
+> Task :album-api:extractProguardFiles
+> Task :album-api:syncDebugLibJars
+> Task :album-api:bundleDebugLocalLintAar
+> Task :album-api:generateDebugLintModel
+> Task :album-api:generateDebugAndroidTestLintModel
+> Task :album-api:preDebugUnitTestBuild UP-TO-DATE
+> Task :album-api:generateDebugUnitTestLintModel
+> Task :album-ui-compose:checkDebugAarMetadata
+> Task :album-ui-compose:extractDebugAnnotations
+> Task :album-ui-compose:extractDeepLinksForAarDebug
+> Task :album-ui-compose:prepareDebugArtProfile
+> Task :album-ui-compose:preDebugAndroidTestBuild UP-TO-DATE
+> Task :album-ui-compose:prepareLintJarForPublish
+> Task :album-ui-compose:writeDebugLintModelMetadata
+> Task :album-ui-compose:extractProguardFiles
+> Task :album-ui-compose:preDebugUnitTestBuild UP-TO-DATE
+> Task :album-ui-view:compileDebugKotlin
+> Task :album-ui-view:checkDebugAarMetadata
+> Task :album-ui-view:extractDebugAnnotations
+> Task :album-ui-view:compileDebugJavaWithJavac NO-SOURCE
+> Task :album-ui-view:compressDebugJavaRes
+> Task :album-ui-view:bundleLibCompileToJarDebug
+> Task :album-ui-view:extractDeepLinksForAarDebug
+> Task :album-ui-view:mergeDebugGeneratedProguardFiles
+> Task :album-ui-view:bundleLibRuntimeToJarDebug
+> Task :album-ui-view:mergeDebugConsumerProguardFiles
+> Task :album-ui-view:prepareDebugArtProfile
+> Task :album-ui-view:prepareLintJarForPublish
+> Task :album-ui-view:mergeDebugJavaResource
+> Task :album-ui-view:createFullJarDebug
+> Task :album-ui-view:syncDebugLibJars
+> Task :album-ui-view:bundleDebugLocalLintAar
+> Task :album-ui-view:preDebugAndroidTestBuild UP-TO-DATE
+> Task :album-ui-view:writeDebugLintModelMetadata
+> Task :album-ui-view:bundleLibRuntimeToDirDebug
+> Task :album-ui-view:extractProguardFiles
+> Task :album-ui-view:generateDebugLintModel
+> Task :album-ui-view:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:extractProguardFiles
+> Task :album-ui-view:generateDebugAndroidTestLintModel
+> Task :album-ui-view:generateDebugUnitTestLintModel
+> Task :album-api:lintAnalyzeDebugAndroidTest
+> Task :album-ui-compose:compileDebugKotlin
+> Task :album-ui-compose:compileDebugJavaWithJavac NO-SOURCE
+> Task :album-ui-compose:compressDebugJavaRes
+> Task :album-ui-compose:bundleLibCompileToJarDebug
+> Task :album-ui-compose:bundleLibRuntimeToDirDebug
+> Task :album-ui-view:lintAnalyzeDebugAndroidTest
+> Task :album-ui-compose:mergeDebugGeneratedProguardFiles
+> Task :album-ui-compose:mergeDebugConsumerProguardFiles
+> Task :album-ui-compose:mergeDebugJavaResource
+> Task :album-ui-compose:bundleLibRuntimeToJarDebug
+> Task :album-ui-compose:generateDebugLintModel
+> Task :album-ui-compose:syncDebugLibJars
+> Task :album-ui-compose:bundleDebugLocalLintAar
+> Task :album-ui-compose:createFullJarDebug
+> Task :album-ui-compose:generateDebugAndroidTestLintModel
+> Task :album-ui-compose:generateDebugUnitTestLintModel
+> Task :app:mergeLibDexDebugAndroidTest
+> Task :app:compileDebugKotlin
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:compressDebugJavaRes
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:generateDebugLintReportModel
+> Task :album-ui-view:lintAnalyzeDebugUnitTest
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:generateDebugUnitTestLintModel
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:compressDebugUnitTestJavaRes
+> Task :app:extractDebugUnitTestJavaRes
+> Task :app:compileDebugAndroidTestKotlin
+> Task :album-ui-compose:lintAnalyzeDebugAndroidTest
+> Task :album-api:lintAnalyzeDebugUnitTest
+> Task :album-api:lintAnalyzeDebug
+> Task :app:testDebugUnitTest
+> Task :app:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :app:compressDebugAndroidTestJavaRes
+> Task :app:mergeDebugAndroidTestJavaResource
+> Task :app:dexBuilderDebugAndroidTest
+> Task :app:mergeProjectDexDebugAndroidTest
+> Task :app:packageDebugAndroidTest
+> Task :app:createDebugAndroidTestApkListingFileRedirect
+> Task :app:assembleDebugAndroidTest
+> Task :album-ui-compose:lintAnalyzeDebugUnitTest
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+> Task :album-ui-view:lintAnalyzeDebug
+> Task :album-ui-compose:lintAnalyzeDebug
+> Task :app:lintAnalyzeDebug
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///D:/StudioProjects_lib/Album/app/build/reports/lint-results-debug.html
+Wrote SARIF report to file:///D:/StudioProjects_lib/Album/app/build/reports/lint-results-debug.sarif
+
+> Task :app:lintDebug
+
+BUILD SUCCESSFUL in 1m 58s
+180 actionable tasks: 180 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.2/userguide/configuration_cache_enabling.html

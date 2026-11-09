@@ -52,6 +52,7 @@ import com.github.sceneren.album.api.MediaAccessStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /** 基于 XML 布局的 View 全屏相册选择页。 */
@@ -96,6 +97,8 @@ class AlbumPickerActivity : ComponentActivity() {
     private var isConfirming = false
     private var isCameraPermissionRequestInFlight = false
     private var pendingCameraMediaType: AlbumMediaType? = null
+    private var suppressNextResumeRefresh = false
+    private var activeFeedSignature: FeedSignature? = null
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
     private var areMediaPermissionsDeclared = false
     private var directories: List<AlbumDirectory> = emptyList()
@@ -103,9 +106,10 @@ class AlbumPickerActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
+        suppressNextResumeRefresh = true
         lifecycleScope.launch {
             api.syncPartialSelections(config.mediaFilter)
-            refreshContent()
+            refreshContent(forceReloadFeed = true)
         }
     }
 
@@ -123,6 +127,9 @@ class AlbumPickerActivity : ComponentActivity() {
         val theme = intent.getIntExtra(AlbumPickerExtras.THEME, 0)
         if (theme != 0) setTheme(theme)
         super.onCreate(savedInstanceState)
+        pendingCameraMediaType = savedInstanceState
+            ?.getString(STATE_PENDING_CAMERA_MEDIA_TYPE)
+            ?.let { runCatching { AlbumMediaType.valueOf(it) }.getOrNull() }
         activityAnimation = AlbumPickerExtras.readAnimation(intent)
         applyActivityTransitions(activityAnimation)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -140,13 +147,17 @@ class AlbumPickerActivity : ComponentActivity() {
         session = client.openSession(config, sessionId)
 
         photoPicker = api.registerPhotoPicker(this, config.mediaFilter, maxSelectionCount = null) { result ->
+            suppressNextResumeRefresh = true
             if (result is PhotoPickResult.Failed) showMessage(getString(R.string.auv_selection_failed))
-            refreshContent()
+            refreshContent(forceReloadFeed = result is PhotoPickResult.Selected)
         }
         cameraLauncher = client.registerCamera(this, session.sessionId) { result ->
+            suppressNextResumeRefresh = true
             result.onSuccess { updated ->
                 renderSession(updated)
-                if (accessStatus != MediaAccessStatus.FULL) refreshContent()
+                if (accessStatus != MediaAccessStatus.FULL) {
+                    refreshContent(forceReloadFeed = true)
+                }
                 maybeAutoConfirm()
             }.onFailure { failure ->
                 showMessage(failure.message ?: getString(R.string.auv_camera_failed))
@@ -172,9 +183,21 @@ class AlbumPickerActivity : ComponentActivity() {
         })
     }
 
+    /** 处理 `onSaveInstanceState` 回调。 */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        pendingCameraMediaType?.let { mediaType ->
+            outState.putString(STATE_PENDING_CAMERA_MEDIA_TYPE, mediaType.name)
+        }
+    }
+
     /** 处理 `onResume` 回调。 */
     override fun onResume() {
         super.onResume()
+        if (suppressNextResumeRefresh) {
+            suppressNextResumeRefresh = false
+            return
+        }
         refreshContent()
     }
 
@@ -266,6 +289,7 @@ class AlbumPickerActivity : ComponentActivity() {
         directoryList.itemAnimator = null
     }
 
+    @Suppress("DEPRECATION")
     /** 将可配置外观应用到 XML 中已声明的控件，不创建新的界面层级。 */
     private fun applyAppearance() {
         val toolbarColor = appearance.toolbarColor ?: color(R.color.auv_toolbar)
@@ -354,7 +378,8 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     /** 更新 `refreshContent` 对应的状态。 */
-    private fun refreshContent() {
+    private fun refreshContent(forceReloadFeed: Boolean = false) {
+        val previousAccessStatus = accessStatus
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val canBrowseDirectories = accessStatus == MediaAccessStatus.FULL
         titleArrow.visibility = if (canBrowseDirectories) View.VISIBLE else View.GONE
@@ -385,20 +410,31 @@ class AlbumPickerActivity : ComponentActivity() {
                 applicationName,
             )
         }
-        val feed = api.getMediaFeed(
+        renderSession(client.snapshot(session.sessionId))
+        val targetSignature = FeedSignature(
             mediaFilter = config.mediaFilter,
             bucketId = session.bucketId,
+            accessStatus = accessStatus,
         )
-        feedJob?.cancel()
-        feedJob = lifecycleScope.launch {
-            feed.pagingData.collectLatest { data: PagingData<AlbumMedia> ->
-                mediaAdapter.submitData(data)
+        val shouldReloadFeed = forceReloadFeed ||
+            activeFeedSignature != targetSignature ||
+            feedJob?.isActive != true ||
+            accessStatus == MediaAccessStatus.PARTIAL ||
+            previousAccessStatus != accessStatus
+        if (shouldReloadFeed) {
+            activeFeedSignature = targetSignature
+            val feed = api.getMediaFeed(
+                mediaFilter = config.mediaFilter,
+                bucketId = session.bucketId,
+            )
+            feedJob?.cancel()
+            feedJob = lifecycleScope.launch {
+                feed.pagingData.collectLatest { data: PagingData<AlbumMedia> ->
+                    mediaAdapter.submitData(data)
+                }
             }
         }
-        lifecycleScope.launch {
-            renderSession(client.snapshot(session.sessionId))
-        }
-        if (canBrowseDirectories) {
+        if (canBrowseDirectories && (forceReloadFeed || directories.isEmpty() || previousAccessStatus != accessStatus)) {
             directoryJob?.cancel()
             directoryJob = lifecycleScope.launch {
                 val updatedDirectories = api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
@@ -429,7 +465,7 @@ class AlbumPickerActivity : ComponentActivity() {
         }
         val hasSelection = updated.selectedItems.isNotEmpty()
         selectedCount.visibility = if (hasSelection) View.VISIBLE else View.GONE
-        selectedCount.text = updated.selectedItems.size.toString()
+        selectedCount.text = String.format(Locale.getDefault(), "%d", updated.selectedItems.size)
         doneText.text = getString(
             if (hasSelection) R.string.auv_done else R.string.auv_please_select,
         )
@@ -689,7 +725,7 @@ class AlbumPickerActivity : ComponentActivity() {
         lifecycleScope.launch {
             client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
                 renderSession(updated)
-                refreshContent()
+                refreshContent(forceReloadFeed = true)
             }
         }
     }
@@ -761,7 +797,16 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 执行 `dpToPx` 方法定义的处理。 */
     private fun dpToPx(value: Int): Int = (value * resources.displayMetrics.density).roundToInt().coerceAtLeast(0)
+
+    private data class FeedSignature(
+        val mediaFilter: AlbumMediaFilter,
+        val bucketId: Long,
+        val accessStatus: MediaAccessStatus,
+    )
 }
+
+/** 表示 `STATE_PENDING_CAMERA_MEDIA_TYPE` 对应的数据。 */
+private const val STATE_PENDING_CAMERA_MEDIA_TYPE = "album_view.pending_camera_media_type"
 
 /** 表示 `LIGHT_COLOR_LUMINANCE` 对应的数据。 */
 private const val LIGHT_COLOR_LUMINANCE = 0.5

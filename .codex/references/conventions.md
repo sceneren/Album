@@ -10,17 +10,16 @@
 ## Media and Persistence
 
 - Use `content://` URIs and `ContentResolver`; never depend on raw external paths.
-- Run MediaStore, Room, metadata, and grant operations on an IO dispatcher.
+- Run MediaStore, metadata, file materialization, and grant operations on an IO dispatcher.
 - Close cursors with `use` and keep projections minimal, especially for full-library directory aggregation.
-- Preserve deterministic order for paging and persisted selections.
-- Treat a Photo Picker batch atomically at the data layer; validate before committing, and clean up newly acquired grants after a failure.
-- Chunk collection-bound SQL queries so the default-unlimited library API remains compatible with older SQLite bind limits.
+- Preserve deterministic order for paging and system-persisted selections (`ContentResolver.persistedUriPermissions`).
+- Treat a Photo Picker batch atomically at the data layer; validate before taking grants, and clean up newly acquired grants after a failure.
 
 ## Permissions
 
 - The host declares and requests runtime media permissions; the library only resolves current access.
 - Apply the active image/video/mixed filter to both permission resolution and data selection.
-- Full access uses MediaStore; partial and denied access use persisted Photo Picker selections.
+- Full access uses MediaStore; partial access combines system-authorized MediaStore with `ContentResolver.persistedUriPermissions`; denied access uses `ContentResolver.persistedUriPermissions` and app camera captures.
 - Do not repeatedly prompt from composition or automatically prompt on every resume.
 
 ## UI

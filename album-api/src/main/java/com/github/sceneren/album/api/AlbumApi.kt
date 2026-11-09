@@ -3,52 +3,52 @@ package com.github.sceneren.album.api
 import android.content.Context
 import android.net.Uri
 import androidx.activity.ComponentActivity
-import androidx.core.net.toUri
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
-import androidx.paging.map
-import com.github.sceneren.album.api.internal.database.AlbumDatabaseFactory
-import com.github.sceneren.album.api.internal.database.PickedMediaDraft
-import com.github.sceneren.album.api.internal.database.PickedMediaEntity
-import com.github.sceneren.album.api.internal.database.PreparedPickedMediaPagingSource
-import com.github.sceneren.album.api.internal.database.PickedMediaStore
-import com.github.sceneren.album.api.internal.database.RoomPickedMediaStore
-import com.github.sceneren.album.api.internal.database.toAlbumMedia
 import com.github.sceneren.album.api.internal.mediastore.AndroidMediaStoreDataSource
 import com.github.sceneren.album.api.internal.mediastore.MediaStoreDataSource
 import com.github.sceneren.album.api.internal.mediastore.MediaStoreMediaPagingSource
 import com.github.sceneren.album.api.internal.permission.AndroidMediaAccessResolver
 import com.github.sceneren.album.api.internal.permission.MediaAccessResolver
 import com.github.sceneren.album.api.internal.picker.AndroidPersistableGrantManager
+import com.github.sceneren.album.api.internal.picker.AuthorizedMediaPagingSource
 import com.github.sceneren.album.api.internal.picker.ContentResolverUriAccessChecker
 import com.github.sceneren.album.api.internal.picker.ContentResolverUriMetadataReader
 import com.github.sceneren.album.api.internal.picker.PersistableGrantManager
 import com.github.sceneren.album.api.internal.picker.PhotoPickerRegistrar
 import com.github.sceneren.album.api.internal.picker.PhotoPickerResultProcessor
+import com.github.sceneren.album.api.internal.picker.PickedUriMetadata
 import com.github.sceneren.album.api.internal.picker.PickerRegistrar
 import com.github.sceneren.album.api.internal.picker.UriAccessChecker
+import com.github.sceneren.album.api.internal.picker.UriMetadataReader
+import com.github.sceneren.album.api.internal.picker.allows
+import com.github.sceneren.album.api.internal.picker.toAlbumMedia
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 /**
- * 提供支持权限状态的媒体分页与 Photo Picker 持久化选择能力。
+ * 提供支持权限状态的媒体分页与系统已授权资源查询能力。
  *
- * 宿主负责权限请求和界面展示。完整媒体权限从 MediaStore 读取数据；部分授权或未授权时，
- * 从库内持久化的 Photo Picker 数据库读取数据。
+ * 宿主负责权限请求和界面展示。完整媒体权限直接从 MediaStore 分页读取数据；部分授权时结合系统
+ * MediaStore 已授权媒体与 `ContentResolver.persistedUriPermissions` 合并分页；未授权时从系统
+ * `ContentResolver.persistedUriPermissions` 及应用专属相机目录读取已授权媒体，无需本地 Room 数据库。
  */
 class AlbumApi internal constructor(
     private val accessResolver: MediaAccessResolver,
     private val mediaStore: MediaStoreDataSource,
-    private val pickedStore: PickedMediaStore,
     private val pickerRegistrar: PickerRegistrar,
     private val photoPickerResultProcessor: PhotoPickerResultProcessor,
     private val grantManager: PersistableGrantManager,
+    private val metadataReader: UriMetadataReader,
     private val uriAccessChecker: UriAccessChecker,
+    private val metadataCache: MutableMap<Uri, PickedUriMetadata> = ConcurrentHashMap(),
+    private val cameraMediaLoader: (AlbumMediaFilter) -> List<AlbumMedia> = { emptyList() },
+    private val cameraMediaDeleter: (Uri) -> Boolean = { false },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     /** 返回 [mediaFilter] 对应的有效媒体库访问状态。 */
@@ -57,10 +57,8 @@ class AlbumApi internal constructor(
     ): MediaAccessStatus = accessResolver.resolve(mediaFilter)
 
     /**
-     * 持久化系统在部分授权状态下允许 [mediaFilter] 访问的媒体。
-     *
-     * 这些记录的访问权由系统“选中的照片和视频”权限控制，因此不持有可持久化 URI 授权。
-     * 完整授权和未授权状态直接返回零，不查询 MediaStore。
+     * 部分授权媒体现由系统 MediaStore 与 `ContentResolver.persistedUriPermissions` 实时按页查询，
+     * 不再复制到本地数据库，也不主动逐张打开历史媒体文件描述符。
      */
     suspend fun syncPartialSelections(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -68,30 +66,12 @@ class AlbumApi internal constructor(
         if (accessResolver.resolve(mediaFilter) != MediaAccessStatus.PARTIAL) {
             return@resultOnIo 0
         }
-
-        val selectedAtEpochMillis = System.currentTimeMillis()
-        val drafts = mediaStore.loadAll(mediaFilter).map { media ->
-            PickedMediaDraft(
-                uri = media.uri.toString(),
-                mediaType = media.mediaType.name,
-                displayName = media.displayName,
-                mimeType = media.mimeType,
-                sizeBytes = media.sizeBytes,
-                width = media.width,
-                height = media.height,
-                durationMillis = media.durationMillis,
-                specialFormat = media.specialFormat,
-                selectedAtEpochMillis = selectedAtEpochMillis,
-                ownsPersistableGrant = false,
-            )
-        }
-        pickedStore.upsertBatch(drafts)
-        drafts.size
+        0
     }
 
     /**
      * 为 [mediaFilter] 创建冷启动分页媒体流；使用 MediaStore 时同时应用 [bucketId]。
-     * 持久化分页仅清理已丢失的持久授权，不逐张打开历史媒体；整理失败通过 Paging 重试。
+     * 持久化授权分页仅按当前页读取系统 `ContentResolver` 元数据并复用内存缓存，不逐张打开历史媒体内容流。
      */
     fun getMediaFeed(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -102,6 +82,7 @@ class AlbumApi internal constructor(
         val status = accessResolver.resolve(mediaFilter)
         val config = PagingConfig(
             pageSize = pageSize,
+            initialLoadSize = pageSize,
             enablePlaceholders = false,
         )
         val source = if (status == MediaAccessStatus.FULL) {
@@ -109,8 +90,8 @@ class AlbumApi internal constructor(
         } else {
             AlbumMediaSource.PHOTO_PICKER
         }
-        val flow = when (source) {
-            AlbumMediaSource.MEDIA_STORE -> Pager(config) {
+        val flow = when (status) {
+            MediaAccessStatus.FULL -> Pager(config) {
                 MediaStoreMediaPagingSource(
                     dataSource = mediaStore,
                     mediaFilter = mediaFilter,
@@ -118,18 +99,19 @@ class AlbumApi internal constructor(
                 )
             }.flow
 
-            else -> Pager(config) {
-                PreparedPickedMediaPagingSource(
-                    prepare = {
-                        withContext(ioDispatcher) {
-                            reconcilePersistedSelectionsInternal(verifyContent = false)
-                        }
-                    },
-                    createSource = { pickedStore.pagingSource(mediaFilter) },
-                )
-            }.flow.map { pagingData ->
-                pagingData.map(PickedMediaEntity::toAlbumMedia)
-            }
+            MediaAccessStatus.PARTIAL,
+            MediaAccessStatus.DENIED -> Pager(config) {
+                AuthorizedMediaPagingSource { offset, limit ->
+                    withContext(ioDispatcher) {
+                        loadAuthorizedPage(
+                            status = status,
+                            mediaFilter = mediaFilter,
+                            offset = offset,
+                            limit = limit,
+                        )
+                    }
+                }
+            }.flow
         }
         return AlbumMediaFeed(
             mediaFilter = mediaFilter,
@@ -142,8 +124,8 @@ class AlbumApi internal constructor(
     /**
      * 按确定的偏移量加载一页媒体，供预览页在用户左右滑动时继续按需取数。
      *
-     * 完全授权时读取 MediaStore，并应用 [bucketId]；部分授权或未授权时读取已经持久化
-     * 的 Photo Picker 列表。该接口不会一次性把整个相册加载到内存。
+     * 完全授权时读取 MediaStore 并应用 [bucketId]；部分授权时合并系统已授权 MediaStore 与持久化 URI；
+     * 未授权时读取系统持久化 URI 与相机拍摄记录。该接口不会一次性把整个相册加载到内存。
      */
     suspend fun loadMediaPage(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -154,10 +136,15 @@ class AlbumApi internal constructor(
         require(offset >= 0) { "offset 不能小于 0" }
         require(limit > 0) { "limit 必须大于 0" }
 
-        if (accessResolver.resolve(mediaFilter) == MediaAccessStatus.FULL) {
-            mediaStore.loadPage(mediaFilter, bucketId, offset, limit)
-        } else {
-            pickedStore.loadPage(mediaFilter, offset, limit).map(PickedMediaEntity::toAlbumMedia)
+        when (val status = accessResolver.resolve(mediaFilter)) {
+            MediaAccessStatus.FULL -> mediaStore.loadPage(mediaFilter, bucketId, offset, limit)
+            MediaAccessStatus.PARTIAL,
+            MediaAccessStatus.DENIED -> loadAuthorizedPage(
+                status = status,
+                mediaFilter = mediaFilter,
+                offset = offset,
+                limit = limit,
+            )
         }
     }
 
@@ -176,7 +163,7 @@ class AlbumApi internal constructor(
      * 在 [activity] 启动前注册与其生命周期绑定的 Photo Picker 启动器。
      *
      * [maxSelectionCount] 为 null 时，本库不施加数量上限，但系统选择器仍可能限制数量。
-     * 成功选择的媒体会持久化，以供后续分页读取。
+     * 成功选择的媒体通过系统 `ContentResolver.takePersistableUriPermission` 保持持久授权。
      */
     fun registerPhotoPicker(
         activity: ComponentActivity,
@@ -191,10 +178,10 @@ class AlbumApi internal constructor(
     )
 
     /**
-     * 验证并持久化由宿主管理的系统 Photo Picker 启动器返回的 URI。
+     * 验证并持久化由宿主管理的系统 Photo Picker 启动器返回的 URI 授权。
      *
      * 此入口允许非 Activity 界面集成自行注册 Activity Result，同时保持与
-     * [registerPhotoPicker] 相同的授权、元数据读取、验证和原子持久化行为。
+     * [registerPhotoPicker] 相同的授权、元数据读取和原子校验行为。
      */
     suspend fun processPhotoPickerResult(
         uris: List<Uri>,
@@ -208,64 +195,169 @@ class AlbumApi internal constructor(
         )
     }
 
-    /** 删除一条持久化选择记录，并释放由本库持有的对应授权。 */
+    /** 释放指定 [uri] 的系统持久化读取授权（或删除对应的已完成相机拍摄文件）。 */
     suspend fun removePersistedSelection(uri: Uri): Result<Boolean> = resultOnIo {
-        val removed = pickedStore.remove(uri.toString()) ?: return@resultOnIo false
-        if (removed.ownsPersistableGrant) {
+        metadataCache.remove(uri)
+        val hasGrant = uri in grantManager.persistedReadUris()
+        if (hasGrant) {
             grantManager.releaseRead(uri)
         }
-        true
+        val deletedCamera = cameraMediaDeleter(uri)
+        hasGrant || deletedCamera
     }
 
-    /** 清空持久化选择记录，并释放由本库持有的全部授权。 */
+    /** 释放当前应用持有的全部系统持久化读取授权。 */
     suspend fun clearPersistedSelections(): Result<Int> = resultOnIo {
-        val removed = pickedStore.clear()
+        val persistedUris = grantManager.persistedReadUris()
         var firstFailure: Exception? = null
-        removed.forEach { item ->
-            if (item.ownsPersistableGrant) {
-                try {
-                    grantManager.releaseRead(item.uri.toUri())
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (exception: Exception) {
-                    if (firstFailure == null) firstFailure = exception
-                }
+        persistedUris.forEach { uri ->
+            metadataCache.remove(uri)
+            try {
+                grantManager.releaseRead(uri)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                if (firstFailure == null) firstFailure = exception
             }
         }
         firstFailure?.let { throw it }
-        removed.size
+        persistedUris.size
     }
 
-    /** 删除持久化 URI 已无法访问的选择器记录。 */
+    /** 检查系统持久化 URI 授权的可读性，并释放已无法访问的失效授权。 */
     suspend fun reconcilePersistedSelections(): Result<Int> = resultOnIo {
         reconcilePersistedSelectionsInternal()
     }
 
-    /** 整理授权；仅在显式维护时检查内容，避免分页启动触发云端图片下载。 */
-    private suspend fun reconcilePersistedSelectionsInternal(verifyContent: Boolean = true): Int {
+    /** 显式维护时检查持久授权 URI 是否仍可读，释放不可读的失效授权。 */
+    private fun reconcilePersistedSelectionsInternal(): Int {
         val persistedUris = grantManager.persistedReadUris()
         var removedCount = 0
-        pickedStore.all().forEach { item ->
-            val uri = item.uri.toUri()
-            val hasPersistedGrant = uri in persistedUris
-            val stale = (item.ownsPersistableGrant && !hasPersistedGrant) ||
-                (verifyContent && !uriAccessChecker.canRead(uri))
-            if (stale) {
-                val removed = pickedStore.remove(item.uri) ?: return@forEach
-                if (removed.ownsPersistableGrant && hasPersistedGrant) {
-                    grantManager.releaseRead(uri)
-                }
+        persistedUris.forEach { uri ->
+            if (!uriAccessChecker.canRead(uri)) {
+                metadataCache.remove(uri)
+                grantManager.releaseRead(uri)
                 removedCount++
             }
         }
         return removedCount
     }
 
+    /** 按权限状态加载一页系统已授权媒体。 */
+    private suspend fun loadAuthorizedPage(
+        status: MediaAccessStatus,
+        mediaFilter: AlbumMediaFilter,
+        offset: Int,
+        limit: Int,
+    ): List<AlbumMedia> {
+        val slice = loadPersistedAndCameraSlice(mediaFilter, offset, limit)
+        if (status == MediaAccessStatus.DENIED || slice.items.size >= limit) {
+            return slice.items
+        }
+        if (slice.totalMatchedCount == 0 && offset == 0) {
+            return mediaStore.loadPage(
+                mediaFilter = mediaFilter,
+                bucketId = AlbumDirectory.ALL_BUCKET_ID,
+                offset = offset,
+                limit = limit,
+            )
+        }
+        val extraUris = slice.seenMatchedUris
+        if (slice.items.isNotEmpty()) {
+            val remaining = limit - slice.items.size
+            val tail = mediaStore.loadPage(
+                mediaFilter = mediaFilter,
+                bucketId = AlbumDirectory.ALL_BUCKET_ID,
+                offset = 0,
+                limit = remaining + extraUris.size,
+            ).filterNot { it.uri in extraUris }
+                .take(remaining)
+            return slice.items + tail
+        }
+        val mediaStoreOffset = (offset - slice.totalMatchedCount).coerceAtLeast(0)
+        return mediaStore.loadPage(
+            mediaFilter = mediaFilter,
+            bucketId = AlbumDirectory.ALL_BUCKET_ID,
+            offset = mediaStoreOffset,
+            limit = limit + extraUris.size,
+        ).filterNot { it.uri in extraUris }
+            .take(limit)
+    }
+
+    /** 按需惰性读取指定分页窗口 `[offset, offset + limit)` 内的相机与系统持久授权媒体，避免首屏全量查询。 */
+    private fun loadPersistedAndCameraSlice(
+        mediaFilter: AlbumMediaFilter,
+        offset: Int,
+        limit: Int,
+    ): PersistedSlice {
+        val grants = grantManager.persistedReadGrants()
+        val cameraItems = cameraMediaLoader(mediaFilter)
+        val seenUris = HashSet<Uri>(cameraItems.size + minOf(grants.size, offset + limit))
+        val matchedUris = HashSet<Uri>(cameraItems.size + minOf(grants.size, offset + limit))
+        val result = ArrayList<AlbumMedia>(limit)
+        var matchedIndex = 0
+
+        for (cameraItem in cameraItems) {
+            if (!seenUris.add(cameraItem.uri)) continue
+            matchedUris += cameraItem.uri
+            if (matchedIndex >= offset) {
+                result += cameraItem
+                if (result.size >= limit) {
+                    return PersistedSlice(result, matchedIndex + 1, matchedUris)
+                }
+            }
+            matchedIndex++
+        }
+
+        for (grant in grants) {
+            if (!seenUris.add(grant.uri)) continue
+            val item = resolvePersistedGrantMedia(grant.uri, grant.persistedAtEpochMillis, mediaFilter)
+                ?: continue
+            matchedUris += item.uri
+            if (matchedIndex >= offset) {
+                result += item
+                if (result.size >= limit) {
+                    return PersistedSlice(result, matchedIndex + 1, matchedUris)
+                }
+            }
+            matchedIndex++
+        }
+
+        return PersistedSlice(result, matchedIndex, matchedUris)
+    }
+
+    private data class PersistedSlice(
+        val items: List<AlbumMedia>,
+        val totalMatchedCount: Int,
+        val seenMatchedUris: Set<Uri>,
+    )
+
+    private fun resolvePersistedGrantMedia(
+        uri: Uri,
+        persistedAtEpochMillis: Long?,
+        mediaFilter: AlbumMediaFilter,
+    ): AlbumMedia? {
+        val cached = metadataCache[uri]
+        if (cached != null) {
+            return if (mediaFilter.allows(cached.mediaType)) {
+                cached.toAlbumMedia(selectedAtEpochMillis = persistedAtEpochMillis)
+            } else {
+                null
+            }
+        }
+        val type = runCatching { metadataReader.requiredType(uri) }.getOrNull() ?: return null
+        if (!mediaFilter.allows(type)) return null
+        val metadata = runCatching {
+            metadataReader.read(uri, type, allowStreamProbe = false)
+        }.getOrNull() ?: return null
+        metadataCache[uri] = metadata
+        return metadata.toAlbumMedia(selectedAtEpochMillis = persistedAtEpochMillis)
+    }
+
     /** 创建由 View/Compose 相册页面共用的选择会话客户端。 */
     fun createPickerClient(context: Context): AlbumPickerClient =
         AlbumPickerClient(
             context = context.applicationContext,
-            pickedStore = pickedStore,
         )
 
     /**
@@ -279,9 +371,7 @@ class AlbumApi internal constructor(
             if (file == null) {
                 false
             } else {
-                val deleted = !file.exists() || file.delete()
-                if (deleted) reconcilePersistedSelectionsInternal()
-                deleted
+                !file.exists() || file.delete()
             }
         }
 
@@ -291,14 +381,12 @@ class AlbumApi internal constructor(
             ?: return@resultOnIo 0
         val directories = listOf("photo_picker", "luban", "camera")
             .map { java.io.File(root, it) }
-        val deletedCount = directories.sumOf { directory ->
+        directories.sumOf { directory ->
             directory.walkTopDown()
                 .filter { it.isFile }
                 .onEach { it.delete() }
                 .count()
         }
-        reconcilePersistedSelectionsInternal()
-        deletedCount
     }
 
     /** 执行 `generatedFile` 方法定义的处理。 */
@@ -328,27 +416,35 @@ class AlbumApi internal constructor(
         /** 每次分页加载默认请求的条目数。 */
         const val DEFAULT_PAGE_SIZE: Int = 50
 
-        /** 创建由 MediaStore 和 Room 支持的应用级 API 实例。 */
+        private val sharedMetadataCache = ConcurrentHashMap<Uri, PickedUriMetadata>()
+
+        /** 创建由系统 MediaStore 与 ContentResolver 授权管理支持的应用级 API 实例。 */
         fun create(context: Context): AlbumApi {
             val appContext = context.applicationContext
             val resolver = appContext.contentResolver
-            val pickedStore = RoomPickedMediaStore(AlbumDatabaseFactory.get(appContext))
             val grantManager = AndroidPersistableGrantManager(resolver)
+            val metadataReader = ContentResolverUriMetadataReader(resolver, sharedMetadataCache)
             val processor = PhotoPickerResultProcessor(
                 grantManager = grantManager,
-                metadataReader = ContentResolverUriMetadataReader(resolver),
-                store = pickedStore,
+                metadataReader = metadataReader,
             )
             val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
             return AlbumApi(
                 accessResolver = AndroidMediaAccessResolver(appContext),
                 mediaStore = AndroidMediaStoreDataSource(appContext),
-                pickedStore = pickedStore,
                 pickerRegistrar = PhotoPickerRegistrar(processor, applicationScope),
                 photoPickerResultProcessor = processor,
                 grantManager = grantManager,
+                metadataReader = metadataReader,
                 uriAccessChecker = ContentResolverUriAccessChecker(resolver),
+                metadataCache = sharedMetadataCache,
+                cameraMediaLoader = { filter ->
+                    AlbumPickerClient.loadCompletedCameraMedia(appContext, filter)
+                },
+                cameraMediaDeleter = { uri ->
+                    AlbumPickerClient.deleteCameraMediaByUri(appContext, uri)
+                },
             )
         }
     }

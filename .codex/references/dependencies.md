@@ -9,11 +9,12 @@ graph TD
     App --> ViewUI[":album-ui-view"]
     ComposeUI --> Api
     ViewUI --> Api
-    ComposeUI --> Compose["Compose / Material3 / Paging Compose"]
+    ComposeUI --> Compose["Compose / Material3 / Paging Compose / ZoomImage Compose"]
+    ViewUI --> ViewDeps["RecyclerView / ViewPager2 / ZoomImage View"]
     App --> Coil["Coil image, GIF, video"]
     Api --> Activity["AndroidX Activity Result"]
     Api --> Paging["Paging Runtime"]
-    Api --> Room["Room Runtime / Paging / KSP"]
+    Api --> Luban["Luban Compression"]
     Api --> Coroutines["Kotlin Coroutines Android"]
 ```
 
@@ -29,8 +30,9 @@ graph TD
 | Scope | Aliases |
 |---|---|
 | Library public API | `androidx-activity-ktx`, `androidx-paging-runtime` |
-| Library implementation | `androidx-core-ktx`, `androidx-lifecycle-runtime-ktx`, `androidx-room-runtime`, `androidx-room-paging`, `kotlinx-coroutines-android` |
-| Library code generation/tests | `androidx-room-compiler`, Paging/Room test helpers, coroutine test, Robolectric |
+| Library implementation | `androidx-core-ktx`, `androidx-lifecycle-runtime-ktx`, `kotlinx-coroutines-android`, `luban` |
+| Library tests | Paging test helpers, coroutine test, Robolectric |
+| UI libraries | `androidx-recyclerview`, `androidx-viewpager2`, `zoomimage-view`, `zoomimage-compose`, `androidx-paging-compose` |
 | Host UI | Activity Compose, lifecycle/ViewModel Compose, Paging Compose, Compose BOM/UI/Material3 |
 | Host media rendering | Coil Compose/GIF/video |
 

@@ -13,23 +13,36 @@ internal object AlbumPickerExtras {
 
     /** 执行 `putAppearance` 方法定义的处理。 */
     fun putAppearance(intent: Intent, appearance: AlbumPickerAppearance) {
-        intent.putExtra(PREFIX + "toolbar", appearance.toolbarColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "bottom", appearance.bottomBarColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "preview", appearance.previewBackgroundColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "accent", appearance.accentColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "primary", appearance.primaryTextColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "secondary", appearance.secondaryTextColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "scrim", appearance.scrimColor ?: Int.MIN_VALUE)
-        intent.putExtra(PREFIX + "back", appearance.backIconRes ?: 0)
-        intent.putExtra(PREFIX + "camera", appearance.cameraIconRes ?: 0)
-        intent.putExtra(PREFIX + "add", appearance.addIconRes ?: 0)
-        intent.putExtra(PREFIX + "checked", appearance.checkedIconRes ?: 0)
-        intent.putExtra(PREFIX + "unchecked", appearance.uncheckedIconRes ?: 0)
-        intent.putExtra(PREFIX + "folder", appearance.folderIconRes ?: 0)
-        intent.putExtra(PREFIX + "done", appearance.doneIconRes ?: 0)
-        intent.putExtra(PREFIX + "video", appearance.videoIconRes ?: 0)
+        intent.putOptionalInt(PREFIX + "toolbar", appearance.toolbarColor)
+        intent.putOptionalInt(PREFIX + "bottom", appearance.bottomBarColor)
+        intent.putOptionalInt(PREFIX + "preview", appearance.previewBackgroundColor)
+        intent.putOptionalInt(PREFIX + "accent", appearance.accentColor)
+        intent.putOptionalInt(PREFIX + "primary", appearance.primaryTextColor)
+        intent.putOptionalInt(PREFIX + "secondary", appearance.secondaryTextColor)
+        intent.putOptionalInt(PREFIX + "scrim", appearance.scrimColor)
+        intent.putOptionalInt(PREFIX + "back", appearance.backIconRes)
+        intent.putOptionalInt(PREFIX + "camera", appearance.cameraIconRes)
+        intent.putOptionalInt(PREFIX + "add", appearance.addIconRes)
+        intent.putOptionalInt(PREFIX + "checked", appearance.checkedIconRes)
+        intent.putOptionalInt(PREFIX + "unchecked", appearance.uncheckedIconRes)
+        intent.putOptionalInt(PREFIX + "folder", appearance.folderIconRes)
+        intent.putOptionalInt(PREFIX + "done", appearance.doneIconRes)
+        intent.putOptionalInt(PREFIX + "video", appearance.videoIconRes)
         intent.putExtra(PREFIX + "grid_item_spacing_dp", appearance.gridItemSpacingDp)
         intent.putExtra(PREFIX + "grid_span_count", appearance.gridSpanCount)
+    }
+
+    private fun Intent.putOptionalInt(key: String, value: Int?) {
+        if (value != null && value != 0) {
+            putExtra(key, value)
+        } else if (value == 0 && !key.endsWith("back") && !key.endsWith("camera") &&
+            !key.endsWith("add") && !key.endsWith("checked") && !key.endsWith("unchecked") &&
+            !key.endsWith("folder") && !key.endsWith("done") && !key.endsWith("video")
+        ) {
+            putExtra(key, value)
+        } else {
+            removeExtra(key)
+        }
     }
 
     /** 获取 `readAppearance` 所需的数据。 */

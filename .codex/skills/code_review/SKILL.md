@@ -12,16 +12,16 @@ Use a findings-first review. Prioritize bugs, regressions, missing tests, and An
 - MediaStore query, file copy, cache cleanup, or large image processing on the main thread.
 - Storage permission changes that break API 24-37 compatibility or remove required SDK gates.
 - New dependency, module, class, or resource reference that is not declared in Gradle or present in the repo.
-- `AlbumLoader` or `FileHelper` API use before initialization.
-- Pagination logic that can skip pages, duplicate pages, or load indefinitely after `hasNextPage` is false.
-- Compose state that causes repeated permission prompts or repeated load-more calls after recomposition.
+- `AlbumUi.requireImageLoader()` called before host `AlbumUi.setImageLoader` initialization.
+- Pagination logic that can skip pages, duplicate pages, or load indefinitely after `endReached` is true.
+- Compose or Activity lifecycle state that causes repeated permission prompts or redundant Pager recreation on every `ON_RESUME`.
 
 ## Warning Checks
 
 - Hardcoded product strings or colors added to UI instead of using resources/theme tokens.
 - `Log.e` or debug-only messages left in normal successful paths.
 - New public API without KDoc when it is part of reusable media/loading logic.
-- Reusable list/grid behavior changed in only one of `RefreshLazyColumn` or `RefreshLazyVerticalGrid`.
+- Reusable picker behavior changed in only one of `:album-ui-view` or `:album-ui-compose`.
 - File cache paths exposed without cleanup or size considerations.
 
 ## Suggested Checks

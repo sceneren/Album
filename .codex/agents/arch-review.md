@@ -10,10 +10,10 @@ Use this checklist when a change affects module boundaries, data flow, permissio
 
 ## Layering
 
-- [ ] `MainActivity` and composables handle UI, launchers, and user events only.
-- [ ] `AlbumViewModel` owns media list state, selected directory state, page number, load-more state, and `hasMore`.
-- [ ] `AlbumLoader` owns MediaStore queries and returns `ImageDirectory`, `ImageItem`, or `PagedResult`.
-- [ ] `FileHelper` owns `content://` to cache-file conversion and cleanup.
+- [ ] `MainActivity` and demo composables in `:app` handle demo configuration, launchers, and result display only.
+- [ ] `:album-ui-view` (`AlbumPickerActivity`) and `:album-ui-compose` (`AlbumPicker` / `AlbumPickerContent`) own picker UI state and delegate data/session work to `:album-api`.
+- [ ] `AlbumApi` and `AndroidMediaStoreDataSource` own MediaStore and system-authorized URI queries and return `AlbumDirectory`, `AlbumMedia`, or `AlbumMediaFeed`.
+- [ ] `AlbumPickerClient` and `AlbumFileMaterializer` own `content://` to app-specific file materialization, compression, and cleanup.
 
 ## Android Media
 

@@ -9,28 +9,28 @@
 ## 2. Project Facts
 
 - Android project using Gradle Kotlin DSL and Kotlin; min SDK 24, target/compile SDK 37.
-- Modules: `:app` (Compose Material3 host demo) and `:album-api` (reusable Android Library).
-- `:app` depends on `:album-api`; `:album-api` must never depend on `:app`.
-- App package/application id: `com.github.sceneren.album`; library namespace: `com.github.sceneren.album.api`.
-- Main entry: `app/src/main/java/com/github/sceneren/album/MainActivity.kt`.
+- Modules: `:app` (host demo), `:album-api` (data-only Android Library), `:album-ui-view` (View picker UI library), and `:album-ui-compose` (Compose picker UI library).
+- `:app` depends on `:album-api`, `:album-ui-view`, and `:album-ui-compose`; `:album-ui-view` and `:album-ui-compose` depend on `:album-api`; `:album-api` must never depend on UI modules or `:app`.
+- App package/application id: `com.github.sceneren.photopicker`; library namespaces: `com.github.sceneren.album.api`, `com.github.sceneren.album.ui.view`, `com.github.sceneren.album.ui.compose`.
+- Main entry: `app/src/main/java/com/github/sceneren/photopicker/MainActivity.kt`.
 
 ## 3. Module Boundaries
 
-- `:album-api` owns public media models, permission-state resolution, Photo Picker registration and result persistence, Room storage, MediaStore querying, directory aggregation, and Paging sources.
+- `:album-api` owns public media models, permission-state resolution, Photo Picker registration and system grant management (`ContentResolver.persistedUriPermissions`), MediaStore querying, directory aggregation, Paging sources, session persistence, camera capture, and file materialization/compression.
 - `:album-api` is data-only. Do not enable Compose or add Compose UI, Material3, Coil, or app resources to it.
-- Activity Result types required to register `PickVisualMedia` are part of the library's public Android integration boundary; rendered UI remains in `:app`.
-- `:app` owns permission prompts, lifecycle/UI state, filter and directory controls, media rendering, and host wiring only.
-- UI consumes immutable `StateFlow` with lifecycle-aware collection.
+- `:album-ui-view` and `:album-ui-compose` provide reusable picker UI without depending on Coil; image loading is delegated via `AlbumImageLoader`.
+- `:app` owns demo UI, Coil `ImageLoader` wiring, and Manifest declarations.
 
 ## 4. Media and Permission Rules
 
 - `FULL` media access routes paging and directory queries to MediaStore.
-- `PARTIAL` and `DENIED` route paging to the persisted Photo Picker selection list.
-- Apply `IMAGES`, `VIDEOS`, and `IMAGES_AND_VIDEOS` consistently to permission resolution, Photo Picker contracts, persisted paging, and MediaStore queries.
+- `PARTIAL` routes paging to system-authorized MediaStore combined with `ContentResolver.persistedUriPermissions` and completed camera captures.
+- `DENIED` routes paging to `ContentResolver.persistedUriPermissions` and completed camera captures.
+- Apply `IMAGES`, `VIDEOS`, and `IMAGES_AND_VIDEOS` consistently to permission resolution, Photo Picker contracts, authorized paging, and MediaStore queries.
 - Keep API 30+ Bundle paging and API 24-29 `LIMIT/OFFSET` behavior aligned and deterministic (`date_added DESC, _id DESC`).
 - Use `content://` URIs; never query deprecated raw-data columns or copy media merely for display.
-- Run resolver, Room, and grant operations off the main thread; always close cursors with `use`.
-- Retain picker read access when available, record grant ownership, and release only grants owned by this library.
+- Run resolver, file materialization, and grant operations off the main thread; always close cursors with `use`.
+- Retain picker read access via `ContentResolver.takePersistableUriPermission` when available.
 - The host owns manifest/runtime media permissions. Legacy read permission is capped at API 32; API 33+ uses `READ_MEDIA_IMAGES`/`READ_MEDIA_VIDEO`; API 34+ recognizes selected-media access.
 
 ## 5. Forbidden Patterns
@@ -38,12 +38,13 @@
 | Pattern | Use Instead |
 |---|---|
 | Compose/UI dependency or composable in `:album-api` | Public data/API contracts and Activity Result integration |
-| MediaStore/Room work on the main thread | `Dispatchers.IO` / suspend APIs |
+| MediaStore/ContentResolver/file-copy work on the main thread | `Dispatchers.IO` / suspend APIs |
+| Synchronous `SharedPreferences.commit()` on the main thread | `preferences.edit { ... }` (`apply()`) or `Dispatchers.IO` |
 | Raw external paths or `MediaStore.*.DATA` | `content://` URI and `ContentResolver` |
-| Manual bitmap decoding in gallery cells | Coil in `:app` |
+| Manual bitmap decoding in gallery cells | Host `AlbumImageLoader` (Coil in `:app`) |
 | Offset keys based only on item count or unstable sort | Explicit offset plus deterministic secondary `_id` order |
 | Repeated permission prompts from recomposition | Host Activity Result launcher triggered by user action |
-| Hardcoded feature colors or product text | `MaterialTheme` and Android string resources |
+| Hardcoded feature colors or product text | Theme tokens / `AlbumPickerAppearance` and Android string resources |
 
 ## 6. Build and Test
 

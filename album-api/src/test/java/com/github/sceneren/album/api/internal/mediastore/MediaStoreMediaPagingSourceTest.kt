@@ -47,7 +47,7 @@ class MediaStoreMediaPagingSourceTest {
 
         assertEquals(listOf(0, 50), fake.requestedOffsets)
         assertEquals(null, second.nextKey)
-        assertEquals(0, second.prevKey)
+        assertEquals(50, second.prevKey)
     }
 
     @Test
@@ -103,11 +103,6 @@ class MediaStoreMediaPagingSourceTest {
         private val failure: Throwable? = null,
     ) : MediaStoreDataSource {
         val requestedOffsets = mutableListOf<Int>()
-
-        /** 获取 `loadAll` 所需的数据。 */
-        override suspend fun loadAll(
-            mediaFilter: AlbumMediaFilter,
-        ): List<AlbumMedia> = emptyList()
 
         /** 获取 `loadPage` 所需的数据。 */
         override suspend fun loadPage(

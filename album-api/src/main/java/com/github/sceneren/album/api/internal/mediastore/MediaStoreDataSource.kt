@@ -6,11 +6,6 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 
 /** 定义 `MediaStoreDataSource` 的能力边界。 */
 internal interface MediaStoreDataSource {
-    /** 获取 `loadAll` 所需的数据。 */
-    suspend fun loadAll(
-        mediaFilter: AlbumMediaFilter,
-    ): List<AlbumMedia>
-
     /** 获取 `loadPage` 所需的数据。 */
     suspend fun loadPage(
         mediaFilter: AlbumMediaFilter,

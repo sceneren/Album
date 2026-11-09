@@ -70,34 +70,6 @@ class AndroidMediaStoreDataSourceTest {
     }
 
     @Test
-    /** 验证 `loadAllOmitsPagingArgumentsAndKeepsFilterSelection` 所描述的场景。 */
-    fun loadAllOmitsPagingArgumentsAndKeepsFilterSelection() = runTest {
-        val provider = RecordingMediaProvider(
-            rows = listOf(videoRow(id = 11, duration = 3_000)),
-        )
-        ShadowContentResolver.registerProviderInternal("media", provider)
-        val source = AndroidMediaStoreDataSource(
-            context = ApplicationProvider.getApplicationContext(),
-            ioDispatcher = StandardTestDispatcher(testScheduler),
-        )
-
-        val result = async { source.loadAll(AlbumMediaFilter.VIDEOS) }
-        advanceUntilIdle()
-
-        assertEquals(listOf("content://media/external/video/media/11"), result.await().map { it.uri.toString() })
-        assertEquals(
-            listOf(MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()),
-            provider.lastQueryArgs?.getStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS)?.toList(),
-        )
-        assertEquals(null, provider.lastQueryArgs?.getIntOrNull(ContentResolver.QUERY_ARG_LIMIT))
-        assertEquals(null, provider.lastQueryArgs?.getIntOrNull(ContentResolver.QUERY_ARG_OFFSET))
-        assertEquals(
-            "date_added DESC, _id DESC",
-            provider.lastQueryArgs?.getString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER),
-        )
-    }
-
-    @Test
     /** Verifies API 30 motion-photo detection from MediaStore's indexed XMP column. */
     fun api30MapsMotionPhotoFromIndexedXmp() = runTest {
         val provider = RecordingMediaProvider(

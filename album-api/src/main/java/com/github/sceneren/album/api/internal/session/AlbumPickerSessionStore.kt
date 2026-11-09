@@ -2,6 +2,7 @@ package com.github.sceneren.album.api.internal.session
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.content.edit
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraConfig
 import com.github.sceneren.album.api.AlbumCompressionConfig
@@ -10,6 +11,7 @@ import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.SingleSelectionFinishMode
+import java.io.File
 import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
@@ -27,26 +29,102 @@ internal class AlbumPickerSessionStore(
     fun create(
         config: AlbumPickerConfig,
         sessionId: String = UUID.randomUUID().toString(),
-    ): AlbumPickerSessionState = AlbumPickerSessionState(sessionId, config).also(::save)
+    ): AlbumPickerSessionState {
+        pruneStaleSessions(keepSessionId = sessionId)
+        return AlbumPickerSessionState(sessionId, config).also(::save)
+    }
 
     /** 执行 `save` 方法定义的处理。 */
     fun save(state: AlbumPickerSessionState) {
-        preferences.edit()
-            .putString(state.sessionId, encode(state))
-            .commit()
+        preferences.edit {
+            putString(state.sessionId, encode(state))
+        }
     }
 
     /** 获取 `load` 所需的数据。 */
     fun load(sessionId: String): AlbumPickerSessionState? =
-        preferences.getString(sessionId, null)?.let { decode(sessionId, it) }
+        preferences.getString(sessionId, null)?.let { raw ->
+            runCatching { decode(sessionId, raw) }.getOrNull()
+        }
 
     /** 清理 `remove` 对应的数据或资源。 */
     fun remove(sessionId: String) {
-        preferences.edit().remove(sessionId).commit()
+        preferences.edit {
+            remove(sessionId)
+        }
+    }
+
+    /** 返回当前所有进行中会话尚未完成的相机输出文件路径集合。 */
+    fun pendingCameraFilePaths(): Set<String> = buildSet {
+        preferences.all.forEach { (sessionId, rawValue) ->
+            val raw = rawValue as? String ?: return@forEach
+            val pendingPath = runCatching {
+                JSONObject(raw).optJSONObject("pendingCamera")?.optNullableString("filePath")
+            }.getOrNull()
+            if (!pendingPath.isNullOrBlank()) {
+                add(pendingPath)
+            } else if (runCatching { decode(sessionId, raw) }.isFailure) {
+                preferences.edit { remove(sessionId) }
+            }
+        }
+    }
+
+    /** 清理超过有效期或超出活跃上限的孤儿会话及其未完成的拍摄临时文件。 */
+    private fun pruneStaleSessions(keepSessionId: String) {
+        val now = System.currentTimeMillis()
+        val entries = preferences.all.entries
+            .mapNotNull { (key, value) ->
+                val raw = value as? String ?: return@mapNotNull null
+                val json = runCatching { JSONObject(raw) }.getOrNull() ?: return@mapNotNull key to null
+                key to json
+            }
+        if (entries.isEmpty()) return
+
+        val expiredKeys = mutableSetOf<String>()
+        val validEntries = mutableListOf<Pair<String, Long>>()
+        entries.forEach { (key, json) ->
+            if (key == keepSessionId) return@forEach
+            if (json == null) {
+                expiredKeys += key
+                return@forEach
+            }
+            val updatedAt = json.optLong("updatedAt", now)
+            if (now - updatedAt > SESSION_TTL_MILLIS) {
+                json.optJSONObject("pendingCamera")?.optNullableString("filePath")?.let { path ->
+                    File(path).delete()
+                }
+                expiredKeys += key
+            } else {
+                validEntries += key to updatedAt
+            }
+        }
+
+        if (validEntries.size >= MAX_ACTIVE_SESSIONS) {
+            val overflow = validEntries
+                .sortedBy { it.second }
+                .take(validEntries.size - MAX_ACTIVE_SESSIONS + 1)
+            overflow.forEach { (key, _) ->
+                preferences.getString(key, null)?.let { raw ->
+                    runCatching {
+                        JSONObject(raw).optJSONObject("pendingCamera")?.optNullableString("filePath")
+                    }.getOrNull()?.let { path ->
+                        File(path).delete()
+                    }
+                }
+                expiredKeys += key
+            }
+        }
+
+        if (expiredKeys.isNotEmpty()) {
+            preferences.edit {
+                expiredKeys.forEach(::remove)
+            }
+        }
     }
 
     /** 执行 `encode` 方法定义的处理。 */
     private fun encode(state: AlbumPickerSessionState): String = JSONObject().apply {
+        put("updatedAt", System.currentTimeMillis())
         put("config", encodeConfig(state.config))
         put("selected", encodeItems(state.selected))
         put("cameraItems", encodeItems(state.cameraItems))
@@ -163,5 +241,9 @@ internal class AlbumPickerSessionStore(
     private companion object {
         /** 表示 `PREFERENCES_NAME` 对应的数据。 */
         const val PREFERENCES_NAME = "album_picker_sessions"
+        /** 单个未结束会话的最大保留时长（24 小时）。 */
+        const val SESSION_TTL_MILLIS = 24L * 60 * 60 * 1_000L
+        /** 最多同时保留的活跃会话数。 */
+        const val MAX_ACTIVE_SESSIONS = 20
     }
 }

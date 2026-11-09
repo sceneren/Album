@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.github.sceneren.album.ui.compose.AlbumPickerContent
-import com.github.sceneren.album.ui.compose.AlbumPickerSystemBarStyle
 import com.github.sceneren.album.ui.compose.rememberAlbumPickerState
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraConfig
@@ -112,12 +111,6 @@ class MainActivity : ComponentActivity() {
                             showComposePicker = false
                         },
                         onCancel = { showComposePicker = false },
-                        systemBarStyle = AlbumPickerSystemBarStyle(
-                            statusBarColor = android.graphics.Color.BLACK,
-                            navigationBarColor = android.graphics.Color.BLACK,
-                            darkStatusBarIcons = false,
-                            darkNavigationBarIcons = false,
-                        ),
                     )
                 }
             }
@@ -146,7 +139,7 @@ private fun buildRequest(
 
 @Composable
 /** 执行 `DemoScreen` 方法定义的处理。 */
-private fun DemoScreen(
+internal fun DemoScreen(
     filter: AlbumMediaFilter,
     compressionEnabled: Boolean,
     requestPermissionEnable: Boolean,
@@ -165,49 +158,62 @@ private fun DemoScreen(
         modifier = modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Album UI 演示", style = MaterialTheme.typography.headlineSmall)
-        Text("相册页面由 album-ui-view / album-ui-compose 提供，app 只负责启动和接收结果。")
+        Text(
+            text = stringResource(R.string.demo_title),
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(stringResource(R.string.demo_description))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AlbumMediaFilter.entries.forEach { option ->
                 FilterChip(
                     selected = filter == option,
                     onClick = { onFilter(option) },
-                    label = { Text(option.label()) },
+                    label = { Text(stringResource(option.labelRes())) },
                 )
             }
         }
         FilterChip(
             selected = compressionEnabled,
             onClick = { onCompression(!compressionEnabled) },
-            label = { Text("启用图片压缩（100KB 以下跳过）") },
+            label = { Text(stringResource(R.string.enable_compression)) },
         )
 
         FilterChip(
             selected = requestPermissionEnable,
             onClick = { onRequestPermission(!requestPermissionEnable) },
-            label = { Text("启用内部权限申请") },
+            label = { Text(stringResource(R.string.enable_permission_request)) },
         )
 
         FilterChip(
             selected = cameraEnable,
             onClick = { onCamera(!cameraEnable) },
-            label = { Text("启用相机") },
+            label = { Text(stringResource(R.string.enable_camera)) },
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onOpenView) { Text("打开 View 相册") }
-            Button(onClick = onOpenCompose) { Text("打开 Compose 相册") }
+            Button(onClick = onOpenView) { Text(stringResource(R.string.open_view_picker)) }
+            Button(onClick = onOpenCompose) { Text(stringResource(R.string.open_compose_picker)) }
         }
         Button(onClick = onOpenEmbedded) { Text(stringResource(R.string.open_embedded_picker)) }
         Spacer(Modifier.height(8.dp))
         result?.let { pickerResult ->
-            Text("已返回 ${pickerResult.items.size} 项", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = stringResource(R.string.result_count, pickerResult.items.size),
+                style = MaterialTheme.typography.titleMedium,
+            )
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(pickerResult.items) { item ->
-                    Text("${item.mediaType}: ${item.filePath}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = stringResource(
+                            R.string.result_item_format,
+                            item.mediaType.name,
+                            item.filePath,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }

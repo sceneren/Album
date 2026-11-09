@@ -1,16 +1,10 @@
 package com.github.sceneren.album.api.internal.picker
 
-import android.database.sqlite.SQLiteException
 import android.net.Uri
-import androidx.paging.PagingSource
-import androidx.paging.PagingState
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.PhotoPickFailure
 import com.github.sceneren.album.api.PhotoPickResult
-import com.github.sceneren.album.api.internal.database.PickedMediaDraft
-import com.github.sceneren.album.api.internal.database.PickedMediaEntity
-import com.github.sceneren.album.api.internal.database.PickedMediaStore
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -26,7 +20,6 @@ import org.robolectric.annotation.Config
 class PhotoPickerResultProcessorTest {
     private lateinit var grants: FakeGrantManager
     private lateinit var metadata: FakeMetadataReader
-    private lateinit var store: FakePickedMediaStore
     private lateinit var processor: PhotoPickerResultProcessor
 
     @Before
@@ -34,11 +27,9 @@ class PhotoPickerResultProcessorTest {
     fun setUp() {
         grants = FakeGrantManager()
         metadata = FakeMetadataReader()
-        store = FakePickedMediaStore()
         processor = PhotoPickerResultProcessor(
             grantManager = grants,
             metadataReader = metadata,
-            store = store,
             clockMillis = { 123L },
         )
     }
@@ -57,26 +48,6 @@ class PhotoPickerResultProcessorTest {
             result,
         )
         assertTrue(grants.taken.isEmpty())
-        assertTrue(store.upsertCalls.isEmpty())
-    }
-
-    @Test
-    /** 验证 `databaseFailureReleasesOnlyNewGrants` 所描述的场景。 */
-    fun databaseFailureReleasesOnlyNewGrants() = runTest {
-        grants.persisted += uri("existing")
-        store.failure = SQLiteException("write failed")
-
-        val result = processor.process(
-            uris = listOf(uri("existing"), uri("new")),
-            mediaFilter = AlbumMediaFilter.IMAGES,
-            maxSelectionCount = null,
-        )
-
-        assertEquals(
-            PhotoPickFailure.DATABASE_WRITE_FAILED,
-            (result as PhotoPickResult.Failed).reason,
-        )
-        assertEquals(listOf(uri("new")), grants.released)
     }
 
     @Test
@@ -97,10 +68,7 @@ class PhotoPickerResultProcessorTest {
             maxSelectionCount = null,
         ) as PhotoPickResult.Selected
 
-        assertEquals(
-            listOf(uri("2"), uri("1")),
-            store.upsertCalls.single().map { Uri.parse(it.uri) },
-        )
+        assertEquals(listOf(uri("2"), uri("1")), grants.taken)
         assertEquals(listOf(uri("2"), uri("1")), result.media.map { it.uri })
     }
 
@@ -120,7 +88,6 @@ class PhotoPickerResultProcessorTest {
             result,
         )
         assertTrue(grants.taken.isEmpty())
-        assertTrue(store.upsertCalls.isEmpty())
     }
 
     @Test
@@ -167,16 +134,16 @@ class PhotoPickerResultProcessorTest {
             (result as PhotoPickResult.Failed).reason,
         )
         assertEquals(listOf(uri("2"), uri("1")), grants.released)
-        assertTrue(store.upsertCalls.isEmpty())
     }
 
     @Test
-    /** 验证 `metadataFailureReleasesAllNewGrants` 所描述的场景。 */
-    fun metadataFailureReleasesAllNewGrants() = runTest {
+    /** 验证 `metadataFailureReleasesOnlyNewGrants` 所描述的场景。 */
+    fun metadataFailureReleasesOnlyNewGrants() = runTest {
+        grants.persisted += uri("existing")
         metadata.readFailureFor = uri("2")
 
         val result = processor.process(
-            listOf(uri("1"), uri("2")),
+            listOf(uri("existing"), uri("1"), uri("2")),
             AlbumMediaFilter.IMAGES,
             maxSelectionCount = null,
         )
@@ -186,23 +153,22 @@ class PhotoPickerResultProcessorTest {
             (result as PhotoPickResult.Failed).reason,
         )
         assertEquals(listOf(uri("2"), uri("1")), grants.released)
-        assertTrue(store.upsertCalls.isEmpty())
+        assertEquals(setOf(uri("existing")), grants.persisted)
     }
 
     @Test
-    /** 验证 `existingDatabaseGrantOwnershipIsPreserved` 所描述的场景。 */
-    fun existingDatabaseGrantOwnershipIsPreserved() = runTest {
+    /** 验证 `existingSystemGrantIsNotTakenAgain` 所描述的场景。 */
+    fun existingSystemGrantIsNotTakenAgain() = runTest {
         val existingUri = uri("existing")
         grants.persisted += existingUri
-        store.seed(existingUri, ownsPersistableGrant = true)
 
-        processor.process(
+        val result = processor.process(
             listOf(existingUri),
             AlbumMediaFilter.IMAGES,
             maxSelectionCount = null,
-        )
+        ) as PhotoPickResult.Selected
 
-        assertTrue(store.all().single().ownsPersistableGrant)
+        assertEquals(listOf(existingUri), result.media.map { it.uri })
         assertTrue(grants.taken.isEmpty())
     }
 
@@ -219,17 +185,14 @@ class PhotoPickerResultProcessorTest {
         val released = mutableListOf<Uri>()
         var takeFailureFor: Uri? = null
 
-        /** 执行 `persistedReadUris` 方法定义的处理。 */
         override fun persistedReadUris(): Set<Uri> = persisted.toSet()
 
-        /** 执行 `takeRead` 方法定义的处理。 */
         override fun takeRead(uri: Uri) {
             if (uri == takeFailureFor) error("grant failed")
             taken += uri
             persisted += uri
         }
 
-        /** 清理 `releaseRead` 对应的数据或资源。 */
         override fun releaseRead(uri: Uri) {
             released += uri
             persisted -= uri
@@ -241,12 +204,14 @@ class PhotoPickerResultProcessorTest {
         val types = mutableMapOf<Uri, AlbumMediaType>()
         var readFailureFor: Uri? = null
 
-        /** 执行 `requiredType` 方法定义的处理。 */
         override fun requiredType(uri: Uri): AlbumMediaType =
             types[uri] ?: AlbumMediaType.IMAGE
 
-        /** 获取 `read` 所需的数据。 */
-        override fun read(uri: Uri, type: AlbumMediaType): PickedUriMetadata {
+        override fun read(
+            uri: Uri,
+            type: AlbumMediaType,
+            allowStreamProbe: Boolean,
+        ): PickedUriMetadata {
             if (uri == readFailureFor) error("metadata failed")
             return PickedUriMetadata(
                 uri = uri,
@@ -261,84 +226,5 @@ class PhotoPickerResultProcessorTest {
         }
     }
 
-    /** 负责 `FakePickedMediaStore` 管理数据的持久化读写。 */
-    private class FakePickedMediaStore : PickedMediaStore {
-        val upsertCalls = mutableListOf<List<PickedMediaDraft>>()
-        var failure: Throwable? = null
-        private val rows = linkedMapOf<String, PickedMediaEntity>()
-
-        /** 执行 `seed` 方法定义的处理。 */
-        fun seed(uri: Uri, ownsPersistableGrant: Boolean) {
-            rows[uri.toString()] = PickedMediaDraft(
-                uri = uri.toString(),
-                mediaType = AlbumMediaType.IMAGE.name,
-                displayName = null,
-                mimeType = "image/jpeg",
-                sizeBytes = null,
-                width = null,
-                height = null,
-                durationMillis = null,
-                selectedAtEpochMillis = 1,
-                ownsPersistableGrant = ownsPersistableGrant,
-            ).toEntity(sortOrder = 1, ownsPersistableGrant = ownsPersistableGrant)
-        }
-
-        /** 执行 `pagingSource` 方法定义的处理。 */
-        override fun pagingSource(filter: AlbumMediaFilter) =
-            object : PagingSource<Int, PickedMediaEntity>() {
-                /** 获取 `load` 所需的数据。 */
-                override suspend fun load(
-                    params: LoadParams<Int>,
-                ): LoadResult<Int, PickedMediaEntity> = LoadResult.Page(
-                    data = emptyList(),
-                    prevKey = null,
-                    nextKey = null,
-                )
-
-                /** 获取 `getRefreshKey` 所需的数据。 */
-                override fun getRefreshKey(
-                    state: PagingState<Int, PickedMediaEntity>,
-                ): Int? = null
-            }
-
-        /** 获取 `loadPage` 所需的数据。 */
-        override suspend fun loadPage(
-            filter: AlbumMediaFilter,
-            offset: Int,
-            limit: Int,
-        ): List<PickedMediaEntity> = rows.values.drop(offset).take(limit)
-
-        /** 执行 `upsertBatch` 方法定义的处理。 */
-        override suspend fun upsertBatch(
-            drafts: List<PickedMediaDraft>,
-        ): List<PickedMediaEntity> {
-            upsertCalls += drafts
-            failure?.let { throw it }
-            return drafts.mapIndexed { index, draft ->
-                draft.toEntity(
-                    sortOrder = drafts.size.toLong() - index,
-                    ownsPersistableGrant =
-                        rows[draft.uri]?.ownsPersistableGrant == true ||
-                            draft.ownsPersistableGrant,
-                ).also { rows[it.uri] = it }
-            }
-        }
-
-        /** 获取 `find` 所需的数据。 */
-        override suspend fun find(uri: String): PickedMediaEntity? = rows[uri]
-
-        /** 清理 `remove` 对应的数据或资源。 */
-        override suspend fun remove(uri: String): PickedMediaEntity? = rows.remove(uri)
-
-        /** 清理 `clear` 对应的数据或资源。 */
-        override suspend fun clear(): List<PickedMediaEntity> = rows.values.toList().also {
-            rows.clear()
-        }
-
-        /** 执行 `all` 方法定义的处理。 */
-        override suspend fun all(): List<PickedMediaEntity> = rows.values.toList()
-    }
-
-    /** 执行 `uri` 方法定义的处理。 */
     private fun uri(value: String): Uri = Uri.parse("content://picker/$value")
 }

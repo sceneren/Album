@@ -130,7 +130,11 @@ import com.github.sceneren.album.api.MediaAccessStatus
 import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.SingleSelectionFinishMode
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import java.util.UUID
 import androidx.compose.foundation.lazy.items as lazyListItems
@@ -246,16 +250,20 @@ internal fun AlbumPickerHost(
     }
     var accessStatus by remember { mutableStateOf(MediaAccessStatus.DENIED) }
     var feed by remember { mutableStateOf<AlbumMediaFeed?>(null) }
+    var activeFeedSignature by remember { mutableStateOf<ComposeFeedSignature?>(null) }
     var directories by remember { mutableStateOf<List<AlbumDirectory>>(emptyList()) }
     var preview by remember { mutableStateOf<PreviewState?>(null) }
     var isConfirming by remember { mutableStateOf(false) }
     var isCancelling by remember { mutableStateOf(false) }
     var isFinished by remember { mutableStateOf(false) }
     var pendingCompletion by remember { mutableStateOf<PickerCompletion?>(null) }
-    var isContentRefreshPending by remember(config, sessionId) { mutableStateOf(true) }
-    var isPhotoPickerInFlight by remember { mutableStateOf(false) }
+    val refreshRequests = remember(config, sessionId) {
+        Channel<Unit>(Channel.CONFLATED).apply { trySend(Unit) }
+    }
+    var isForceReloadPending by remember(config, sessionId) { mutableStateOf(true) }
+    var isExternalLauncherInFlight by remember { mutableStateOf(false) }
     var isCameraPermissionRequestInFlight by remember { mutableStateOf(false) }
-    var pendingCameraMediaType by remember { mutableStateOf<AlbumMediaType?>(null) }
+    var pendingCameraMediaType by rememberSaveable { mutableStateOf<AlbumMediaType?>(null) }
     var previewLoadJob by remember { mutableStateOf<Job?>(null) }
     var messageToast by remember { mutableStateOf<Toast?>(null) }
 
@@ -270,21 +278,44 @@ internal fun AlbumPickerHost(
     }
 
     /** 更新 `refreshContentNow` 对应的状态。 */
-    suspend fun refreshContentNow() {
-        accessStatus = api.getMediaAccessStatus(config.mediaFilter)
-        directories = if (accessStatus == MediaAccessStatus.FULL) {
-            api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
+    suspend fun refreshContentNow(forceReload: Boolean = false) {
+        val previousAccessStatus = accessStatus
+        val latestAccessStatus = api.getMediaAccessStatus(config.mediaFilter)
+        val accessChanged = previousAccessStatus != latestAccessStatus
+        accessStatus = latestAccessStatus
+        val current = client.snapshot(session.sessionId)
+        session = current
+        val targetSignature = ComposeFeedSignature(
+            mediaFilter = config.mediaFilter,
+            bucketId = current.bucketId,
+            accessStatus = latestAccessStatus,
+        )
+        val shouldReloadFeed = forceReload ||
+            feed == null ||
+            activeFeedSignature != targetSignature ||
+            latestAccessStatus == MediaAccessStatus.PARTIAL ||
+            accessChanged
+        if (shouldReloadFeed) {
+            activeFeedSignature = targetSignature
+            feed = api.getMediaFeed(config.mediaFilter, current.bucketId)
+        }
+        directories = if (latestAccessStatus == MediaAccessStatus.FULL) {
+            if (forceReload || directories.isEmpty() || accessChanged) {
+                api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
+            } else {
+                directories
+            }
         } else {
             emptyList()
         }
-        val current = session
-        feed = api.getMediaFeed(config.mediaFilter, current.bucketId)
-        session = client.snapshot(current.sessionId)
     }
 
     /** 更新 `refreshContent` 对应的状态。 */
-    fun refreshContent() {
-        isContentRefreshPending = true
+    fun refreshContent(forceReload: Boolean = true) {
+        if (forceReload) {
+            isForceReloadPending = true
+        }
+        refreshRequests.trySend(Unit)
     }
 
     /** 执行 `confirmSelection` 方法定义的处理。 */
@@ -315,18 +346,20 @@ internal fun AlbumPickerHost(
     /** 执行 `handlePhotoPickerResult` 方法定义的处理。 */
     fun handlePhotoPickerResult(uris: List<Uri>) {
         scope.launch {
+            var selected = false
             try {
                 val result = api.processPhotoPickerResult(
                     uris = uris,
                     mediaFilter = config.mediaFilter,
                     maxSelectionCount = null,
                 )
+                selected = result is PhotoPickResult.Selected
                 if (result is PhotoPickResult.Failed) {
                     showMessage(applicationContext.getString(R.string.auc_selection_failed))
                 }
             } finally {
-                isPhotoPickerInFlight = false
-                refreshContent()
+                isExternalLauncherInFlight = false
+                refreshContent(forceReload = selected)
             }
         }
     }
@@ -345,43 +378,59 @@ internal fun AlbumPickerHost(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
         scope.launch {
-            api.syncPartialSelections(config.mediaFilter)
-            refreshContentNow()
+            try {
+                api.syncPartialSelections(config.mediaFilter)
+                refreshContentNow(forceReload = true)
+            } finally {
+                isExternalLauncherInFlight = false
+            }
         }
     }
     val photoCameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
     ) { success ->
         scope.launch {
-            client.completeCamera(session.sessionId, success)
-                .onSuccess { updated ->
-                    session = updated
-                    if (accessStatus != MediaAccessStatus.FULL) refreshContentNow()
-                    maybeAutoConfirm(config, updated, ::confirmSelection)
-                }
-                .onFailure { failure ->
-                    showMessage(
-                        failure.message
-                            ?: applicationContext.getString(R.string.auc_camera_failed),
-                    )
-                }
+            try {
+                client.completeCamera(session.sessionId, success)
+                    .onSuccess { updated ->
+                        session = updated
+                        if (accessStatus != MediaAccessStatus.FULL) {
+                            refreshContentNow(forceReload = true)
+                        }
+                        maybeAutoConfirm(config, updated, ::confirmSelection)
+                    }
+                    .onFailure { failure ->
+                        showMessage(
+                            failure.message
+                                ?: applicationContext.getString(R.string.auc_camera_failed),
+                        )
+                    }
+            } finally {
+                isExternalLauncherInFlight = false
+            }
         }
     }
     val videoCameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CaptureVideo(),
     ) { success ->
         scope.launch {
-            client.completeCamera(session.sessionId, success)
-                .onSuccess { updated ->
-                    session = updated
-                    if (accessStatus != MediaAccessStatus.FULL) refreshContentNow()
-                    maybeAutoConfirm(config, updated, ::confirmSelection)
-                }
-                .onFailure { failure ->
-                    showMessage(
-                        failure.message
-                            ?: applicationContext.getString(R.string.auc_camera_failed),
-                    )
+            try {
+                client.completeCamera(session.sessionId, success)
+                    .onSuccess { updated ->
+                        session = updated
+                        if (accessStatus != MediaAccessStatus.FULL) {
+                            refreshContentNow(forceReload = true)
+                        }
+                        maybeAutoConfirm(config, updated, ::confirmSelection)
+                    }
+                    .onFailure { failure ->
+                        showMessage(
+                            failure.message
+                                ?: applicationContext.getString(R.string.auc_camera_failed),
+                        )
+                    }
+            } finally {
+                isExternalLauncherInFlight = false
             }
         }
     }
@@ -390,10 +439,16 @@ internal fun AlbumPickerHost(
     fun launchPreparedCamera(mediaType: AlbumMediaType) {
         scope.launch {
             client.prepareCamera(session.sessionId, mediaType).onSuccess { capture ->
-                if (mediaType == AlbumMediaType.IMAGE) {
-                    photoCameraLauncher.launch(capture.uri)
-                } else {
-                    videoCameraLauncher.launch(capture.uri)
+                isExternalLauncherInFlight = true
+                try {
+                    if (mediaType == AlbumMediaType.IMAGE) {
+                        photoCameraLauncher.launch(capture.uri)
+                    } else {
+                        videoCameraLauncher.launch(capture.uri)
+                    }
+                } catch (failure: RuntimeException) {
+                    isExternalLauncherInFlight = false
+                    throw failure
                 }
             }.onFailure { failure ->
                 showMessage(
@@ -414,11 +469,11 @@ internal fun AlbumPickerHost(
 
     /** 执行 `launchPhotoPicker` 方法定义的处理。 */
     fun launchPhotoPicker() {
-        isPhotoPickerInFlight = true
+        isExternalLauncherInFlight = true
         try {
             multiplePhotoPickerLauncher.launch(photoPickerRequest)
         } catch (failure: RuntimeException) {
-            isPhotoPickerInFlight = false
+            isExternalLauncherInFlight = false
             throw failure
         }
     }
@@ -529,7 +584,7 @@ internal fun AlbumPickerHost(
                 )
             }.onFailure { failure ->
                 val latest = preview?.takeIf { it.id == current.id } ?: return@onFailure
-                preview = latest.copy(loading = false, endReached = true)
+                preview = latest.copy(loading = false)
                 showMessage(
                     failure.message
                         ?: applicationContext.getString(R.string.auc_preview_load_failed),
@@ -553,17 +608,15 @@ internal fun AlbumPickerHost(
             return
         }
         isCancelling = true
+        // Navigation must not queue behind provider image IO. Close immediately; finish
+        // private session cleanup independently even when the host removes this composition.
+        pendingCompletion = PickerCompletion.Cancelled
+        isFinished = true
+        visibilityState.targetState = false
         scope.launch {
-            runCatching { client.cancel(session.sessionId) }
-                .onFailure { failure ->
-                    showMessage(
-                        failure.message
-                            ?: applicationContext.getString(R.string.auc_cancel_failed),
-                    )
-                }
-            pendingCompletion = PickerCompletion.Cancelled
-            isFinished = true
-            visibilityState.targetState = false
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                runCatching { client.cancel(session.sessionId) }
+            }
         }
     }
 
@@ -571,10 +624,11 @@ internal fun AlbumPickerHost(
         val observer = LifecycleEventObserver { _, event ->
             if (
                 event == Lifecycle.Event.ON_RESUME &&
-                !isPhotoPickerInFlight &&
+                !isExternalLauncherInFlight &&
+                !isCameraPermissionRequestInFlight &&
                 !isFinished
             ) {
-                refreshContent()
+                refreshContent(forceReload = false)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -600,36 +654,28 @@ internal fun AlbumPickerHost(
                 confirm = ::confirmSelection,
                 preview = ::showSelectedPreview,
                 cancel = ::cancelPicker,
-                refresh = ::refreshContent,
+                refresh = { refreshContent(forceReload = true) },
             ),
         )
     }
-    BackHandler(enabled = !embedded || preview != null, onBack = ::cancelPicker)
-    LaunchedEffect(
-        isContentRefreshPending,
-        visibilityState.currentState,
-        visibilityState.isIdle,
-        isFinished,
-    ) {
-        if (
-            isContentRefreshPending &&
-            visibilityState.currentState &&
-            visibilityState.isIdle &&
-            !isFinished
-        ) {
-            try {
-                refreshContentNow()
-            } finally {
-                isContentRefreshPending = false
+    val occupiesInput = !isFinished || visibilityState.currentState ||
+        visibilityState.targetState || !visibilityState.isIdle
+    BackHandler(enabled = occupiesInput && (!embedded || preview != null), onBack = ::cancelPicker)
+    LaunchedEffect(refreshRequests) {
+        for (request in refreshRequests) {
+            if (!isFinished) {
+                val forceReload = isForceReloadPending
+                isForceReloadPending = false
+                refreshContentNow(forceReload = forceReload)
             }
         }
     }
-    LaunchedEffect(
-        isFinished,
-        visibilityState.currentState,
-        visibilityState.isIdle,
-    ) {
-        if (isFinished && !visibilityState.currentState && visibilityState.isIdle) {
+    // Do not let a child transition (e.g. a loading spinner) indefinitely delay host dismissal.
+    LaunchedEffect(isFinished) {
+        if (isFinished) {
+            withTimeoutOrNull(1_000L) {
+                snapshotFlow { !visibilityState.currentState && visibilityState.isIdle }.first { it }
+            }
             when (val completion = pendingCompletion) {
                 is PickerCompletion.Result -> currentOnResult(completion.value)
                 PickerCompletion.Cancelled -> currentOnCancel()
@@ -639,7 +685,7 @@ internal fun AlbumPickerHost(
     }
 
     Box(modifier.clipToBounds()) {
-        InteractionBlocker(blockBack = false)
+        if (occupiesInput) InteractionBlocker(blockBack = false)
         AnimatedVisibility(
             visibleState = visibilityState,
             modifier = Modifier.fillMaxSize(),
@@ -666,15 +712,21 @@ internal fun AlbumPickerHost(
                             scope.launch {
                                 client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
                                     session = updated
-                                    refreshContentNow()
+                                    refreshContentNow(forceReload = true)
                                 }
                             }
                         }
                     },
                     onRequestPermission = {
-                        permissionLauncher.launch(
-                            AlbumMediaPermissionRequestFactory.create(config.mediaFilter),
-                        )
+                        isExternalLauncherInFlight = true
+                        try {
+                            permissionLauncher.launch(
+                                AlbumMediaPermissionRequestFactory.create(config.mediaFilter),
+                            )
+                        } catch (failure: RuntimeException) {
+                            isExternalLauncherInFlight = false
+                            throw failure
+                        }
                     },
                     onAddMore = ::launchPhotoPicker,
                     onCamera = ::launchCamera,
@@ -691,6 +743,12 @@ internal fun AlbumPickerHost(
         }
     }
 }
+
+private data class ComposeFeedSignature(
+    val mediaFilter: AlbumMediaFilter,
+    val bucketId: Long,
+    val accessStatus: MediaAccessStatus,
+)
 
 private sealed interface PickerCompletion {
     data class Result(val value: AlbumPickerResult) : PickerCompletion
@@ -839,7 +897,7 @@ private fun AlbumPickerScreen(
         !directoryName.isNullOrBlank() -> directoryName
         else -> stringResource(R.string.auc_unnamed_directory, titleDirectory.mediaCount)
     }
-    var directoryMenu by remember { mutableStateOf(false) }
+    var directoryMenu by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = directoryMenu) { directoryMenu = false }
     LaunchedEffect(accessStatus) {
         if (accessStatus != MediaAccessStatus.FULL) directoryMenu = false
@@ -876,7 +934,27 @@ private fun AlbumPickerScreen(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             if (accessStatus == MediaAccessStatus.FULL) {
-                                Icon(painterResource(R.drawable.auc_ic_album_expand_more), null, tint = primary)
+                                Icon(
+                                    painter = painterResource(
+                                        appearance.folderIconRes ?: R.drawable.auc_ic_album_expand_more,
+                                    ),
+                                    contentDescription = null,
+                                    tint = if (appearance.folderIconRes == null) primary else Color.Unspecified,
+                                    modifier = Modifier
+                                        .padding(
+                                            start = dimensionResource(
+                                                R.dimen.auc_toolbar_title_arrow_margin_start,
+                                            ),
+                                        )
+                                        .size(
+                                            dimensionResource(
+                                                R.dimen.auc_toolbar_title_arrow_size,
+                                            ),
+                                        )
+                                        .graphicsLayer {
+                                            rotationZ = if (directoryMenu) 180f else 0f
+                                        },
+                                )
                             }
                         }
                         if (shouldShowPermissionUpgradeButton(
@@ -1600,6 +1678,19 @@ private fun SelectionFinishAction(
                 dimensionResource(R.dimen.auc_preview_done_text_margin_start),
             ),
         )
+
+        if (hasSelection && appearance.doneIconRes != null) {
+            Icon(
+                painter = painterResource(appearance.doneIconRes),
+                contentDescription = null,
+                tint = Color.Unspecified,
+            )
+            Spacer(
+                Modifier.width(
+                    dimensionResource(R.dimen.auc_preview_done_icon_gap),
+                ),
+            )
+        }
 
         Text(
             text = if (hasSelection) {

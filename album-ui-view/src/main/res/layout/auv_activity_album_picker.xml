@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/auv_picker_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -35,7 +36,8 @@
                 android:layout_height="48dp"
                 android:layout_marginHorizontal="100dp"
                 android:gravity="center"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                tools:ignore="UseCompoundDrawables">
 
                 <TextView
                     android:id="@+id/auv_picker_title"
@@ -67,7 +69,8 @@
                 android:paddingEnd="8dp"
                 android:text="@string/auv_cancel"
                 android:textColor="@color/auv_primary"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                tools:ignore="RelativeOverlap" />
         </RelativeLayout>
 
         <Button

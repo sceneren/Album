@@ -17,19 +17,23 @@ internal class MediaStoreMediaPagingSource(
         params: LoadParams<Int>,
     ): LoadResult<Int, AlbumMedia> = try {
         require(params.loadSize > 0) { "loadSize must be positive" }
-        val offset = params.key ?: 0
-        require(offset >= 0) { "offset must not be negative" }
+        val key = params.key ?: 0
+        require(key >= 0) { "offset must not be negative" }
+        val offset = if (params is LoadParams.Prepend) maxOf(0, key - params.loadSize) else key
+        val limit = if (params is LoadParams.Prepend) key - offset else params.loadSize
 
-        val data = dataSource.loadPage(
+        val data = if (limit == 0) emptyList() else dataSource.loadPage(
             mediaFilter = mediaFilter,
             bucketId = bucketId,
             offset = offset,
-            limit = params.loadSize,
+            limit = limit,
         )
         LoadResult.Page(
             data = data,
-            prevKey = if (offset == 0) null else maxOf(0, offset - params.loadSize),
-            nextKey = if (data.size == params.loadSize) offset + data.size else null,
+            prevKey = offset.takeIf { it > 0 },
+            nextKey = if (params is LoadParams.Prepend) key
+                else if (data.size == limit) offset + data.size else null,
+            itemsBefore = offset,
         )
     } catch (cancelled: CancellationException) {
         throw cancelled
@@ -41,7 +45,6 @@ internal class MediaStoreMediaPagingSource(
     override fun getRefreshKey(state: PagingState<Int, AlbumMedia>): Int? {
         val anchor = state.anchorPosition ?: return null
         val page = state.closestPageToPosition(anchor) ?: return null
-        return page.prevKey?.plus(page.data.size)
-            ?: page.nextKey?.minus(page.data.size)
+        return page.itemsBefore.takeIf { it != LoadResult.Page.COUNT_UNDEFINED }
     }
 }

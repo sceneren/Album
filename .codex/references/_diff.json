@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-08-19 17:53:58",
-  "new_scan_time": "2026-10-26 14:54:45",
+  "old_scan_time": "2026-11-09 11:36:35",
+  "new_scan_time": "2026-11-09 11:36:35",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -10,43 +10,8 @@
     "modules_added": 0,
     "modules_removed": 0,
     "modules_renamed": 0,
-    "modules_changed": 3,
-    "modules_unchanged": 1
+    "modules_changed": 0,
+    "modules_unchanged": 4
   },
-  "modules": {
-    "album-api": {
-      "status": "changed",
-      "files": {
-        "total_old": 73,
-        "total_new": 74,
-        "added": [
-          "com\\github\\sceneren\\album\\api\\internal\\database\\PreparedPickedMediaPagingSource.kt"
-        ],
-        "removed": []
-      }
-    },
-    "album-ui-compose": {
-      "status": "changed",
-      "files": {
-        "total_old": 8,
-        "total_new": 10,
-        "added": [
-          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerContent.kt",
-          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerState.kt"
-        ],
-        "removed": []
-      }
-    },
-    "app": {
-      "status": "changed",
-      "files": {
-        "total_old": 6,
-        "total_new": 7,
-        "added": [
-          "com\\github\\sceneren\\photopicker\\PhotoPickerImageFetcher.kt"
-        ],
-        "removed": []
-      }
-    }
-  }
+  "modules": {}
 }

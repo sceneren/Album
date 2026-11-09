@@ -93,6 +93,22 @@ class AlbumPickerAppearanceTest {
     }
 
     @Test
+    /** 验证 `半透明纯黑0x80000000遮罩色不会被误判为null` 所描述的场景。 */
+    fun `半透明纯黑0x80000000遮罩色不会被误判为null`() {
+        val halfBlackScrim = 0x80000000.toInt()
+        val intent = Intent()
+        AlbumPickerExtras.putAppearance(
+            intent,
+            AlbumPickerAppearance(scrimColor = halfBlackScrim),
+        )
+
+        val restored = AlbumPickerExtras.readAppearance(intent)
+
+        assertEquals(halfBlackScrim, restored.scrimColor)
+        assertNull(restored.toolbarColor)
+    }
+
+    @Test
     /** 验证 `间距不能小于0` 所描述的场景。 */
     fun `间距不能小于0`() {
         assertThrows(IllegalArgumentException::class.java) {

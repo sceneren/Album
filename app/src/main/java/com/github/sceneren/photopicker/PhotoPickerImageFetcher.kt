@@ -30,10 +30,35 @@ internal class PhotoPickerImageFetcher(
         val resolver = options.context.contentResolver
         val uri = data.toAndroidUri()
         val mimeType = resolver.getType(uri)
-        val stream = resolver.openInputStream(uri) ?: throw IOException("无法打开所选图片")
+        // Picker providers can return a pipe or a non-zero-offset asset. Preserve the
+        // AssetFileDescriptor stream semantics and ask the provider for the requested size
+        // instead of opening many full-resolution originals concurrently.
+        val width = (options.size.width as? coil3.size.Dimension.Pixels)?.px
+        val height = (options.size.height as? coil3.size.Dimension.Pixels)?.px
+        val extras = android.os.Bundle().apply {
+            if (width != null && height != null) {
+                putParcelable(android.content.ContentResolver.EXTRA_SIZE, android.graphics.Point(width, height))
+            }
+        }
+        val asset = resolver.openTypedAssetFileDescriptor(uri, "image/*", extras)
+            ?: throw IOException("无法打开所选图片")
+        val stream = try {
+            asset.createInputStream()
+        } catch (failure: Throwable) {
+            asset.close()
+            throw failure
+        }
         return SourceFetchResult(
             source = ImageSource(
-                source = stream.source().buffer(),
+                source = object : java.io.FilterInputStream(stream) {
+                    override fun close() {
+                        try {
+                            super.close()
+                        } finally {
+                            asset.close()
+                        }
+                    }
+                }.source().buffer(),
                 fileSystem = options.fileSystem,
             ),
             mimeType = mimeType,

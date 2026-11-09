@@ -12,7 +12,6 @@
     <string name="auc_preview_position">%1$d/%2$d</string>
     <string name="auc_please_select">请选择</string>
     <string name="auc_done">已完成</string>
-    <string name="auc_done_count">完成(%1$d)</string>
     <string name="auc_capture">拍摄</string>
     <string name="auc_add_more">添加更多</string>
     <string name="auc_denied_permission">你已设置%1$s只能访问相册部分照片，建议设为「允许访问所有照片」</string>

@@ -11,6 +11,9 @@ internal fun Cursor.readOptionalMetadata(
     mimeType: String,
 ): OptionalMetadata {
     val displayName = stringOrNull(MediaStore.MediaColumns.DISPLAY_NAME)
+    val specialFormatCode = intOrNull(SPECIAL_FORMAT_COLUMN)
+        ?: intOrNull(STANDARD_MIME_TYPE_EXTENSION_COLUMN)
+    val xmp = blobOrNull(MediaStore.MediaColumns.XMP)
     return OptionalMetadata(
         displayName = displayName,
         sizeBytes = positiveLongOrNull(MediaStore.MediaColumns.SIZE),
@@ -22,12 +25,12 @@ internal fun Cursor.readOptionalMetadata(
             null
         },
         specialFormat = resolveAlbumMediaSpecialFormat(
-            specialFormatCode = intOrNull(SPECIAL_FORMAT_COLUMN)
-                ?: intOrNull(STANDARD_MIME_TYPE_EXTENSION_COLUMN),
+            specialFormatCode = specialFormatCode,
             mimeType = mimeType,
             displayName = displayName,
-            xmp = blobOrNull(MediaStore.MediaColumns.XMP),
+            xmp = xmp,
         ),
+        hasProviderSpecialFormat = specialFormatCode != null || xmp != null,
     )
 }
 

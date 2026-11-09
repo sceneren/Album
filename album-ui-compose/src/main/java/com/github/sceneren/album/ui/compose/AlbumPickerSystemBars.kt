@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.os.Build
 import android.view.View
 import android.view.Window
+import android.view.WindowManager
 import androidx.annotation.ColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -63,6 +64,7 @@ internal class AlbumPickerSystemBarController(
 
     @Suppress("DEPRECATION")
     private val hostStyle = HostSystemBarStyle(
+        windowFlags = window.attributes.flags,
         statusBarColor = window.statusBarColor,
         navigationBarColor = window.navigationBarColor,
         lightStatusBars = insetsController.isAppearanceLightStatusBars,
@@ -82,6 +84,11 @@ internal class AlbumPickerSystemBarController(
         darkNavigationBarIcons: Boolean? = null,
         navigationBarContrastEnforced: Boolean = false,
     ) {
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        window.clearFlags(
+            WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or
+                WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION,
+        )
         window.statusBarColor = statusBarColor
         window.navigationBarColor = navigationBarColor
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -93,6 +100,10 @@ internal class AlbumPickerSystemBarController(
 
     @Suppress("DEPRECATION")
     internal fun restoreHostStyle() {
+        val flagMask = WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
+            WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or
+            WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION
+        window.setFlags(hostStyle.windowFlags and flagMask, flagMask)
         window.statusBarColor = hostStyle.statusBarColor
         window.navigationBarColor = hostStyle.navigationBarColor
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -106,6 +117,7 @@ internal class AlbumPickerSystemBarController(
 }
 
 private data class HostSystemBarStyle(
+    val windowFlags: Int,
     @ColorInt val statusBarColor: Int,
     @ColorInt val navigationBarColor: Int,
     val lightStatusBars: Boolean,

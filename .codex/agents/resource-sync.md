@@ -4,7 +4,7 @@ Use this checklist when changing Manifest entries, resources, launcher assets, t
 
 ## Manifest and Permissions
 
-- [ ] Package-facing behavior still uses `com.github.sceneren.album`.
+- [ ] Package-facing behavior in `:app` uses `com.github.sceneren.photopicker`.
 - [ ] `MainActivity` remains exported for launcher intent if it is still the app entry point.
 - [ ] Storage/media permissions keep current API caps and Android 13+ media permission coverage.
 - [ ] Google Photo Picker service metadata remains consistent with `play-services-base`.
