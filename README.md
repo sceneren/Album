@@ -85,12 +85,12 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        com.github.sceneren.album.ui.view.AlbumUi.setImageLoader(
-            object : com.github.sceneren.album.ui.view.AlbumImageLoader {
+        AlbumUi.setImageLoader(
+            object : AlbumImageLoader {
                 override fun load(
                     imageView: ImageView,
                     media: AlbumMedia,
-                    target: com.github.sceneren.album.ui.view.AlbumImageTarget,
+                    target: AlbumImageTarget,
                 ) {
                     imageView.load(media.uri)
                 }
@@ -109,9 +109,7 @@ Compose 的 Coil 配置、视频封面解码和完整导入见[相册选择器�
 ## View 快速开始
 
 ```kotlin
-private val albumPicker = registerForActivityResult(
-    com.github.sceneren.album.ui.view.AlbumPickerContract(),
-) { result ->
+private val albumPicker = registerForActivityResult(AlbumPickerContract()) { result ->
     result?.items.orEmpty().forEach { item ->
         // 应用内处理文件时使用 item.filePath
         // 需要 URI 或跨组件传递时使用 item.resultUri
@@ -120,7 +118,7 @@ private val albumPicker = registerForActivityResult(
 
 private fun openAlbum() {
     albumPicker.launch(
-        com.github.sceneren.album.ui.view.AlbumPickerRequest(
+        AlbumPickerRequest(
             config = AlbumPickerConfig(
                 mediaFilter = AlbumMediaFilter.IMAGES_AND_VIDEOS,
                 maxSelectionCount = 9,
@@ -136,7 +134,7 @@ private fun openAlbum() {
 var showAlbum by rememberSaveable { mutableStateOf(false) }
 
 if (showAlbum) {
-    com.github.sceneren.album.ui.compose.AlbumPicker(
+    AlbumPicker(
         config = AlbumPickerConfig(
             mediaFilter = AlbumMediaFilter.IMAGES,
             maxSelectionCount = 9,
@@ -180,6 +178,15 @@ Compose 版本不声明独立 Activity。宿主负责把 `AlbumPicker` 放入自
 - [GitHub 与 JitPack 发布说明](docs/JitPack发布说明.md)
 - [JitPack Android Library 官方指南](https://docs.jitpack.io/android/)
 - [Android Library 发布官方指南](https://developer.android.com/build/publish-library)
+
+## 致谢
+
+感谢以下开源项目及其作者、贡献者为 Album 提供支持：
+
+| 第三方库 | GitHub 地址 | 在项目中的用途 |
+| --- | --- | --- |
+| Luban（鲁班） | [Curzibn/Luban](https://github.com/Curzibn/Luban) | 在 `album-api` 中用于选择结果的图片压缩。用户确认选择后，根据压缩配置处理符合条件的图片，并返回压缩后的文件路径；视频不参与压缩。 |
+| ZoomImage | [panpf/zoomimage](https://github.com/panpf/zoomimage) | 在 `album-ui-view` 和 `album-ui-compose` 中分别通过 `ZoomImageView` 和 `ZoomImage` 实现大图预览，提供图片缩放、拖动等手势交互；图片加载仍由宿主配置的 `AlbumImageLoader` 负责。 |
 
 ## 本地验证
 
