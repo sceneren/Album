@@ -14,18 +14,90 @@ import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
+import com.github.sceneren.album.api.MediaAccessStatus
+import com.github.sceneren.album.api.internal.permission.AndroidMediaAccessResolver
 import com.github.sceneren.album.api.resolveAlbumMediaSpecialFormat
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
+import java.util.Locale
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** 负责 `AndroidMediaStoreDataSource` 相关的数据与行为。 */
 internal class AndroidMediaStoreDataSource(
     context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : MediaStoreDataSource {
-    private val contentResolver = context.applicationContext.contentResolver
+    private val appContext = context.applicationContext
+    private val contentResolver = appContext.contentResolver
     private val filesUri = MediaStore.Files.getContentUri(EXTERNAL_VOLUME)
+    private val signatureMutex = Mutex()
+    private val signatureCache = mutableMapOf<AlbumMediaFilter, Pair<List<StoreGeneration>, String>>()
+
+    private data class StoreGeneration(val volume: String, val version: String, val generation: Long)
+
+    private fun storeGeneration(filter: AlbumMediaFilter): List<StoreGeneration>? {
+        // Selected-media grants can change without changing the volume generation.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R ||
+            AndroidMediaAccessResolver(appContext).resolve(filter) != MediaAccessStatus.FULL) return null
+        return try {
+            MediaStore.getExternalVolumeNames(appContext).sorted().map { volume ->
+                StoreGeneration(volume, MediaStore.getVersion(appContext, volume), MediaStore.getGeneration(appContext, volume))
+            }.takeIf { it.isNotEmpty() }
+        } catch (_: RuntimeException) {
+            null // OEM providers without generation support use the cursor comparison.
+        }
+    }
+
+    override suspend fun findPositions(
+        mediaFilter: AlbumMediaFilter, bucketId: Long, uris: Set<Uri>,
+    ): Map<Uri, Int> = withContext(ioDispatcher) {
+        buildMap {
+            checkNotNull(queryCursor(
+                MediaStoreQuerySpec.create(mediaFilter, bucketId),
+                arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE), null, null,
+            )).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val uri = ContentUris.withAppendedId(cursor.readMediaType(1).contentUri, cursor.getLong(0))
+                    if (uri in uris) put(uri, cursor.position)
+                    if (size == uris.size) break
+                }
+            }
+        }
+    }
+
+    override suspend fun getChangeSignature(mediaFilter: AlbumMediaFilter): String = withContext(ioDispatcher) {
+        signatureMutex.withLock {
+            val generation = storeGeneration(mediaFilter)
+            signatureCache[mediaFilter]?.takeIf { generation != null && it.first == generation }
+                ?.let { return@withLock it.second }
+            // Stream a small projection instead of allocating AlbumMedia for the entire library.
+            // Generation catches same-second/same-size edits on API 30+, including indexed XMP.
+            val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                BASE_MEDIA_PROJECTION + MediaStore.MediaColumns.GENERATION_MODIFIED
+            } else BASE_MEDIA_PROJECTION
+            val digest = MessageDigest.getInstance("SHA-256")
+            checkNotNull(queryCursor(
+                MediaStoreQuerySpec.create(mediaFilter, AlbumDirectory.ALL_BUCKET_ID), projection, null, null,
+            )) { "Media provider returned no cursor" }.use { cursor ->
+                while (cursor.moveToNext()) {
+                    for (column in 0 until cursor.columnCount) {
+                        val bytes = cursor.getString(column)?.toByteArray(Charsets.UTF_8)
+                        val length = bytes?.size ?: -1
+                        for (shift in 24 downTo 0 step 8) digest.update((length ushr shift).toByte())
+                        if (bytes != null) digest.update(bytes)
+                    }
+                }
+            }
+            val signature = digest.digest().joinToString("") { "%02x".format(Locale.ROOT, it) }
+            if (generation != null && generation == storeGeneration(mediaFilter)) {
+                signatureCache[mediaFilter] = generation to signature
+            }
+            signature
+        }
+    }
 
     /** 获取 `loadPage` 所需的数据。 */
     override suspend fun loadPage(
@@ -154,6 +226,9 @@ internal class AndroidMediaStoreDataSource(
                             displayName = displayName,
                             xmp = cursor.blobOrNull(xmpColumn),
                         ),
+                        generationModified = cursor.positiveLongOrNull(
+                            cursor.getColumnIndex(MediaStore.MediaColumns.GENERATION_MODIFIED),
+                        ),
                     ),
                 )
             }
@@ -239,13 +314,15 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )
 
-        private fun mediaProjection(): Array<String> = when {
+        private fun mediaProjection(): Array<String> = (when {
             supportsSpecialFormatColumn() -> BASE_MEDIA_PROJECTION + SPECIAL_FORMAT_COLUMN
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 BASE_MEDIA_PROJECTION + MediaStore.MediaColumns.XMP
             }
             else -> BASE_MEDIA_PROJECTION
-        }
+        }) + if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            arrayOf(MediaStore.MediaColumns.GENERATION_MODIFIED)
+        } else emptyArray()
 
         private fun supportsSpecialFormatColumn(): Boolean =
             Build.VERSION.SDK_INT >= API_LEVEL_WITH_SPECIAL_FORMAT ||

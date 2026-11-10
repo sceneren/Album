@@ -46,6 +46,7 @@ graph TD
 
 ## Rules
 
+- Change tracking, metadata versioning and consistent paging stay in `:album-api`; both UI libraries consume the same tracker while retaining their presenters. No additional runtime dependencies are needed.
 - Dependency direction is one-way: `:app` to UI/data and the optional engine; both UI libraries export `:album-api` and lightweight `:album-video-api`. Media3 must appear only under opt-in `:album-video-media3`, never transitively under either picker UI. Coil stays in the demo host.
 - Add dependencies through `gradle/libs.versions.toml` and use catalog aliases.
 - Keep Compose UI, Material3, Coil, permission-prompt libraries, and app-only utilities out of `:album-api`.

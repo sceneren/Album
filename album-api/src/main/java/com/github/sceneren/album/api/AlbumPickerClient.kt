@@ -325,6 +325,26 @@ class AlbumPickerClient internal constructor(
         const val MAX_IMAGE_BYTES = 256L * 1024 * 1024
         const val MILLIS_PER_SECOND = 1_000L
 
+        /** 检查相机目录变化时仅读取文件属性，避免在前台恢复和每次分页时重新探测媒体内容。 */
+        internal fun completedCameraSignature(context: Context, filter: AlbumMediaFilter): List<List<Any>> {
+            val appContext = context.applicationContext
+            val root = appContext.getExternalFilesDir(null) ?: return emptyList()
+            val pendingPaths = AlbumPickerSessionStore(appContext).pendingCameraFilePaths()
+            return File(root, CAMERA_DIRECTORY).listFiles().orEmpty().asSequence()
+                .filter { it.isFile && it.length() > 0 && it.absolutePath !in pendingPaths }
+                .filter {
+                    val name = it.name.lowercase(Locale.ROOT)
+                    when {
+                        name.endsWith(".jpg") || name.endsWith(".jpeg") -> filter.allows(AlbumMediaType.IMAGE)
+                        name.endsWith(".mp4") -> filter.allows(AlbumMediaType.VIDEO)
+                        else -> false
+                    }
+                }
+                .sortedBy { it.name }
+                .map { listOf(it.name, it.length(), it.lastModified()) }
+                .toList()
+        }
+
         /** 读取应用专属相机目录中已完成的拍摄媒体，供无完整媒体权限时跨会话展示。 */
         fun loadCompletedCameraMedia(
             context: Context,

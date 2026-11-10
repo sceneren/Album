@@ -34,4 +34,6 @@ data class AlbumMedia(
     val source: AlbumMediaSource,
     /** Special visual format reported by the media provider. */
     val specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
+    /** MediaStore 文件修改世代；提供方或旧系统不支持时为 null。 */
+    val generationModified: Long? = null,
 )

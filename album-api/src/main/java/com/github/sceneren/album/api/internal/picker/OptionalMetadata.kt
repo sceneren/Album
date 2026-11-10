@@ -18,4 +18,6 @@ internal data class OptionalMetadata(
     val specialFormat: AlbumMediaSpecialFormat,
     /** 提供方游标是否已包含特殊格式列（含普通图片标识 0），为 true 时无需打开输入流探测 XMP。 */
     val hasProviderSpecialFormat: Boolean = false,
+    val dateModifiedEpochSeconds: Long? = null,
+    val generationModified: Long? = null,
 )

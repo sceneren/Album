@@ -192,6 +192,7 @@ internal class AlbumPickerSessionStore(
                 putNullable("duration", item.durationMillis)
                 put("specialFormat", item.specialFormat.name)
                 putNullable("dateModified", item.dateModifiedEpochSeconds)
+                putNullable("generationModified", item.generationModified)
                 put("source", item.source.name)
                 putNullable("filePath", item.filePath)
             })
@@ -216,6 +217,7 @@ internal class AlbumPickerSessionStore(
                         ?.let { runCatching { AlbumMediaSpecialFormat.valueOf(it) }.getOrNull() }
                         ?: AlbumMediaSpecialFormat.NONE,
                     dateModifiedEpochSeconds = item.optNullableLong("dateModified"),
+                    generationModified = item.optNullableLong("generationModified"),
                     source = AlbumPickerItemSource.valueOf(item.getString("source")),
                     filePath = item.optNullableString("filePath"),
                 ),

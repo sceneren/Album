@@ -8,4 +8,6 @@ Reusable Android View UI library depending on `:album-api`, `:album-video-api`, 
 
 Configuration, file materialization, persistence and result contracts are shared through `album-api`. Runtime permission and real-provider validation requires a device.
 
-Foreground resume and batched provider notifications invalidate cached metadata on IO before refreshing the retained Pager and directories for all access routes. Provider observation is RESUMED-scoped and cancels its registrations when the picker stops.
+Foreground resume and batched provider notifications enter a conflated, serialized change check. Unchanged data never refreshes the Pager; real changes update the retained adapter using URI/content diffs. The API retains the loaded window by surviving URI so RecyclerView can preserve its anchor and pixel offset. Provider observation is RESUMED-scoped and cancels its registrations when the picker stops.
+
+Every foreground resume queues a change check, even if an asynchronous system-picker result arrived after the preceding resume. There is no cross-resume suppression flag. `PickerResumeCheckTest` dispatches a real Activity Result after resume and verifies the next foreground transition still checks deletions; unchanged data continues to avoid Pager refresh.

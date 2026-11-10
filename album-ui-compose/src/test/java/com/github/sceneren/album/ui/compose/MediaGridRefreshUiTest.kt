@@ -90,6 +90,46 @@ class MediaGridRefreshUiTest {
     }
 
     @Test
+    fun removalBeforeViewportRetainsVisibleUriAndPixelOffset() {
+        showGrid()
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(24)
+        val before = compose.onNodeWithContentDescription("image-25").fetchSemanticsNode()
+        compose.runOnIdle { disposed.clear(); pagingItems.refresh() }
+        compose.waitForIdle()
+        compose.waitUntil(5_000) { refreshStarted.isCompleted }
+        refreshResult.complete(PagingSource.LoadResult.Page(original.drop(4), null, null))
+        compose.waitForIdle()
+        compose.waitUntil(5_000) { pagingItems.itemCount == 56 }
+        compose.waitForIdle()
+        val after = compose.onNodeWithContentDescription("image-25").fetchSemanticsNode()
+        assertEquals(before.id, after.id)
+        assertEquals(before.boundsInRoot.top, after.boundsInRoot.top)
+        compose.runOnIdle { assertTrue(original[24].uri !in disposed) }
+    }
+
+    @Test
+    fun editingOneFileDoesNotRestartUnchangedVisibleTiles() {
+        showGrid()
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(24)
+        val before = compose.onNodeWithContentDescription("image-25").fetchSemanticsNode()
+        compose.runOnIdle { disposed.clear(); pagingItems.refresh() }
+        compose.waitForIdle()
+        compose.waitUntil(5_000) { refreshStarted.isCompleted }
+        val updated = original.map { if (it == original[25]) it.copy(generationModified = 2) else it }
+        refreshResult.complete(PagingSource.LoadResult.Page(updated, null, null))
+        compose.waitForIdle()
+        compose.waitUntil(5_000) { pagingItems.itemSnapshotList.items == updated }
+        compose.waitForIdle()
+        val after = compose.onNodeWithContentDescription("image-25").fetchSemanticsNode()
+        assertEquals(before.id, after.id)
+        assertEquals(before.boundsInRoot, after.boundsInRoot)
+        compose.runOnIdle {
+            assertTrue(original[24].uri !in disposed)
+            assertTrue(original[25].uri in disposed)
+        }
+    }
+
+    @Test
     fun successfulEmptyRefreshRemovesStaleMediaButKeepsAddAction() {
         showGrid()
         compose.runOnIdle { pagingItems.refresh() }
@@ -131,7 +171,7 @@ class MediaGridRefreshUiTest {
                     accessStatus = MediaAccessStatus.DENIED, areMediaPermissionsDeclared = false,
                     directories = emptyList(), pagingItems = items, preview = null,
                     imageLoader = { item, _ ->
-                        DisposableEffect(item.uri) { onDispose { disposed += item.uri } }
+                        DisposableEffect(item) { onDispose { disposed += item.uri } }
                         ColorPainter(Color.Gray)
                     },
                     videoPlayerFactory = null, onBack = {}, onDirectory = {}, onRequestPermission = {},

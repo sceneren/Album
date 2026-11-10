@@ -39,7 +39,7 @@ class AlbumPickerState internal constructor() {
     /** 关闭预览；若未预览，则取消会话并调用 onCancel。 */
     fun cancel() { if (!isProcessing) actions?.cancel?.invoke() }
 
-    /** 请求刷新权限状态及相册列表。 */
+    /** 检查权限及媒体变化；仅在内容变化时更新列表，保留当前滚动位置。 */
     fun refresh() { if (!isProcessing) actions?.refresh?.invoke() }
 
     internal fun attach(token: Any) {

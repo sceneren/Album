@@ -18,7 +18,7 @@ internal fun Cursor.stringOrNull(column: Int): String? =
 
 /** 执行 `longOrNull` 方法定义的处理。 */
 internal fun Cursor.longOrNull(column: Int): Long? =
-    if (isNull(column)) null else getLong(column)
+    if (column < 0 || isNull(column)) null else getLong(column)
 
 /** 执行 `positiveLongOrNull` 方法定义的处理。 */
 internal fun Cursor.positiveLongOrNull(column: Int): Long? =

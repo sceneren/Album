@@ -31,6 +31,8 @@ internal fun Cursor.readOptionalMetadata(
             xmp = xmp,
         ),
         hasProviderSpecialFormat = specialFormatCode != null || xmp != null,
+        dateModifiedEpochSeconds = positiveLongOrNull(MediaStore.MediaColumns.DATE_MODIFIED),
+        generationModified = positiveLongOrNull(MediaStore.MediaColumns.GENERATION_MODIFIED),
     )
 }
 

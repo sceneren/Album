@@ -44,6 +44,7 @@ import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
+import com.github.sceneren.album.api.AlbumMediaChangeTracker
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumMediaType
@@ -52,6 +53,7 @@ import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.MediaAccessStatus
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -63,6 +65,8 @@ class AlbumPickerActivity : ComponentActivity() {
     private lateinit var config: com.github.sceneren.album.api.AlbumPickerConfig
     private lateinit var appearance: AlbumPickerAppearance
     private lateinit var api: AlbumApi
+    private lateinit var mediaChangeTracker: AlbumMediaChangeTracker
+    private val refreshRequests = Channel<Unit>(Channel.CONFLATED)
     private lateinit var client: com.github.sceneren.album.api.AlbumPickerClient
     private lateinit var imageLoader: AlbumImageLoader
     private lateinit var session: AlbumPickerSessionSnapshot
@@ -99,7 +103,6 @@ class AlbumPickerActivity : ComponentActivity() {
     private var isConfirming = false
     private var isCameraPermissionRequestInFlight = false
     private var pendingCameraMediaType: AlbumMediaType? = null
-    private var suppressNextResumeRefresh = false
     private var activeFeedSignature: FeedSignature? = null
     private var accessStatus: MediaAccessStatus = MediaAccessStatus.DENIED
     private var areMediaPermissionsDeclared = false
@@ -108,10 +111,9 @@ class AlbumPickerActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
-        suppressNextResumeRefresh = true
         lifecycleScope.launch {
             api.syncPartialSelections(config.mediaFilter)
-            refreshContent(forceReloadFeed = true)
+            refreshContent()
         }
     }
 
@@ -144,21 +146,20 @@ class AlbumPickerActivity : ComponentActivity() {
         appearance = AlbumPickerExtras.readAppearance(intent)
         imageLoader = AlbumUi.requireImageLoader()
         api = AlbumApi.create(this)
+        mediaChangeTracker = api.createMediaChangeTracker(config.mediaFilter)
         client = api.createPickerClient(this)
         val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
         session = client.openSession(config, sessionId)
 
         photoPicker = api.registerPhotoPicker(this, config.mediaFilter, maxSelectionCount = null) { result ->
-            suppressNextResumeRefresh = true
             if (result is PhotoPickResult.Failed) showMessage(getString(R.string.auv_selection_failed))
-            refreshContent(forceReloadFeed = result is PhotoPickResult.Selected)
+            refreshContent()
         }
         cameraLauncher = client.registerCamera(this, session.sessionId) { result ->
-            suppressNextResumeRefresh = true
             result.onSuccess { updated ->
                 renderSession(updated)
                 if (accessStatus != MediaAccessStatus.FULL) {
-                    refreshContent(forceReloadFeed = true)
+                    refreshContent()
                 }
                 maybeAutoConfirm()
             }.onFailure { failure ->
@@ -167,6 +168,9 @@ class AlbumPickerActivity : ComponentActivity() {
         }
 
         bindViews()
+        lifecycleScope.launch {
+            for (request in refreshRequests) refreshContentNow()
+        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 api.observeMediaChanges().collect {
@@ -203,19 +207,12 @@ class AlbumPickerActivity : ComponentActivity() {
     /** 处理 `onResume` 回调。 */
     override fun onResume() {
         super.onResume()
-        if (suppressNextResumeRefresh) {
-            suppressNextResumeRefresh = false
-            return
-        }
         refreshChangedMedia()
     }
 
-    /** 前台恢复和媒体变化均更新当前 Pager，后台校验元数据后再保留锚点刷新。 */
+    /** 前台恢复和媒体通知仅触发检查；实际变化后才更新当前分页。 */
     private fun refreshChangedMedia() {
-        lifecycleScope.launch {
-            api.invalidateMediaCache()
-            refreshContent(forceReloadFeed = true)
-        }
+        refreshContent()
     }
 
     /** 执行 `finish` 方法定义的处理。 */
@@ -395,7 +392,12 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     /** 更新 `refreshContent` 对应的状态。 */
-    private fun refreshContent(forceReloadFeed: Boolean = false) {
+    private fun refreshContent() {
+        refreshRequests.trySend(Unit)
+    }
+
+    private suspend fun refreshContentNow() {
+        val mediaChanged = mediaChangeTracker.hasChanges().getOrDefault(false)
         val previousAccessStatus = accessStatus
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val canBrowseDirectories = accessStatus == MediaAccessStatus.FULL
@@ -446,12 +448,12 @@ class AlbumPickerActivity : ComponentActivity() {
                     mediaAdapter.submitData(data)
                 }
             }
-        } else if (forceReloadFeed || accessStatus == MediaAccessStatus.PARTIAL) {
+        } else if (mediaChanged) {
             // Refresh in place so Paging can diff against the visible snapshot and keep
             // scroll position, instead of cancelling the feed after adding photos.
             mediaAdapter.refresh()
         }
-        if (canBrowseDirectories && (forceReloadFeed || directories.isEmpty() || previousAccessStatus != accessStatus)) {
+        if (canBrowseDirectories && (mediaChanged || directoryJob == null || previousAccessStatus != accessStatus)) {
             directoryJob?.cancel()
             directoryJob = lifecycleScope.launch {
                 val updatedDirectories = api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
@@ -750,7 +752,7 @@ class AlbumPickerActivity : ComponentActivity() {
         lifecycleScope.launch {
             client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
                 renderSession(updated)
-                refreshContent(forceReloadFeed = true)
+                refreshContent()
             }
         }
     }

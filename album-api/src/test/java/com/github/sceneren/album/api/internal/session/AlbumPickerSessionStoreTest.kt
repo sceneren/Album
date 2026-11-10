@@ -46,6 +46,7 @@ class AlbumPickerSessionStoreTest {
                     height = 20,
                     durationMillis = null,
                     dateModifiedEpochSeconds = 456L,
+                    generationModified = 1234L,
                     source = AlbumPickerItemSource.PHOTO_PICKER,
                 ),
             ),

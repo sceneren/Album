@@ -13,6 +13,7 @@
 - Use `content://` URIs and `ContentResolver`; never depend on raw external paths.
 - Run MediaStore, metadata, file materialization, and grant operations on an IO dispatcher.
 - Close cursors with `use` and keep projections minimal, especially for full-library directory aggregation.
+- On resume/provider notifications, compare a retained media change tracker before refreshing. Keep the presenter and scroll state; invalidate only edited URI metadata. Paging generations must reject pages spanning a dataset mutation and restore by surviving URI.
 - Preserve deterministic order for paging and system-persisted selections (`ContentResolver.persistedUriPermissions`).
 - Treat a Photo Picker batch atomically at the data layer; validate before taking grants, and clean up newly acquired grants after a failure.
 

@@ -102,6 +102,11 @@ class MediaStoreMediaPagingSourceTest {
         private val items: List<AlbumMedia> = emptyList(),
         private val failure: Throwable? = null,
     ) : MediaStoreDataSource {
+        override suspend fun findPositions(mediaFilter: AlbumMediaFilter, bucketId: Long, uris: Set<Uri>) =
+            items.withIndex().filter { it.value.uri in uris }.associate { it.value.uri to it.index }
+
+        override suspend fun getChangeSignature(mediaFilter: AlbumMediaFilter) = items.toString()
+
         val requestedOffsets = mutableListOf<Int>()
 
         /** 获取 `loadPage` 所需的数据。 */

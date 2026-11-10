@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-11-10 10:21:04",
+  "scan_time": "2026-11-10 12:43:14",
   "module_count": 6,
   "modules": [
     {
@@ -402,7 +402,7 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 67,
+          "file_count": 69,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -415,6 +415,7 @@
             "com\\github\\sceneren\\album\\api\\AlbumCompressionStatus.kt",
             "com\\github\\sceneren\\album\\api\\AlbumDirectory.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMedia.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumMediaChangeTracker.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaFeed.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
             "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
@@ -437,6 +438,7 @@
             "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\mediastore\\ConsistentMediaPagingSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
@@ -477,7 +479,7 @@
           ]
         }
       ],
-      "file_count": 67,
+      "file_count": 69,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -490,6 +492,7 @@
         "com\\github\\sceneren\\album\\api\\AlbumCompressionStatus.kt",
         "com\\github\\sceneren\\album\\api\\AlbumDirectory.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMedia.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumMediaChangeTracker.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaFeed.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaFilter.kt",
         "com\\github\\sceneren\\album\\api\\AlbumMediaPermissionRequestFactory.kt",
@@ -512,6 +515,7 @@
         "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\mediastore\\ConsistentMediaPagingSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
@@ -557,7 +561,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (67个文件)\n    └── github/  (67个文件)\n        └── sceneren/  (67个文件)\n            └── album/  (67个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (69个文件)\n    └── github/  (69个文件)\n        └── sceneren/  (69个文件)\n            └── album/  (69个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",

@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 提供支持权限状态的媒体分页与系统已授权资源查询能力。
@@ -58,12 +60,86 @@ class AlbumApi internal constructor(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mediaChanges: Flow<Unit> = emptyFlow(),
     private val cacheGeneration: AtomicLong = AtomicLong(),
+    private val cameraMediaSignature: (AlbumMediaFilter) -> Any = { cameraMediaLoader(it) },
+    private val metadataRevisions: Map<AlbumMediaType, AtomicLong> = AlbumMediaType.entries.associateWith { AtomicLong() },
 ) {
+    private val snapshotMutex = Mutex()
     /**
-     * 监听媒体提供方的批量变化；宿主应仅在界面可见时收集，并刷新当前分页与目录。
-     * 不同提供方的通知能力不同，回到前台时仍应调用 [invalidateMediaCache] 后刷新。
+     * 监听媒体提供方的批量变化；通知和前台恢复后使用 [createMediaChangeTracker] 检查实际变化。
      */
     fun observeMediaChanges(): Flow<Unit> = mediaChanges.flowOn(ioDispatcher)
+
+    /** 为一个列表创建变化基线；过滤无关类型及重复通知，保留未变化文件的元数据缓存。 */
+    fun createMediaChangeTracker(
+        mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
+    ): AlbumMediaChangeTracker = AlbumMediaChangeTracker { readMediaChangeSnapshot(mediaFilter) }
+
+    private suspend fun readMediaChangeSnapshot(
+        mediaFilter: AlbumMediaFilter,
+        revalidateCachedMedia: Boolean = true,
+    ): AlbumMediaChangeTracker.Snapshot =
+        withContext(ioDispatcher) {
+            snapshotMutex.withLock {
+                val status = accessResolver.resolve(mediaFilter)
+                val storeSignature = if (status == MediaAccessStatus.DENIED) null
+                    else mediaStore.getChangeSignature(mediaFilter)
+                val grants = if (status == MediaAccessStatus.FULL) emptyList()
+                    else grantManager.persistedReadGrants()
+                var cachedMediaChanged = false
+                if (status != MediaAccessStatus.FULL && revalidateCachedMedia) {
+                    // Only revalidate metadata already used by paging. Never open historical media streams.
+                    val grantedUris = grants.mapTo(hashSetOf()) { it.uri }
+                    val known = synchronized(metadataCache) { metadataCache.toMap() }
+                    for ((uri, cached) in known) {
+                        if (uri !in grantedUris || !mediaFilter.allows(cached.mediaType)) continue
+                        val read = try {
+                            metadataReader.readFresh(uri)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: java.io.FileNotFoundException) {
+                            null
+                        } catch (_: SecurityException) {
+                            null
+                        }
+                        // A format detected from a header during selection cannot be reprobed here.
+                        val fresh = read?.let {
+                            if (it.specialFormat == AlbumMediaSpecialFormat.NONE &&
+                                cached.copy(specialFormat = AlbumMediaSpecialFormat.NONE) == it) {
+                                it.copy(specialFormat = cached.specialFormat)
+                            } else it
+                        }
+                        if (fresh != cached) {
+                            metadataReader.invalidateCache(setOf(uri))
+                            synchronized(metadataCache) {
+                                cacheGeneration.incrementAndGet()
+                                metadataCache.remove(uri)
+                                if (fresh != null) metadataCache[uri] = fresh
+                            }
+                            cachedMediaChanged = true
+                            metadataRevisions.getValue(cached.mediaType).incrementAndGet()
+                            if (fresh != null && fresh.mediaType != cached.mediaType) {
+                                metadataRevisions.getValue(fresh.mediaType).incrementAndGet()
+                            }
+                        }
+                    }
+                }
+                val filteredGrants = if (mediaFilter == AlbumMediaFilter.IMAGES_AND_VIDEOS) grants else grants.filter { grant ->
+                    try {
+                        mediaFilter.allows(metadataReader.requiredType(grant.uri))
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        false
+                    }
+                }
+                AlbumMediaChangeTracker.Snapshot(
+                    signature = listOf(status, storeSignature, filteredGrants, cameraMediaSignature(mediaFilter),
+                        if (status == MediaAccessStatus.FULL) null else AlbumMediaType.entries
+                            .filter { mediaFilter.allows(it) }.map { metadataRevisions.getValue(it).get() }),
+                    cachedMediaChanged = cachedMediaChanged,
+                )
+            }
+        }
 
     /**
      * 使历史元数据失效；接下来的分页会按需校验照片是否仍存在，不逐张打开历史图片内容流。
@@ -74,6 +150,7 @@ class AlbumApi internal constructor(
             cacheGeneration.incrementAndGet()
             metadataReader.invalidateCache()
             metadataCache.clear()
+            metadataRevisions.values.forEach { it.incrementAndGet() }
         }
     }
 
@@ -130,7 +207,9 @@ class AlbumApi internal constructor(
                 // 同一代分页固定授权与相机快照，滚动追加时不反复跨进程读取、排序整个授权列表。
                 val grants by lazy { grantManager.persistedReadGrants() }
                 val cameraItems by lazy { cameraMediaLoader(mediaFilter) }
-                AuthorizedMediaPagingSource { offset, limit ->
+                AuthorizedMediaPagingSource(
+                    readSignature = { readMediaChangeSnapshot(mediaFilter, revalidateCachedMedia = false).signature },
+                ) { offset, limit ->
                     withContext(ioDispatcher) {
                         loadAuthorizedPage(
                             status = status,
@@ -287,7 +366,7 @@ class AlbumApi internal constructor(
         if (status == MediaAccessStatus.DENIED || slice.items.size >= limit) {
             return slice.items
         }
-        if (slice.totalMatchedCount == 0 && offset == 0) {
+        if (slice.totalMatchedCount == 0) {
             return mediaStore.loadPage(
                 mediaFilter = mediaFilter,
                 bucketId = AlbumDirectory.ALL_BUCKET_ID,
@@ -296,25 +375,31 @@ class AlbumApi internal constructor(
             )
         }
         val extraUris = slice.seenMatchedUris
-        if (slice.items.isNotEmpty()) {
-            val remaining = limit - slice.items.size
-            val tail = mediaStore.loadPage(
-                mediaFilter = mediaFilter,
-                bucketId = AlbumDirectory.ALL_BUCKET_ID,
-                offset = 0,
-                limit = remaining + extraUris.size,
-            ).filterNot { it.uri in extraUris }
-                .take(remaining)
-            return slice.items + tail
+        // The requested offset is in the DEDUPLICATED feed, not in raw MediaStore rows.
+        // Advancing raw offset directly skips/repeats files when persisted URIs also exist there.
+        val wantedOffset = (offset - slice.totalMatchedCount).coerceAtLeast(0)
+        val remaining = limit - slice.items.size
+        val tail = ArrayList<AlbumMedia>(remaining)
+        // Locate exclusions with an identity-only cursor; do not reload/decode all preceding pages.
+        val excludedPositions = mediaStore.findPositions(
+            mediaFilter, AlbumDirectory.ALL_BUCKET_ID, extraUris,
+        ).values.sorted()
+        var rawOffset = wantedOffset
+        for (position in excludedPositions) {
+            if (position <= rawOffset) rawOffset++ else break
         }
-        val mediaStoreOffset = (offset - slice.totalMatchedCount).coerceAtLeast(0)
-        return mediaStore.loadPage(
-            mediaFilter = mediaFilter,
-            bucketId = AlbumDirectory.ALL_BUCKET_ID,
-            offset = mediaStoreOffset,
-            limit = limit + extraUris.size,
-        ).filterNot { it.uri in extraUris }
-            .take(limit)
+        val batchSize = maxOf(DEFAULT_PAGE_SIZE, remaining)
+        while (tail.size < remaining) {
+            val page = mediaStore.loadPage(mediaFilter, AlbumDirectory.ALL_BUCKET_ID, rawOffset, batchSize)
+            for (item in page) {
+                if (item.uri in extraUris) continue
+                tail += item
+                if (tail.size == remaining) break
+            }
+            rawOffset += page.size
+            if (page.size < batchSize) break
+        }
+        return slice.items + tail
     }
 
     /** 按需惰性读取指定分页窗口 `[offset, offset + limit)` 内的相机与系统持久授权媒体，避免首屏全量查询。 */
@@ -457,6 +542,7 @@ class AlbumApi internal constructor(
 
         private val sharedMetadataCache = ConcurrentHashMap<Uri, PickedUriMetadata>()
         private val sharedCacheGeneration = AtomicLong()
+        private val sharedMetadataRevisions = AlbumMediaType.entries.associateWith { AtomicLong() }
 
         /** 创建由系统 MediaStore 与 ContentResolver 授权管理支持的应用级 API 实例。 */
         fun create(context: Context): AlbumApi {
@@ -481,8 +567,12 @@ class AlbumApi internal constructor(
                 metadataCache = sharedMetadataCache,
                 mediaChanges = AndroidMediaChangeObserver(resolver, grantManager).changes(),
                 cacheGeneration = sharedCacheGeneration,
+                metadataRevisions = sharedMetadataRevisions,
                 cameraMediaLoader = { filter ->
                     AlbumPickerClient.loadCompletedCameraMedia(appContext, filter)
+                },
+                cameraMediaSignature = { filter ->
+                    AlbumPickerClient.completedCameraSignature(appContext, filter)
                 },
                 cameraMediaDeleter = { uri ->
                     AlbumPickerClient.deleteCameraMediaByUri(appContext, uri)

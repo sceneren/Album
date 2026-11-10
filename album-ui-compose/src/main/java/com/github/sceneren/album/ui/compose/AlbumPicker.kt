@@ -245,6 +245,9 @@ internal fun AlbumPickerHost(
         )
     }
     val api = remember(applicationContext) { AlbumApi.create(applicationContext) }
+    val mediaChangeTracker = remember(api, config.mediaFilter) {
+        api.createMediaChangeTracker(config.mediaFilter)
+    }
     val client = remember(api, applicationContext) { api.createPickerClient(applicationContext) }
     val sessionId = rememberSaveable(config) { UUID.randomUUID().toString() }
     val scope = rememberCoroutineScope()
@@ -276,8 +279,6 @@ internal fun AlbumPickerHost(
     val refreshRequests = remember(config, sessionId) {
         Channel<Unit>(Channel.CONFLATED).apply { trySend(Unit) }
     }
-    var isForceReloadPending by remember(config, sessionId) { mutableStateOf(true) }
-    var isMetadataInvalidationPending by remember(config, sessionId) { mutableStateOf(true) }
     var isExternalLauncherInFlight by remember { mutableStateOf(false) }
     var isCameraPermissionRequestInFlight by remember { mutableStateOf(false) }
     var pendingCameraMediaType by rememberSaveable { mutableStateOf<AlbumMediaType?>(null) }
@@ -295,8 +296,8 @@ internal fun AlbumPickerHost(
     }
 
     /** 更新 `refreshContentNow` 对应的状态。 */
-    suspend fun refreshContentNow(forceReload: Boolean = false, invalidateMetadata: Boolean = false) {
-        if (invalidateMetadata) api.invalidateMediaCache()
+    suspend fun refreshContentNow() {
+        val mediaChanged = mediaChangeTracker.hasChanges().getOrDefault(false)
         val previousAccessStatus = accessStatus
         val latestAccessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val accessChanged = previousAccessStatus != latestAccessStatus
@@ -308,17 +309,18 @@ internal fun AlbumPickerHost(
             bucketId = current.bucketId,
             accessStatus = latestAccessStatus,
         )
-        if (feed == null || activeFeedSignature != targetSignature) {
+        val shouldReplaceFeed = feed == null || activeFeedSignature != targetSignature
+        if (shouldReplaceFeed) {
             // A directory/permission change needs a new route, not a refresh of the old source.
             activeFeedSignature = targetSignature
             feed = api.getMediaFeed(config.mediaFilter, current.bucketId)
-        } else if (forceReload || latestAccessStatus == MediaAccessStatus.PARTIAL) {
+        } else if (mediaChanged) {
             // Keep the presenter and its snapshot while the new generation loads. Replacing
             // the Flow here clears every visible cell on return from the system picker.
             currentPagingItems?.refresh()
         }
         directories = if (latestAccessStatus == MediaAccessStatus.FULL) {
-            if (forceReload || directories.isEmpty() || accessChanged) {
+            if (mediaChanged || shouldReplaceFeed || accessChanged) {
                 api.getMediaDirectories(config.mediaFilter).getOrNull().orEmpty()
             } else {
                 directories
@@ -329,11 +331,7 @@ internal fun AlbumPickerHost(
     }
 
     /** 更新 `refreshContent` 对应的状态。 */
-    fun refreshContent(forceReload: Boolean = true, invalidateMetadata: Boolean = false) {
-        if (forceReload) {
-            isForceReloadPending = true
-        }
-        if (invalidateMetadata) isMetadataInvalidationPending = true
+    fun refreshContent() {
         refreshRequests.trySend(Unit)
     }
 
@@ -365,20 +363,18 @@ internal fun AlbumPickerHost(
     /** 执行 `handlePhotoPickerResult` 方法定义的处理。 */
     fun handlePhotoPickerResult(uris: List<Uri>) {
         scope.launch {
-            var selected = false
             try {
                 val result = api.processPhotoPickerResult(
                     uris = uris,
                     mediaFilter = config.mediaFilter,
                     maxSelectionCount = null,
                 )
-                selected = result is PhotoPickResult.Selected
                 if (result is PhotoPickResult.Failed) {
                     showMessage(applicationContext.getString(R.string.auc_selection_failed))
                 }
             } finally {
                 isExternalLauncherInFlight = false
-                refreshContent(forceReload = selected)
+                refreshContent()
             }
         }
     }
@@ -399,7 +395,7 @@ internal fun AlbumPickerHost(
         scope.launch {
             try {
                 api.syncPartialSelections(config.mediaFilter)
-                refreshContentNow(forceReload = true)
+                refreshContent()
             } finally {
                 isExternalLauncherInFlight = false
             }
@@ -414,7 +410,7 @@ internal fun AlbumPickerHost(
                     .onSuccess { updated ->
                         session = updated
                         if (accessStatus != MediaAccessStatus.FULL) {
-                            refreshContentNow(forceReload = true)
+                            refreshContent()
                         }
                         maybeAutoConfirm(config, updated, ::confirmSelection)
                     }
@@ -438,7 +434,7 @@ internal fun AlbumPickerHost(
                     .onSuccess { updated ->
                         session = updated
                         if (accessStatus != MediaAccessStatus.FULL) {
-                            refreshContentNow(forceReload = true)
+                            refreshContent()
                         }
                         maybeAutoConfirm(config, updated, ::confirmSelection)
                     }
@@ -647,7 +643,7 @@ internal fun AlbumPickerHost(
                 !isCameraPermissionRequestInFlight &&
                 !isFinished
             ) {
-                refreshContent(forceReload = true, invalidateMetadata = true)
+                refreshContent()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -657,7 +653,7 @@ internal fun AlbumPickerHost(
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             api.observeMediaChanges().collect {
                 if (!isExternalLauncherInFlight && !isCameraPermissionRequestInFlight && !isFinished) {
-                    refreshContent(forceReload = true, invalidateMetadata = true)
+                    refreshContent()
                 }
             }
         }
@@ -682,7 +678,7 @@ internal fun AlbumPickerHost(
                 confirm = ::confirmSelection,
                 preview = ::showSelectedPreview,
                 cancel = ::cancelPicker,
-                refresh = { refreshContent(forceReload = true, invalidateMetadata = true) },
+                refresh = ::refreshContent,
             ),
         )
     }
@@ -692,11 +688,7 @@ internal fun AlbumPickerHost(
     LaunchedEffect(refreshRequests) {
         for (request in refreshRequests) {
             if (!isFinished) {
-                val forceReload = isForceReloadPending
-                val invalidateMetadata = isMetadataInvalidationPending
-                isForceReloadPending = false
-                isMetadataInvalidationPending = false
-                refreshContentNow(forceReload = forceReload, invalidateMetadata = invalidateMetadata)
+                refreshContentNow()
             }
         }
     }
@@ -743,7 +735,7 @@ internal fun AlbumPickerHost(
                             scope.launch {
                                 client.setBucket(session.sessionId, bucketId).onSuccess { updated ->
                                     session = updated
-                                    refreshContentNow(forceReload = true)
+                                    refreshContent()
                                 }
                             }
                         }

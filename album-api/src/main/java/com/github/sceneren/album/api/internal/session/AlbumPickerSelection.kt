@@ -30,4 +30,6 @@ internal data class AlbumPickerSelection(
     val dateModifiedEpochSeconds: Long? = null,
     /** 文件的绝对路径。 */
     val filePath: String? = null,
+    /** MediaStore 修改世代，用于选择预览沿用正确的内容缓存版本。 */
+    val generationModified: Long? = null,
 )

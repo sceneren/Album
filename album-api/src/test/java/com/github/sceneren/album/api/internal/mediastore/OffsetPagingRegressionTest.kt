@@ -25,6 +25,9 @@ class OffsetPagingRegressionTest {
 
     private fun sources(data: List<AlbumMedia>): List<PagingSource<Int, AlbumMedia>> {
         val source = object : MediaStoreDataSource {
+            override suspend fun findPositions(mediaFilter: AlbumMediaFilter, bucketId: Long, uris: Set<Uri>) =
+                data.withIndex().filter { it.value.uri in uris }.associate { it.value.uri to it.index }
+            override suspend fun getChangeSignature(mediaFilter: AlbumMediaFilter) = data.toString()
             override suspend fun loadPage(mediaFilter: AlbumMediaFilter, bucketId: Long,
                 offset: Int, limit: Int) = data.drop(offset).take(limit)
             override suspend fun getDirectories(mediaFilter: AlbumMediaFilter) = emptyList<AlbumDirectory>()

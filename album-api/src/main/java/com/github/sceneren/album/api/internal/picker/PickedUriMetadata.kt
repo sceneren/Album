@@ -24,4 +24,7 @@ internal data class PickedUriMetadata(
     val durationMillis: Long?,
     /** Provider-reported special visual format. */
     val specialFormat: AlbumMediaSpecialFormat = AlbumMediaSpecialFormat.NONE,
+    /** 提供方报告的文件修改时间与世代，用于内容缓存失效。 */
+    val dateModifiedEpochSeconds: Long? = null,
+    val generationModified: Long? = null,
 )

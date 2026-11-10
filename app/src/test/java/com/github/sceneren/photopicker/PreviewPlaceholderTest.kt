@@ -49,6 +49,8 @@ class PreviewPlaceholderTest {
         assertEquals(coil3.size.Scale.FIT, preview.scale)
         assertNotEquals(thumbnail.memoryCacheKey, preview.memoryCacheKey)
         assertNotEquals(thumbnailCacheKey(media), thumbnailCacheKey(media.copy(sizeBytes = 101)))
+        assertNotEquals(thumbnailCacheKey(media), thumbnailCacheKey(media.copy(generationModified = 2)))
+        assertNotEquals(previewCacheKey(media), previewCacheKey(media.copy(generationModified = 2)))
     }
 
     @Test

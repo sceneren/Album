@@ -32,6 +32,36 @@ import org.robolectric.shadows.ShadowContentResolver
 /** 验证 `AndroidMediaStoreDataSourceTest` 覆盖的行为。 */
 class AndroidMediaStoreDataSourceTest {
     @Test
+    @Config(sdk = [29, 30])
+    fun signatureDetectsOldFileReplacementAndMetadataEditsWithAnUnchangedCount() = runTest {
+        val provider = RecordingMediaProvider(listOf(imageRow(id = 9), imageRow(id = 8)))
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        val source = AndroidMediaStoreDataSource(ApplicationProvider.getApplicationContext(), StandardTestDispatcher(testScheduler))
+        val initial = source.getChangeSignature(AlbumMediaFilter.IMAGES)
+        assertEquals(initial, source.getChangeSignature(AlbumMediaFilter.IMAGES))
+        provider.rows = listOf(imageRow(id = 9), imageRow(id = 7))
+        val replaced = source.getChangeSignature(AlbumMediaFilter.IMAGES)
+        org.junit.Assert.assertNotEquals(initial, replaced)
+        provider.rows = listOf(imageRow(id = 9), imageRow(id = 7) + (MediaStore.MediaColumns.SIZE to 999L))
+        org.junit.Assert.assertNotEquals(replaced, source.getChangeSignature(AlbumMediaFilter.IMAGES))
+        org.junit.Assert.assertFalse(provider.lastProjection!!.contains(MediaStore.MediaColumns.XMP))
+    }
+
+    @Test
+    fun generationDistinguishesSameSizeSameSecondFileEdits() = runTest {
+        val provider = RecordingMediaProvider(listOf(imageRow(id = 9) + (MediaStore.MediaColumns.GENERATION_MODIFIED to 1L)))
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        val source = AndroidMediaStoreDataSource(ApplicationProvider.getApplicationContext(), StandardTestDispatcher(testScheduler))
+        val initial = source.getChangeSignature(AlbumMediaFilter.IMAGES)
+        val before = source.loadPage(AlbumMediaFilter.IMAGES, -1, 0, 10).single()
+        provider.rows = listOf(imageRow(id = 9) + (MediaStore.MediaColumns.GENERATION_MODIFIED to 2L))
+        org.junit.Assert.assertNotEquals(initial, source.getChangeSignature(AlbumMediaFilter.IMAGES))
+        val after = source.loadPage(AlbumMediaFilter.IMAGES, -1, 0, 10).single()
+        assertEquals(1L, before.generationModified)
+        assertEquals(2L, after.generationModified)
+    }
+
+    @Test
     /** 验证 `api30UsesBundlePagingAndMapsMixedRows` 所描述的场景。 */
     fun api30UsesBundlePagingAndMapsMixedRows() = runTest {
         val provider = RecordingMediaProvider(
@@ -160,7 +190,7 @@ class AndroidMediaStoreDataSourceTest {
 
     /** 负责 `RecordingMediaProvider` 相关的数据与行为。 */
     private class RecordingMediaProvider(
-        private val rows: List<Map<String, Any?>>,
+        var rows: List<Map<String, Any?>>,
     ) : ContentProvider() {
         var lastQueryArgs: Bundle? = null
         var lastSortOrder: String? = null

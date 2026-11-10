@@ -130,7 +130,7 @@ internal fun PickedUriMetadata.toAlbumMedia(
     mimeType = mimeType,
     sizeBytes = sizeBytes,
     dateAddedEpochSeconds = null,
-    dateModifiedEpochSeconds = null,
+    dateModifiedEpochSeconds = dateModifiedEpochSeconds,
     width = width,
     height = height,
     durationMillis = durationMillis,
@@ -139,4 +139,5 @@ internal fun PickedUriMetadata.toAlbumMedia(
     selectedAtEpochMillis = selectedAtEpochMillis,
     source = AlbumMediaSource.PHOTO_PICKER,
     specialFormat = specialFormat,
+    generationModified = generationModified,
 )

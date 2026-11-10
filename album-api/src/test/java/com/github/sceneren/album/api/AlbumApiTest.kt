@@ -90,6 +90,65 @@ class AlbumApiTest {
         assertEquals(AlbumMediaFilter.VIDEOS, mediaStore.lastPageFilter)
     }
 
+    @Test fun foregroundChecksIgnoreUnchangedAndUnrelatedMediaWithoutLoadingPages() = runTest {
+        permissions.result = MediaAccessStatus.FULL
+        val image = media("image", AlbumMediaType.IMAGE)
+        mediaStore.pageMedia = listOf(image)
+        val tracker = api.createMediaChangeTracker(AlbumMediaFilter.IMAGES)
+        assertFalse(tracker.hasChanges().getOrThrow())
+        repeat(3) { assertFalse(tracker.hasChanges().getOrThrow()) }
+        mediaStore.pageMedia += media("video", AlbumMediaType.VIDEO)
+        assertFalse(tracker.hasChanges().getOrThrow())
+        mediaStore.pageMedia = listOf(image.copy(generationModified = 2))
+        assertTrue(tracker.hasChanges().getOrThrow())
+        assertFalse(tracker.hasChanges().getOrThrow())
+        mediaStore.pageMedia = emptyList()
+        assertTrue(tracker.hasChanges().getOrThrow())
+        assertEquals(null, mediaStore.lastPageLimit)
+        assertEquals(0, metadataReader.cacheInvalidations)
+    }
+
+    @Test fun authorizedMetadataWarmupDoesNotCountAsChangeAndOnlyEditedUriIsInvalidated() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        val first = uri("unchanged")
+        val second = uri("edited")
+        grants.seed(first)
+        grants.seed(second)
+        metadataReader.failOnStreamProbe = true
+        val tracker = api.createMediaChangeTracker()
+        assertFalse(tracker.hasChanges().getOrThrow())
+        assertEquals(2, api.loadMediaPage().getOrThrow().size)
+        assertFalse(tracker.hasChanges().getOrThrow())
+        metadataReader.generations[second] = 10
+        assertTrue(tracker.hasChanges().getOrThrow())
+        assertEquals(setOf(second), metadataReader.invalidatedUris)
+        assertEquals(10L, api.loadMediaPage().getOrThrow().single { it.uri == second }.generationModified)
+        assertFalse(tracker.hasChanges().getOrThrow())
+        metadataReader.missingUris += second
+        assertTrue(tracker.hasChanges().getOrThrow())
+        assertEquals(listOf(first), api.loadMediaPage().getOrThrow().map { it.uri })
+        assertEquals(0, metadataReader.cacheInvalidations)
+    }
+
+    @Test fun authorizedImageChangesDoNotRefreshTheVideoList() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        val image = uri("image")
+        val video = uri("video")
+        grants.seed(image)
+        grants.seed(video)
+        metadataReader.types[video] = AlbumMediaType.VIDEO
+        api.loadMediaPage(AlbumMediaFilter.IMAGES_AND_VIDEOS).getOrThrow()
+        val images = api.createMediaChangeTracker(AlbumMediaFilter.IMAGES)
+        val videos = api.createMediaChangeTracker(AlbumMediaFilter.VIDEOS)
+        assertFalse(images.hasChanges().getOrThrow())
+        assertFalse(videos.hasChanges().getOrThrow())
+        metadataReader.generations[image] = 2
+        assertTrue(images.hasChanges().getOrThrow())
+        assertFalse(videos.hasChanges().getOrThrow())
+        grants.seed(uri("new-image"))
+        assertFalse(videos.hasChanges().getOrThrow())
+    }
+
     @Test
     /** 验证 `deniedRoutesToSystemPersistedUriFeed` 所描述的场景。 */
     fun deniedRoutesToSystemPersistedUriFeed() {
@@ -242,15 +301,35 @@ class AlbumApiTest {
     }
 
     @Test
-    fun scrollingReadsPersistedGrantsOnlyOncePerPagingGeneration() = runTest {
+    fun scrollingChecksGrantChangesWithoutReopeningLoadedMetadata() = runTest {
         permissions.result = MediaAccessStatus.DENIED
         (1..100).forEach { grants.seed(uri("image-$it"), persistedAt = it.toLong()) }
 
         val items = api.getMediaFeed(pageSize = 20).pagingData.asSnapshot { scrollTo(79) }
 
         assertTrue(items.size >= 80)
-        assertEquals(1, grants.snapshotReads)
+        assertTrue(grants.snapshotReads > 1)
         assertEquals(items.size, metadataReader.readCalls)
+    }
+
+    @Test fun partialPagesUseOffsetsAfterDeduplicatingPersistedAndMediaStoreUris() = runTest {
+        permissions.result = MediaAccessStatus.PARTIAL
+        mediaStore.paginate = true
+        mediaStore.pageMedia = (0 until 237).map { media("image-$it", AlbumMediaType.IMAGE) }
+        val duplicateGrants = mediaStore.pageMedia.filterIndexed { i, _ -> i % 3 == 0 }.take(43)
+        duplicateGrants.forEachIndexed { i, item -> grants.seed(item.uri, persistedAt = (1000 - i).toLong()) }
+        val expected = duplicateGrants.map { it.uri } +
+            mediaStore.pageMedia.map { it.uri }.filterNot { uri -> duplicateGrants.any { it.uri == uri } }
+        val actual = buildList {
+            var offset = 0
+            do {
+                val page = api.loadMediaPage(offset = offset, limit = 23).getOrThrow()
+                addAll(page.map { it.uri })
+                offset += page.size
+            } while (page.size == 23)
+        }
+        assertEquals(expected, actual)
+        assertEquals(237, actual.distinct().size)
     }
 
     @Test
@@ -389,9 +468,17 @@ class AlbumApiTest {
 
     /** 负责 `FakeMediaStoreDataSource` 相关的数据与行为。 */
     private class FakeMediaStoreDataSource : MediaStoreDataSource {
+        override suspend fun findPositions(mediaFilter: AlbumMediaFilter, bucketId: Long, uris: Set<Uri>) =
+            pageMedia.withIndex().filter { it.value.uri in uris }.associate { it.value.uri to it.index }
+
+        override suspend fun getChangeSignature(mediaFilter: AlbumMediaFilter) =
+            pageMedia.filter { mediaFilter == AlbumMediaFilter.IMAGES_AND_VIDEOS ||
+                (mediaFilter == AlbumMediaFilter.IMAGES) == (it.mediaType == AlbumMediaType.IMAGE) }.toString()
+
         var directoryCalls = 0
         var lastDirectoryFilter: AlbumMediaFilter? = null
         var pageMedia: List<AlbumMedia> = emptyList()
+        var paginate = false
         var lastPageFilter: AlbumMediaFilter? = null
         var lastPageBucketId: Long? = null
         var lastPageOffset: Int? = null
@@ -407,7 +494,7 @@ class AlbumApiTest {
             lastPageBucketId = bucketId
             lastPageOffset = offset
             lastPageLimit = limit
-            return pageMedia
+            return if (paginate) pageMedia.drop(offset).take(limit) else pageMedia
         }
 
         override suspend fun getDirectories(
@@ -485,6 +572,9 @@ class AlbumApiTest {
         var readCalls = 0
         var cacheInvalidations = 0
         val missingUris = mutableSetOf<Uri>()
+        val generations = mutableMapOf<Uri, Long>()
+        val invalidatedUris = mutableSetOf<Uri>()
+        override fun invalidateCache(uris: Set<Uri>) { invalidatedUris += uris }
 
         override fun invalidateCache() { cacheInvalidations++ }
 
@@ -510,6 +600,7 @@ class AlbumApiTest {
                 width = 100,
                 height = 100,
                 durationMillis = if (type == AlbumMediaType.VIDEO) 2_000L else null,
+                generationModified = generations[uri],
             )
         }
     }
