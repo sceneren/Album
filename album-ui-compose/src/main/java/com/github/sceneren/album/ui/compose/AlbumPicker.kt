@@ -65,7 +65,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -88,7 +87,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
@@ -913,7 +911,6 @@ internal fun AlbumPickerScreen(
     }
     val toolbar = appearance.toolbarColor?.toColor() ?: colorResource(R.color.auc_toolbar)
     val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
-    val accent = appearance.accentColor?.toColor() ?: colorResource(R.color.auc_accent)
     val primary = appearance.primaryTextColor?.toColor() ?: colorResource(R.color.auc_primary)
     val titleDirectory = selectedTitleDirectory(accessStatus, session.bucketId, directories)
     val directoryName = titleDirectory?.bucketName
@@ -1306,7 +1303,7 @@ internal fun AlbumPickerScreen(
                             .clearAndSetSemantics { },
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator(color = accent)
+                        ProgressSpinner()
                     }
                 }
             }
@@ -2050,18 +2047,6 @@ private const val UNKNOWN_VIDEO_DURATION = "--:--"
 private fun ProcessingOverlay(blockBack: Boolean) {
     BackHandler(enabled = blockBack) { }
     val interactionSource = remember { MutableInteractionSource() }
-    val spinnerTransition = rememberInfiniteTransition(label = "processingSpinner")
-    val spinnerRotation by spinnerTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = PROCESSING_SPINNER_DURATION_MILLIS,
-                easing = LinearEasing,
-            ),
-        ),
-        label = "processingSpinnerRotation",
-    )
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -2084,15 +2069,33 @@ private fun ProcessingOverlay(blockBack: Boolean) {
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Image(
-                painter = painterResource(R.drawable.auc_progress_spinner),
-                contentDescription = stringResource(R.string.auc_processing),
-                modifier = Modifier
-                    .size(dimensionResource(R.dimen.auc_processing_indicator_size))
-                    .rotate(spinnerRotation),
-            )
+            ProgressSpinner(contentDescription = stringResource(R.string.auc_processing))
         }
     }
+}
+
+/** 列表加载与文件处理共用的图片旋转指示器。 */
+@Composable
+private fun ProgressSpinner(contentDescription: String? = null) {
+    val spinnerTransition = rememberInfiniteTransition(label = "progressSpinner")
+    val spinnerRotation by spinnerTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = PROCESSING_SPINNER_DURATION_MILLIS,
+                easing = LinearEasing,
+            ),
+        ),
+        label = "progressSpinnerRotation",
+    )
+    Image(
+        painter = painterResource(R.drawable.auc_progress_spinner),
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .size(dimensionResource(R.dimen.auc_processing_indicator_size))
+            .graphicsLayer { rotationZ = spinnerRotation },
+    )
 }
 
 /** 将 XML 的 sp 资源转换为 Compose 的 sp 值，避免重复应用字体缩放。 */
