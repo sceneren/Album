@@ -4,6 +4,7 @@
 
 - Use Kotlin official style with 4-space indentation and immutable public models.
 - Public reusable library APIs require concise KDoc; implementation details stay under `.internal`.
+- Playback is optional: UI modules depend only on `album-video-api`; register an engine factory or fall back to static VIDEO_COVER. Media3 belongs exclusively to the opt-in `album-video-media3` module. All engine calls/callbacks are main-thread; decoding/IO is asynchronous, snapshots are cheap, release is idempotent.
 - Keep `:album-api` data-only and Compose-free. Compose functions, UI state presentation, theme tokens, and Coil belong to `:app`.
 - Collect host flows with lifecycle-aware APIs and keep long-lived state in `AlbumViewModel`.
 

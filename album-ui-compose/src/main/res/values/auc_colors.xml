@@ -20,4 +20,7 @@
     <color name="auc_media_badge_background">#B36D8FAF</color>
     <color name="auc_processing_screen_scrim">#73000000</color>
     <color name="auc_processing_dialog_background">#CC454545</color>
+    <color name="auc_video_controls_background">#D9222222</color>
+    <color name="auc_video_controls_foreground">#FFAAAAAA</color>
+    <color name="auc_video_progress_unplayed">#FF4D4D4D</color>
 </resources>

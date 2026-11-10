@@ -36,12 +36,16 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
     implementation(project(":album-api"))
     implementation(project(":album-ui-view"))
     implementation(project(":album-ui-compose"))
+    implementation(project(":album-video-media3"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

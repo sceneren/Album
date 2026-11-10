@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <size android:width="@dimen/auc_video_progress_thumb_width" android:height="@dimen/auc_video_progress_height" />
+    <corners android:radius="3dp" />
+    <solid android:color="@color/auc_video_controls_foreground" />
+</shape>

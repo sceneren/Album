@@ -4,8 +4,8 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-11-09 11:36:35",
-  "module_count": 4,
+  "scan_time": "2026-11-09 18:50:58",
+  "module_count": 6,
   "modules": [
     {
       "name": "app",
@@ -16,12 +16,14 @@
       "source_dirs": [
         {
           "root": "app\\src\\main\\java",
-          "file_count": 7,
+          "file_count": 9,
           "file_list": [
             "com\\github\\sceneren\\photopicker\\AlbumMediaFilterExtensions.kt",
             "com\\github\\sceneren\\photopicker\\App.kt",
             "com\\github\\sceneren\\photopicker\\MainActivity.kt",
             "com\\github\\sceneren\\photopicker\\PhotoPickerImageFetcher.kt",
+            "com\\github\\sceneren\\photopicker\\SystemThumbnailFetcher.kt",
+            "com\\github\\sceneren\\photopicker\\ThumbnailCacheKey.kt",
             "com\\github\\sceneren\\photopicker\\ui\\theme\\Color.kt",
             "com\\github\\sceneren\\photopicker\\ui\\theme\\Theme.kt",
             "com\\github\\sceneren\\photopicker\\ui\\theme\\Type.kt"
@@ -31,12 +33,14 @@
           ]
         }
       ],
-      "file_count": 7,
+      "file_count": 9,
       "file_list": [
         "com\\github\\sceneren\\photopicker\\AlbumMediaFilterExtensions.kt",
         "com\\github\\sceneren\\photopicker\\App.kt",
         "com\\github\\sceneren\\photopicker\\MainActivity.kt",
         "com\\github\\sceneren\\photopicker\\PhotoPickerImageFetcher.kt",
+        "com\\github\\sceneren\\photopicker\\SystemThumbnailFetcher.kt",
+        "com\\github\\sceneren\\photopicker\\ThumbnailCacheKey.kt",
         "com\\github\\sceneren\\photopicker\\ui\\theme\\Color.kt",
         "com\\github\\sceneren\\photopicker\\ui\\theme\\Theme.kt",
         "com\\github\\sceneren\\photopicker\\ui\\theme\\Type.kt"
@@ -116,7 +120,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "app\\src\\main\\java/\n└── com/  (7个文件)\n    └── github/  (7个文件)\n        └── sceneren/  (7个文件)\n            └── photopicker/  (7个文件)",
+      "tree": "app\\src\\main\\java/\n└── com/  (9个文件)\n    └── github/  (9个文件)\n        └── sceneren/  (9个文件)\n            └── photopicker/  (9个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -128,6 +132,10 @@
         },
         {
           "name": "album-ui-compose",
+          "type": "implementation"
+        },
+        {
+          "name": "album-video-media3",
           "type": "implementation"
         },
         {
@@ -258,6 +266,10 @@
           },
           {
             "name": "album-ui-compose",
+            "type": "implementation"
+          },
+          {
+            "name": "album-video-media3",
             "type": "implementation"
           },
           {
@@ -673,7 +685,7 @@
       "source_dirs": [
         {
           "root": "album-ui-view\\src\\main\\java",
-          "file_count": 23,
+          "file_count": 26,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\view\\Action.kt",
             "com\\github\\sceneren\\album\\ui\\view\\ActionAdapter.kt",
@@ -697,14 +709,17 @@
             "com\\github\\sceneren\\album\\ui\\view\\IntentExtensions.kt",
             "com\\github\\sceneren\\album\\ui\\view\\MediaHolder.kt",
             "com\\github\\sceneren\\album\\ui\\view\\PreviewAdapter.kt",
-            "com\\github\\sceneren\\album\\ui\\view\\PreviewHolder.kt"
+            "com\\github\\sceneren\\album\\ui\\view\\PreviewHolder.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\PreviewSharedElementTransition.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\internal\\video\\PreviewVideoControls.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\internal\\video\\PreviewVideoPlayback.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 23,
+      "file_count": 26,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\view\\Action.kt",
         "com\\github\\sceneren\\album\\ui\\view\\ActionAdapter.kt",
@@ -728,7 +743,10 @@
         "com\\github\\sceneren\\album\\ui\\view\\IntentExtensions.kt",
         "com\\github\\sceneren\\album\\ui\\view\\MediaHolder.kt",
         "com\\github\\sceneren\\album\\ui\\view\\PreviewAdapter.kt",
-        "com\\github\\sceneren\\album\\ui\\view\\PreviewHolder.kt"
+        "com\\github\\sceneren\\album\\ui\\view\\PreviewHolder.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\PreviewSharedElementTransition.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\internal\\video\\PreviewVideoControls.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\internal\\video\\PreviewVideoPlayback.kt"
       ],
       "resource_dirs": [
         {
@@ -742,12 +760,13 @@
         },
         {
           "dir": "drawable",
-          "count": 14,
+          "count": 21,
           "files": [
             "auv_bg_directory_panel.xml",
             "auv_bg_media_badge.xml",
             "auv_bg_processing_dialog.xml",
             "auv_bg_select_count.xml",
+            "auv_bg_video_controls.xml",
             "auv_ic_album_add.xml",
             "auv_ic_album_back.xml",
             "auv_ic_album_camera.xml",
@@ -757,7 +776,13 @@
             "auv_ic_album_unchecked.xml",
             "auv_ic_album_video.xml",
             "auv_ic_permission_chevron.xml",
-            "auv_ic_permission_info.xml"
+            "auv_ic_permission_info.xml",
+            "auv_ic_video_pause.xml",
+            "auv_ic_video_play.xml",
+            "auv_ic_video_volume_off.xml",
+            "auv_ic_video_volume_on.xml",
+            "auv_video_progress.xml",
+            "auv_video_thumb.xml"
           ]
         },
         {
@@ -769,7 +794,7 @@
         },
         {
           "dir": "layout",
-          "count": 7,
+          "count": 8,
           "files": [
             "auv_activity_album_picker.xml",
             "auv_dialog_album_preview.xml",
@@ -777,7 +802,8 @@
             "auv_item_album_action.xml",
             "auv_item_album_directory.xml",
             "auv_item_album_media.xml",
-            "auv_item_album_preview_page.xml"
+            "auv_item_album_preview_page.xml",
+            "auv_preview_video_controls.xml"
           ]
         },
         {
@@ -792,10 +818,14 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (23个文件)\n    └── github/  (23个文件)\n        └── sceneren/  (23个文件)\n            └── album/  (23个文件)",
+      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (26个文件)\n    └── github/  (26个文件)\n        └── sceneren/  (26个文件)\n            └── album/  (26个文件)",
       "dependencies": [
         {
           "name": "album-api",
+          "type": "api"
+        },
+        {
+          "name": "album-video-api",
           "type": "api"
         },
         {
@@ -853,6 +883,10 @@
         "dependencies": [
           {
             "name": "album-api",
+            "type": "api"
+          },
+          {
+            "name": "album-video-api",
             "type": "api"
           },
           {
@@ -920,7 +954,7 @@
       "source_dirs": [
         {
           "root": "album-ui-compose\\src\\main\\java",
-          "file_count": 10,
+          "file_count": 13,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
@@ -930,15 +964,18 @@
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerState.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumPreviewImage.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
-            "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumVideoPreview.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\internal\\video\\VideoPreviewSession.kt"
           ],
           "top_packages": [
             "com.github.sceneren"
           ]
         }
       ],
-      "file_count": 10,
+      "file_count": 13,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
@@ -948,13 +985,16 @@
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerExtensions.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerState.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumPreviewImage.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
-        "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt"
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumVideoPreview.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\internal\\video\\VideoPreviewSession.kt"
       ],
       "resource_dirs": [
         {
           "dir": "drawable",
-          "count": 10,
+          "count": 16,
           "files": [
             "auc_ic_album_add.xml",
             "auc_ic_album_back.xml",
@@ -965,7 +1005,13 @@
             "auc_ic_album_unchecked.xml",
             "auc_ic_album_video.xml",
             "auc_ic_permission_chevron.xml",
-            "auc_ic_permission_info.xml"
+            "auc_ic_permission_info.xml",
+            "auc_ic_video_muted.xml",
+            "auc_ic_video_pause.xml",
+            "auc_ic_video_play.xml",
+            "auc_ic_video_volume.xml",
+            "auc_video_progress_thumb.xml",
+            "auc_video_progress_track.xml"
           ]
         },
         {
@@ -973,6 +1019,13 @@
           "count": 1,
           "files": [
             "auc_progress_spinner.png"
+          ]
+        },
+        {
+          "dir": "layout",
+          "count": 1,
+          "files": [
+            "auc_video_progress.xml"
           ]
         },
         {
@@ -986,10 +1039,14 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (10个文件)\n    └── github/  (10个文件)\n        └── sceneren/  (10个文件)\n            └── album/  (10个文件)",
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (13个文件)\n    └── github/  (13个文件)\n        └── sceneren/  (13个文件)\n            └── album/  (13个文件)",
       "dependencies": [
         {
           "name": "album-api",
+          "type": "api"
+        },
+        {
+          "name": "album-video-api",
           "type": "api"
         },
         {
@@ -1066,12 +1123,31 @@
           "name": "libs.kotlinx.coroutines.test",
           "type": "testImplementation",
           "external": true
+        },
+        {
+          "name": "libs.androidx.compose.bom",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.test.junit4",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.compose.ui.test.manifest",
+          "type": "debugImplementation",
+          "external": true
         }
       ],
       "build_config": {
         "dependencies": [
           {
             "name": "album-api",
+            "type": "api"
+          },
+          {
+            "name": "album-video-api",
             "type": "api"
           },
           {
@@ -1148,10 +1224,162 @@
             "name": "libs.kotlinx.coroutines.test",
             "type": "testImplementation",
             "external": true
+          },
+          {
+            "name": "libs.androidx.compose.bom",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.test.junit4",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.compose.ui.test.manifest",
+            "type": "debugImplementation",
+            "external": true
           }
         ],
         "plugin_type": "library",
         "compose": true,
+        "view_binding": false
+      }
+    },
+    {
+      "name": "album-video-api",
+      "path": "album-video-api",
+      "is_aar": false,
+      "is_application": false,
+      "has_source": true,
+      "source_dirs": [
+        {
+          "root": "album-video-api\\src\\main\\java",
+          "file_count": 1,
+          "file_list": [
+            "com\\github\\sceneren\\album\\video\\AlbumVideoPlayer.kt"
+          ],
+          "top_packages": [
+            "com.github.sceneren"
+          ]
+        }
+      ],
+      "file_count": 1,
+      "file_list": [
+        "com\\github\\sceneren\\album\\video\\AlbumVideoPlayer.kt"
+      ],
+      "resource_dirs": [],
+      "asset_files": [],
+      "tree": "album-video-api\\src\\main\\java/\n└── com/  (1个文件)\n    └── github/  (1个文件)\n        └── sceneren/  (1个文件)\n            └── album/  (1个文件)",
+      "dependencies": [],
+      "build_config": {
+        "dependencies": [],
+        "plugin_type": "library",
+        "compose": false,
+        "view_binding": false
+      }
+    },
+    {
+      "name": "album-video-media3",
+      "path": "album-video-media3",
+      "is_aar": false,
+      "is_application": false,
+      "has_source": true,
+      "source_dirs": [
+        {
+          "root": "album-video-media3\\src\\main\\java",
+          "file_count": 2,
+          "file_list": [
+            "com\\github\\sceneren\\album\\video\\media3\\Media3AlbumVideoPlayerFactory.kt",
+            "com\\github\\sceneren\\album\\video\\media3\\internal\\Media3AlbumVideoPlayer.kt"
+          ],
+          "top_packages": [
+            "com.github.sceneren"
+          ]
+        }
+      ],
+      "file_count": 2,
+      "file_list": [
+        "com\\github\\sceneren\\album\\video\\media3\\Media3AlbumVideoPlayerFactory.kt",
+        "com\\github\\sceneren\\album\\video\\media3\\internal\\Media3AlbumVideoPlayer.kt"
+      ],
+      "resource_dirs": [
+        {
+          "dir": "layout",
+          "count": 2,
+          "files": [
+            "amv_player_content.xml",
+            "amv_player_view.xml"
+          ]
+        }
+      ],
+      "asset_files": [],
+      "tree": "album-video-media3\\src\\main\\java/\n└── com/  (2个文件)\n    └── github/  (2个文件)\n        └── sceneren/  (2个文件)\n            └── album/  (2个文件)",
+      "dependencies": [
+        {
+          "name": "album-video-api",
+          "type": "api"
+        },
+        {
+          "name": "libs.androidx.media3.exoplayer",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.media3.ui",
+          "type": "implementation",
+          "external": true
+        },
+        {
+          "name": "libs.junit",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.androidx.test.core.ktx",
+          "type": "testImplementation",
+          "external": true
+        },
+        {
+          "name": "libs.robolectric",
+          "type": "testImplementation",
+          "external": true
+        }
+      ],
+      "build_config": {
+        "dependencies": [
+          {
+            "name": "album-video-api",
+            "type": "api"
+          },
+          {
+            "name": "libs.androidx.media3.exoplayer",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.media3.ui",
+            "type": "implementation",
+            "external": true
+          },
+          {
+            "name": "libs.junit",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.androidx.test.core.ktx",
+            "type": "testImplementation",
+            "external": true
+          },
+          {
+            "name": "libs.robolectric",
+            "type": "testImplementation",
+            "external": true
+          }
+        ],
+        "plugin_type": "library",
+        "compose": false,
         "view_binding": false
       }
     }

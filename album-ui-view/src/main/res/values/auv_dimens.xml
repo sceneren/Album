@@ -25,4 +25,13 @@
     <dimen name="auv_processing_dialog_size">64dp</dimen>
     <dimen name="auv_processing_dialog_corner_radius">4dp</dimen>
     <dimen name="auv_processing_indicator_size">40dp</dimen>
+    <dimen name="auv_video_controls_height">48dp</dimen>
+    <dimen name="auv_video_controls_margin">24dp</dimen>
+    <dimen name="auv_video_controls_radius">24dp</dimen>
+    <dimen name="auv_video_button_padding">12dp</dimen>
+    <dimen name="auv_video_seek_padding">9dp</dimen>
+    <dimen name="auv_video_progress_height">6dp</dimen>
+    <dimen name="auv_video_progress_radius">3dp</dimen>
+    <dimen name="auv_video_thumb_width">18dp</dimen>
+    <dimen name="auv_video_error_bottom_margin">84dp</dimen>
 </resources>

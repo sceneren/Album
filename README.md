@@ -20,6 +20,8 @@ Album 是一个 Android 相册选择器，提供数据 API、传统 View 界面�
 | `album-api` | 媒体模型、权限判断、MediaStore/Photo Picker 数据、分页、会话、相机和结果文件处理，不包含 UI |
 | `album-ui-view` | 基于 Activity、RecyclerView 和 ViewPager2 的完整选择界面 |
 | `album-ui-compose` | 可嵌入宿主导航的 Jetpack Compose 选择界面 |
+| `album-video-api` | 轻量可插拔视频播放接口，不依赖 Media3、Compose 或图片加载库 |
+| `album-video-media3` | 可选 Media3 播放实现，供宿主按需引入 |
 | `app` | 同时演示 View 和 Compose 接入方式，不作为库发布 |
 
 最低支持 Android 7.0（API 24）。UI 模块会传递依赖 `album-api`，宿主只需声明实际使用的 UI 模块。
@@ -50,6 +52,9 @@ dependencies {
 
     // Compose 选择器；不使用时无需添加
     implementation("com.github.sceneren.Album:album-ui-compose:$albumVersion")
+
+    // 可选的视频播放实现；不添加、不注册时，预览回退为静态视频封面
+    implementation("com.github.sceneren.Album:album-video-media3:$albumVersion")
 
     // 仅使用数据能力时添加；UI 模块已经传递此依赖
     // implementation("com.github.sceneren.Album:album-api:$albumVersion")
@@ -105,6 +110,21 @@ class App : Application() {
 ```
 
 Compose 的 Coil 配置、视频封面解码和完整导入见[相册选择器使用说明](docs/相册选择器使用说明.md)。
+
+## 可选视频播放
+
+UI 模块只依赖轻量 `album-video-api`，不会传递引入 Media3。宿主引入 `album-video-media3` 后，在 `Application.onCreate()` 注册：
+
+```kotlin
+val videoPlayerFactory =
+    com.github.sceneren.album.video.media3.Media3AlbumVideoPlayerFactory()
+com.github.sceneren.album.ui.view.AlbumUi.setVideoPlayerFactory(videoPlayerFactory)
+com.github.sceneren.album.ui.compose.AlbumUi.setVideoPlayerFactory(videoPlayerFactory)
+```
+
+只注册实际使用的 UI 即可。视频预览提供顶部悬浮返回，以及底部半透明胶囊播放/暂停、拖动进度、静音操作栏，默认自动播放并静音；切后台、翻页和退出时释放播放器。未注册或调用 `setVideoPlayerFactory(null)` 时保留静态封面展示，不显示播放操作栏。
+
+也可以不引入 Media3，直接实现 `AlbumVideoPlayerFactory` / `AlbumVideoPlayer` 接入其他引擎。Compose 的 `AlbumPicker` / `AlbumPickerContent` 还可通过 `videoPlayerFactory` 参数按次覆盖；显式传 `null` 可禁用该次播放。接口与接入约束见[视频播放配置](docs/相册选择器使用说明.md#可选视频播放与自定义引擎)。
 
 ## View 快速开始
 
@@ -186,13 +206,14 @@ Compose 版本不声明独立 Activity。宿主负责把 `AlbumPicker` 放入自
 | 第三方库 | GitHub 地址 | 在项目中的用途 |
 | --- | --- | --- |
 | Luban（鲁班） | [Curzibn/Luban](https://github.com/Curzibn/Luban) | 在 `album-api` 中用于选择结果的图片压缩。用户确认选择后，根据压缩配置处理符合条件的图片，并返回压缩后的文件路径；视频不参与压缩。 |
+| AndroidX Media3 | [androidx/media](https://github.com/androidx/media) | 仅在可选 `album-video-media3` 中提供视频播放引擎，宿主可替换或省略。 |
 | ZoomImage | [panpf/zoomimage](https://github.com/panpf/zoomimage) | 在 `album-ui-view` 和 `album-ui-compose` 中分别通过 `ZoomImageView` 和 `ZoomImage` 实现大图预览，提供图片缩放、拖动等手势交互；图片加载仍由宿主配置的 `AlbumImageLoader` 负责。 |
 
 ## 本地验证
 
 ```powershell
-.\gradlew.bat :album-api:testDebugUnitTest :app:testDebugUnitTest
-.\gradlew.bat :album-api:assembleDebug :album-ui-view:assembleDebug :album-ui-compose:assembleDebug
+.\gradlew.bat :album-api:testDebugUnitTest :album-ui-view:testDebugUnitTest :album-ui-compose:testDebugUnitTest :album-video-media3:testDebugUnitTest :app:testDebugUnitTest
+.\gradlew.bat :album-api:assembleDebug :album-ui-view:assembleDebug :album-ui-compose:assembleDebug :album-video-api:assembleDebug :album-video-media3:assembleDebug
 ```
 
 发布版本前还应运行本地 Maven 发布验证，具体命令见[GitHub 与 JitPack 发布说明](docs/JitPack发布说明.md)。

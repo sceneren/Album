@@ -406,7 +406,7 @@ class AlbumPickerActivity : ComponentActivity() {
         permissionText.text = when (accessStatus) {
             MediaAccessStatus.FULL -> ""
             else -> getString(
-                R.string.auv_denied_permission,
+                config.mediaFilter.permissionUpgradeMessageRes(),
                 applicationName,
             )
         }
@@ -416,12 +416,8 @@ class AlbumPickerActivity : ComponentActivity() {
             bucketId = session.bucketId,
             accessStatus = accessStatus,
         )
-        val shouldReloadFeed = forceReloadFeed ||
-            activeFeedSignature != targetSignature ||
-            feedJob?.isActive != true ||
-            accessStatus == MediaAccessStatus.PARTIAL ||
-            previousAccessStatus != accessStatus
-        if (shouldReloadFeed) {
+        val shouldReplaceFeed = activeFeedSignature != targetSignature || feedJob?.isActive != true
+        if (shouldReplaceFeed) {
             activeFeedSignature = targetSignature
             val feed = api.getMediaFeed(
                 mediaFilter = config.mediaFilter,
@@ -433,6 +429,10 @@ class AlbumPickerActivity : ComponentActivity() {
                     mediaAdapter.submitData(data)
                 }
             }
+        } else if (forceReloadFeed || accessStatus == MediaAccessStatus.PARTIAL) {
+            // Refresh in place so Paging can diff against the visible snapshot and keep
+            // scroll position, instead of cancelling the feed after adding photos.
+            mediaAdapter.refresh()
         }
         if (canBrowseDirectories && (forceReloadFeed || directories.isEmpty() || previousAccessStatus != accessStatus)) {
             directoryJob?.cancel()
@@ -672,6 +672,13 @@ class AlbumPickerActivity : ComponentActivity() {
     ) {
         if (items.isEmpty()) return
         previewDialog?.dismiss()
+        val first = items[initialIndex.coerceIn(items.indices)]
+        val origin = if (first.mediaType == AlbumMediaType.IMAGE) {
+            (0 until grid.childCount).firstNotNullOfOrNull { index ->
+                (grid.getChildViewHolder(grid.getChildAt(index)) as? MediaHolder)
+                    ?.previewImage(first)?.let(PreviewTransitionOrigin::capture)
+            }
+        } else null
         previewDialog = AlbumPreviewDialog(
             activity = this,
             appearance = appearance,
@@ -681,6 +688,7 @@ class AlbumPickerActivity : ComponentActivity() {
             initialIndex = initialIndex,
             initialSelectedUris = session.selectedUris,
             nextOffset = nextOffset,
+            transitionOrigin = origin,
             onToggleSelection = ::toggleMedia,
             onConfirm = ::confirmSelection,
             onDismiss = { dismissed ->

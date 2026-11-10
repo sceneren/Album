@@ -10,9 +10,9 @@ This project has completed Codex AI assistance initialization.
 - Build system: Gradle Kotlin DSL
 - Language: Kotlin
 - UI: Android View (`:album-ui-view`) and Jetpack Compose Material3 (`:album-ui-compose` and `:app` host demo)
-- Modules: `:app` host demo, `:album-api` data-only Android Library, `:album-ui-view` View picker library, and `:album-ui-compose` Compose picker library
+- Modules: `:app` host demo, `:album-api` data-only Android Library, `:album-ui-view` View picker library, `:album-ui-compose` Compose picker library, `:album-video-api` lightweight playback contract, and optional `:album-video-media3` playback engine
 - App package, namespace, and application id: `com.github.sceneren.photopicker`
-- Library namespaces: `com.github.sceneren.album.api`, `com.github.sceneren.album.ui.view`, `com.github.sceneren.album.ui.compose`
+- Library namespaces: `com.github.sceneren.album.api`, `com.github.sceneren.album.ui.view`, `com.github.sceneren.album.ui.compose`, `com.github.sceneren.album.video`, `com.github.sceneren.album.video.media3`
 - NDK/C++: no
 - References mode: full mode through `.codex/references/_scan.json`
 
@@ -44,6 +44,8 @@ Do not invent APIs, modules, Gradle aliases, permissions, or resources. The sour
 
 - `.codex/references/app.md`: module overview and class responsibilities.
 - `.codex/references/album-api.md`: reusable library API, routing, persistence, and MediaStore responsibilities.
+- `.codex/references/album-video-api.md`: optional engine-independent video playback contract.
+- `.codex/references/album-video-media3.md`: opt-in Media3 engine and lifecycle/resource ownership.
 - `.codex/references/dependencies.md`: Gradle module and dependency map.
 - `.codex/references/conventions.md`: coding, media, permission, and test conventions.
 

@@ -4,47 +4,92 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.github.sceneren.album.api.AlbumMedia
+import com.github.sceneren.album.api.AlbumMediaType
+import com.github.sceneren.album.ui.view.internal.video.PreviewVideoOutput
 
-/** 管理可变预览分页数据，并在追加媒体页时执行去重。 */
+/** Manages preview paging and reports only the attached, selected video as a playback output. */
 internal class PreviewAdapter(
     private val appearance: AlbumPickerAppearance,
     private val imageLoader: AlbumImageLoader,
     initialItems: List<AlbumMedia>,
+    private val videoPlaybackEnabled: Boolean = false,
+    private val onVideoOutputChanged: (PreviewVideoOutput?) -> Unit = {},
 ) : RecyclerView.Adapter<PreviewHolder>() {
     private val items = initialItems.distinctBy { it.uri }.toMutableList()
     private val uris = items.mapTo(linkedSetOf()) { it.uri }
+    private val attached = linkedSetOf<PreviewHolder>()
+    private var selectedPosition = RecyclerView.NO_POSITION
+    private var reportedOutput: PreviewHolder? = null
 
-    /** 处理 `onCreateViewHolder` 回调。 */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PreviewHolder =
         PreviewHolder(
             LayoutInflater.from(parent.context)
                 .inflate(R.layout.auv_item_album_preview_page, parent, false),
             appearance,
             imageLoader,
+            videoPlaybackEnabled,
         )
 
-    /** 处理 `onBindViewHolder` 回调。 */
     override fun onBindViewHolder(holder: PreviewHolder, position: Int) {
+        // Release before clear/rebind removes an active engine's rendering surface.
+        if (reportedOutput === holder) reportOutput(null)
         holder.bind(items[position])
+        updateOutput()
     }
 
-    /** 处理 `onViewRecycled` 回调。 */
+    override fun onViewAttachedToWindow(holder: PreviewHolder) {
+        attached += holder
+        updateOutput()
+    }
+
+    override fun onViewDetachedFromWindow(holder: PreviewHolder) {
+        attached -= holder
+        updateOutput()
+    }
+
     override fun onViewRecycled(holder: PreviewHolder) {
+        attached -= holder
+        updateOutput()
         holder.clear()
     }
 
-    /** 获取 `getItemCount` 所需的数据。 */
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        reportOutput(null)
+        attached.forEach(PreviewHolder::clear)
+        attached.clear()
+        super.onDetachedFromRecyclerView(recyclerView)
+    }
+
     override fun getItemCount(): Int = items.size
 
-    /** 执行 `itemAt` 方法定义的处理。 */
     fun itemAt(position: Int): AlbumMedia? = items.getOrNull(position)
 
-    /** 执行 `append` 方法定义的处理。 */
+    fun selectPosition(position: Int) {
+        selectedPosition = position
+        updateOutput()
+    }
+
     fun append(page: List<AlbumMedia>) {
         val additions = page.filter { uris.add(it.uri) }
         if (additions.isEmpty()) return
         val start = items.size
         items += additions
         notifyItemRangeInserted(start, additions.size)
+    }
+
+    private fun updateOutput() {
+        val media = items.getOrNull(selectedPosition)
+        val target = if (videoPlaybackEnabled && media?.mediaType == AlbumMediaType.VIDEO) {
+            attached.firstOrNull { it.boundMedia?.uri == media.uri }
+        } else {
+            null
+        }
+        reportOutput(target)
+    }
+
+    private fun reportOutput(holder: PreviewHolder?) {
+        if (reportedOutput === holder) return
+        reportedOutput = holder
+        onVideoOutputChanged(holder)
     }
 }

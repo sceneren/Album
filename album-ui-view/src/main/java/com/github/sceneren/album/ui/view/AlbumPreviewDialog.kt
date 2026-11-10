@@ -11,6 +11,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.ViewCompat
@@ -18,8 +19,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
+import androidx.core.view.doOnPreDraw
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.viewpager2.widget.ViewPager2
 import com.github.sceneren.album.api.AlbumMedia
+import com.github.sceneren.album.api.AlbumMediaType
+import com.github.sceneren.album.ui.view.internal.video.PreviewVideoControls
+import com.github.sceneren.album.ui.view.internal.video.PreviewVideoPlayback
+import com.github.sceneren.album.video.AlbumVideoPlayerFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -27,7 +35,7 @@ import java.util.Locale
 
 /** 使用 XML、ViewPager2 和 ZoomImageView 实现的全屏媒体预览。 */
 internal class AlbumPreviewDialog(
-    private val activity: AlbumPickerActivity,
+    private val activity: ComponentActivity,
     private val appearance: AlbumPickerAppearance,
     imageLoader: AlbumImageLoader,
     private val scope: CoroutineScope,
@@ -39,9 +47,22 @@ internal class AlbumPreviewDialog(
     private val onConfirm: () -> Unit,
     private val onDismiss: (AlbumPreviewDialog) -> Unit,
     private val loadMore: suspend (offset: Int, limit: Int) -> Result<List<AlbumMedia>>,
+    private val videoPlayerFactory: AlbumVideoPlayerFactory? = AlbumUi.videoPlayerFactoryOrNull(),
+    private val transitionOrigin: PreviewTransitionOrigin? = null,
 ) {
     private val dialog = Dialog(activity, R.style.auv_theme_album_picker_preview)
-    private val adapter = PreviewAdapter(appearance, imageLoader, initialItems)
+    private val videoPlayback = videoPlayerFactory?.let { factory ->
+        PreviewVideoPlayback({ factory.create(activity) }) { state ->
+            if (::videoControls.isInitialized) videoControls.render(state)
+        }
+    }
+    private val adapter = PreviewAdapter(
+        appearance,
+        imageLoader,
+        initialItems,
+        videoPlaybackEnabled = videoPlayerFactory != null,
+        onVideoOutputChanged = { videoPlayback?.setOutput(it) },
+    )
     private lateinit var root: View
     private lateinit var toolbar: View
     private lateinit var bottomBar: View
@@ -51,7 +72,32 @@ internal class AlbumPreviewDialog(
     private lateinit var doneAction: LinearLayout
     private lateinit var selectedCount: TextView
     private lateinit var doneText: TextView
+    private lateinit var videoBack: ImageButton
+    private lateinit var videoControls: PreviewVideoControls
     private var selectedUris: Set<Uri> = initialSelectedUris.toSet()
+    private var isShowing = false
+    private var closed = false
+    private var sharedElementTransition: PreviewSharedElementTransition? = null
+    private val lifecycleObserver = LifecycleEventObserver { _, event ->
+        when (event) {
+            Lifecycle.Event.ON_RESUME -> videoPlayback?.setResumed(isShowing)
+            Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> videoPlayback?.setResumed(false)
+            Lifecycle.Event.ON_DESTROY -> dismiss()
+            else -> Unit
+        }
+    }
+    private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            currentPosition = position
+            updateChrome()
+            updateVideoPage()
+            maybeLoadMore(position)
+        }
+
+        override fun onPageScrollStateChanged(state: Int) {
+            videoPlayback?.setSettled(state == ViewPager2.SCROLL_STATE_IDLE)
+        }
+    }
     private var currentPosition: Int = 0
     private var loadJob: Job? = null
     private var endReached = nextOffset == null
@@ -63,18 +109,11 @@ internal class AlbumPreviewDialog(
         applySystemBarInsets()
 
         pager.adapter = adapter
-        pager.registerOnPageChangeCallback(
-            object : ViewPager2.OnPageChangeCallback() {
-                /** 处理 `onPageSelected` 回调。 */
-                override fun onPageSelected(position: Int) {
-                    currentPosition = position
-                    updateChrome()
-                    maybeLoadMore(position)
-                }
-            },
-        )
+        pager.registerOnPageChangeCallback(pageChangeCallback)
         dialog.setOnDismissListener {
+            closePlayback()
             loadJob?.cancel()
+            pager.unregisterOnPageChangeCallback(pageChangeCallback)
             pager.adapter = null
             onDismiss(this)
         }
@@ -83,11 +122,27 @@ internal class AlbumPreviewDialog(
     @Suppress("DEPRECATION")
     /** 执行 `show` 方法定义的处理。 */
     fun show() {
+        if (closed) return
+        transitionOrigin?.let { origin ->
+            sharedElementTransition = PreviewSharedElementTransition(
+                root = root as ViewGroup,
+                pager = pager,
+                chrome = listOf(toolbar, bottomBar),
+                origin = origin,
+                media = adapter.itemAt(initialIndex.coerceIn(0, adapter.itemCount - 1)) ?: return@let,
+                backgroundColor = previewBackgroundColor(),
+            ).also { it.prepare() }
+        }
         dialog.window?.let { WindowCompat.setDecorFitsSystemWindows(it, false) }
         dialog.show()
+        isShowing = true
         dialog.window?.apply {
             setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            setBackgroundDrawable(previewBackgroundColor().toDrawable())
+            setBackgroundDrawable(
+                (if (sharedElementTransition == null) previewBackgroundColor() else Color.TRANSPARENT).toDrawable(),
+            )
+            // The image's own bounds animation owns this transition.
+            setWindowAnimations(0)
             statusBarColor = Color.TRANSPARENT
             navigationBarColor = Color.TRANSPARENT
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -106,12 +161,37 @@ internal class AlbumPreviewDialog(
         currentPosition = targetIndex
         pager.setCurrentItem(targetIndex, false)
         updateChrome()
-        pager.post { maybeLoadMore(targetIndex) }
+        updateVideoPage()
+        videoPlayback?.setSettled(pager.scrollState == ViewPager2.SCROLL_STATE_IDLE)
+        activity.lifecycle.addObserver(lifecycleObserver)
+        videoPlayback?.setResumed(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+        pager.post { if (isShowing) maybeLoadMore(targetIndex) }
+        root.doOnPreDraw {
+            if (isShowing) sharedElementTransition?.start()
+        }
     }
 
     /** 执行 `dismiss` 方法定义的处理。 */
     fun dismiss() {
+        closePlayback()
         dialog.dismiss()
+    }
+
+    private fun closePlayback() {
+        if (closed) return
+        closed = true
+        isShowing = false
+        activity.lifecycle.removeObserver(lifecycleObserver)
+        sharedElementTransition?.cancel()
+        sharedElementTransition = null
+        videoPlayback?.close()
+        if (::videoControls.isInitialized) videoControls.clear()
+    }
+
+    private fun updateVideoPage() {
+        val video = adapter.itemAt(currentPosition)?.takeIf { it.mediaType == AlbumMediaType.VIDEO }
+        videoPlayback?.select(video?.uri)
+        adapter.selectPosition(currentPosition)
     }
 
     /** 更新 `updateSelection` 对应的状态。 */
@@ -131,8 +211,11 @@ internal class AlbumPreviewDialog(
         doneAction = dialog.findViewById(R.id.auv_preview_done_action)
         selectedCount = dialog.findViewById(R.id.auv_preview_selected_count)
         doneText = dialog.findViewById(R.id.auv_preview_done_text)
+        videoBack = dialog.findViewById(R.id.auv_preview_video_back)
+        videoPlayback?.let { videoControls = PreviewVideoControls(root, it) }
 
         dialog.findViewById<ImageButton>(R.id.auv_preview_back).setOnClickListener { dismiss() }
+        videoBack.setOnClickListener { dismiss() }
         selectionButton.setOnClickListener {
             adapter.itemAt(currentPosition)?.let(onToggleSelection)
         }
@@ -163,9 +246,9 @@ internal class AlbumPreviewDialog(
             setColor(accentColor)
         }
         doneText.compoundDrawablePadding = activity.dpToPx(4)
-        dialog.findViewById<ImageButton>(R.id.auv_preview_back).setImageResource(
-            appearance.backIconRes ?: R.drawable.auv_ic_album_back,
-        )
+        val backIcon = appearance.backIconRes ?: R.drawable.auv_ic_album_back
+        dialog.findViewById<ImageButton>(R.id.auv_preview_back).setImageResource(backIcon)
+        videoBack.setImageResource(backIcon)
     }
 
     /** 执行 `applySystemBarInsets` 方法定义的处理。 */
@@ -203,8 +286,37 @@ internal class AlbumPreviewDialog(
                 right = bottomPaddingRight + safeInsets.right,
                 bottom = bottomPaddingBottom + safeInsets.bottom,
             )
+            applyVideoInsets(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
             insets
         }
+    }
+
+    private fun applyVideoInsets(left: Int, top: Int, right: Int, bottom: Int) {
+        val margin = activity.resources.getDimensionPixelSize(R.dimen.auv_video_controls_margin)
+        val errorMargin = activity.resources.getDimensionPixelSize(R.dimen.auv_video_error_bottom_margin)
+        val isRtl = ViewCompat.getLayoutDirection(root) == ViewCompat.LAYOUT_DIRECTION_RTL
+        val startInset = if (isRtl) right else left
+        val endInset = if (isRtl) left else right
+        videoBack.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            marginStart = activity.dpToPx(8) + startInset
+            topMargin = activity.dpToPx(4) + top
+        }
+        root.findViewById<View>(R.id.auv_preview_video_controls)
+            .updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                leftMargin = margin + left
+                rightMargin = margin + right
+                marginStart = margin + startInset
+                marginEnd = margin + endInset
+                bottomMargin = margin + bottom
+            }
+        root.findViewById<View>(R.id.auv_preview_video_error)
+            .updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                leftMargin = margin + left
+                rightMargin = margin + right
+                marginStart = margin + startInset
+                marginEnd = margin + endInset
+                bottomMargin = errorMargin + bottom
+            }
     }
 
     /** 更新 `updateChrome` 对应的状态。 */
@@ -218,6 +330,21 @@ internal class AlbumPreviewDialog(
         )
 
         val currentMedia = adapter.itemAt(currentPosition)
+        val playableVideo = videoPlayerFactory != null && currentMedia?.mediaType == AlbumMediaType.VIDEO
+        toolbar.visibility = if (playableVideo) View.GONE else View.VISIBLE
+        bottomBar.visibility = if (playableVideo) View.GONE else View.VISIBLE
+        videoBack.visibility = if (playableVideo) View.VISIBLE else View.GONE
+        root.findViewById<View>(R.id.auv_preview_video_controls).visibility =
+            if (playableVideo) View.VISIBLE else View.GONE
+        if (!playableVideo) root.findViewById<View>(R.id.auv_preview_video_error).visibility = View.GONE
+        dialog.window?.let { window ->
+            WindowCompat.getInsetsController(window, root).apply {
+                isAppearanceLightStatusBars = !playableVideo &&
+                    ColorUtils.calculateLuminance(toolbarColor()) > LIGHT_COLOR_LUMINANCE
+                isAppearanceLightNavigationBars = !playableVideo &&
+                    ColorUtils.calculateLuminance(bottomBarColor()) > LIGHT_COLOR_LUMINANCE
+            }
+        }
         val isSelected = currentMedia?.uri in selectedUris
         selectionButton.setImageResource(
             if (isSelected) {

@@ -30,6 +30,7 @@ android {
 
 dependencies {
     api(project(":album-api"))
+    api(project(":album-video-api"))
     api(platform(libs.androidx.compose.bom))
     api(libs.androidx.compose.animation)
     api(libs.androidx.compose.ui)
@@ -46,4 +47,7 @@ dependencies {
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

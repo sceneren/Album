@@ -26,6 +26,9 @@ internal class MediaHolder(
     private val badge: TextView = itemView.findViewById(R.id.auv_media_badge)
     private var boundMedia: AlbumMedia? = null
 
+    /** Only return a still-bound visible cell; recycled holders cannot seed another media's transition. */
+    fun previewImage(media: AlbumMedia): ImageView? = image.takeIf { boundMedia?.uri == media.uri }
+
     init {
         itemView.layoutParams = RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,

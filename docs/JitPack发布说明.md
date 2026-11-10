@@ -1,6 +1,6 @@
 # GitHub 与 JitPack 发布说明
 
-本文面向仓库维护者，说明如何把 Album 的三个 Library 模块发布到 JitPack。JitPack 直接从 GitHub 标签或提交构建，不需要把 AAR 手工上传到 Maven 仓库。
+本文面向仓库维护者，说明如何把 Album 的五个 Library 模块发布到 JitPack。JitPack 直接从 GitHub 标签或提交构建，不需要把 AAR 手工上传到 Maven 仓库。
 
 ## 发布制品
 
@@ -11,6 +11,8 @@
 | `album-api` | `com.github.sceneren.Album:album-api:<Tag>` |
 | `album-ui-view` | `com.github.sceneren.Album:album-ui-view:<Tag>` |
 | `album-ui-compose` | `com.github.sceneren.Album:album-ui-compose:<Tag>` |
+| `album-video-api` | `com.github.sceneren.Album:album-video-api:<Tag>` |
+| `album-video-media3`（可选） | `com.github.sceneren.Album:album-video-media3:<Tag>` |
 
 `app` 是演示应用，不参与 Maven 发布。JitPack 还会为多模块项目生成聚合坐标 `com.github.sceneren:Album:<Tag>`；使用者应优先依赖上表中的具体模块，以免引入不需要的 UI 实现。
 
@@ -29,7 +31,7 @@
 
 - 使用 JDK 17，满足当前 Android Gradle Plugin 的运行要求。
 - 给 `gradlew` 添加 Linux 可执行权限。
-- 只把三个 Library 的 `release` 发布内容安装到 JitPack 的本地 Maven 仓库。
+- 只把五个 Library 的 `release` 发布内容安装到 JitPack 的本地 Maven 仓库。
 - JitPack 构建阶段跳过测试；测试必须在创建发布标签前由维护者执行。
 
 ## 一、发布前检查
@@ -37,9 +39,9 @@
 确认工作区没有遗漏的代码，并依次执行：
 
 ```powershell
-.\gradlew.bat :album-api:testDebugUnitTest :app:testDebugUnitTest
-.\gradlew.bat :album-api:assembleDebug :album-ui-view:assembleDebug :album-ui-compose:assembleDebug
-.\gradlew.bat clean :album-api:publishReleasePublicationToMavenLocal :album-ui-view:publishReleasePublicationToMavenLocal :album-ui-compose:publishReleasePublicationToMavenLocal
+.\gradlew.bat :album-api:testDebugUnitTest :album-ui-view:testDebugUnitTest :album-ui-compose:testDebugUnitTest :album-video-media3:testDebugUnitTest :app:testDebugUnitTest
+.\gradlew.bat :album-api:assembleDebug :album-ui-view:assembleDebug :album-ui-compose:assembleDebug :album-video-api:assembleDebug :album-video-media3:assembleDebug
+.\gradlew.bat clean :album-api:publishReleasePublicationToMavenLocal :album-ui-view:publishReleasePublicationToMavenLocal :album-ui-compose:publishReleasePublicationToMavenLocal :album-video-api:publishReleasePublicationToMavenLocal :album-video-media3:publishReleasePublicationToMavenLocal
 ```
 
 最后一条命令成功后，本机 Maven 仓库中应存在：
@@ -48,10 +50,12 @@
 %USERPROFILE%\.m2\repository\com\github\sceneren\Album\
 ├── album-api\<publishedVersion>\
 ├── album-ui-view\<publishedVersion>\
-└── album-ui-compose\<publishedVersion>\
+├── album-ui-compose\<publishedVersion>\
+├── album-video-api\<publishedVersion>\
+└── album-video-media3\<publishedVersion>\
 ```
 
-每个目录应至少包含 `.aar`、`.pom`、`.module` 和 `-sources.jar`。重点检查两个 UI 模块的 POM/Module Metadata 是否包含对 `album-api` 的依赖。
+每个目录应至少包含 `.aar`、`.pom`、`.module` 和 `-sources.jar`。重点检查两个 UI 模块的 POM/Module Metadata 包含 `album-api` 和 `album-video-api`，但不包含 `album-video-media3` / `androidx.media3`。只有可选 `album-video-media3` 应包含 Media3 依赖；自定义引擎或静态封面宿主无需引入它。
 
 ## 二、创建 GitHub 标签
 
@@ -70,9 +74,9 @@ git push origin 0.0.2
 推送标签后，`.github/workflows/release.yml` 会自动执行以下步骤：
 
 1. 校验标签与 `gradle.properties` 的 `publishedVersion` 完全一致。
-2. 运行 `album-api` 和 `app` 单元测试。
-3. 构建 `album-api`、`album-ui-view` 和 `album-ui-compose` 的 release AAR。
-4. 创建 GitHub Release，自动生成 Release Notes，并上传三个带版本号的 AAR 和 `SHA256SUMS.txt`。
+2. 运行 `album-api`、两个 UI、Media3 引擎和 `app` 单元测试。
+3. 构建 `album-api`、两个 UI 模块、`album-video-api` 和 `album-video-media3` 的 release AAR。
+4. 创建 GitHub Release，自动生成 Release Notes，并上传五个带版本号的 AAR 和 `SHA256SUMS.txt`。
 
 workflow 使用仓库自动提供的 `GITHUB_TOKEN`，不需要配置个人访问令牌。仓库必须允许 Actions 对 Contents 进行写入；workflow 已声明 `contents: write`。任务失败时不会创建 Release，修复后可以在 Actions 页面重新运行，已有 Release 的资产会被覆盖更新。
 
@@ -83,7 +87,7 @@ workflow 使用仓库自动提供的 `GITHUB_TOKEN`，不需要配置个人访�
 1. 打开 `https://jitpack.io/#sceneren/Album`。
 2. 点击 `Look up` 查询仓库。
 3. 找到刚推送的标签并点击 `Get it`。
-4. 等待状态变为绿色，打开构建日志确认三个发布任务都成功。
+4. 等待状态变为绿色，打开构建日志确认五个发布任务都成功。
 
 构建日志也可以直接访问：
 

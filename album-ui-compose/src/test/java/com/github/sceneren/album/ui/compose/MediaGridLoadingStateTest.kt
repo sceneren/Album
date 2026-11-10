@@ -1,53 +1,41 @@
 package com.github.sceneren.album.ui.compose
 
 import androidx.paging.LoadState
-import androidx.paging.PagingData
-import com.github.sceneren.album.api.AlbumMedia
-import com.github.sceneren.album.api.AlbumMediaFeed
-import com.github.sceneren.album.api.AlbumMediaFilter
-import com.github.sceneren.album.api.AlbumMediaSource
-import com.github.sceneren.album.api.MediaAccessStatus
-import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 验证 Compose 媒体网格在首屏数据未确认前保持加载态。 */
+/** Initial loading may cover an empty grid, but must never remove its existing content. */
 class MediaGridLoadingStateTest {
-    private val feed = AlbumMediaFeed(
-        mediaFilter = AlbumMediaFilter.IMAGES,
-        source = AlbumMediaSource.PHOTO_PICKER,
-        accessStatus = MediaAccessStatus.DENIED,
-        pagingData = emptyFlow<PagingData<AlbumMedia>>(),
-    )
-
     @Test
-    fun `没有数据源时保持加载态`() {
-        assertTrue(
-            isMediaGridInitialLoading(
-                feed = null,
-                refreshLoadState = LoadState.NotLoading(endOfPaginationReached = false),
-            ),
-        )
+    fun missingPresenterKeepsInitialLoading() {
+        assertTrue(isMediaGridInitialLoading(refreshLoadState = null, presentedItemCount = 0))
     }
 
     @Test
-    fun `分页首刷完成前保持加载态`() {
-        assertTrue(
-            isMediaGridInitialLoading(
-                feed = feed,
-                refreshLoadState = LoadState.Loading,
-            ),
-        )
+    fun firstRefreshKeepsInitialLoading() {
+        assertTrue(isMediaGridInitialLoading(LoadState.Loading, presentedItemCount = 0))
     }
 
     @Test
-    fun `数据源和首刷完成后显示网格`() {
-        assertFalse(
-            isMediaGridInitialLoading(
-                feed = feed,
-                refreshLoadState = LoadState.NotLoading(endOfPaginationReached = false),
-            ),
-        )
+    fun completedEmptyGridShowsActionsInsteadOfSpinner() {
+        assertFalse(isMediaGridInitialLoading(LoadState.NotLoading(false), presentedItemCount = 0))
+    }
+
+    @Test
+    fun refreshingExistingItemsDoesNotHideGrid() {
+        assertFalse(isMediaGridInitialLoading(LoadState.Loading, presentedItemCount = 4))
+    }
+
+    @Test
+    fun cameraItemsRemainVisibleBeforeFeedStarts() {
+        assertFalse(isMediaGridInitialLoading(refreshLoadState = null, presentedItemCount = 1))
+    }
+
+    @Test
+    fun refreshFailureDoesNotHideRetryOrExistingContent() {
+        val error = LoadState.Error(IllegalStateException("Provider unavailable"))
+        assertFalse(isMediaGridInitialLoading(error, presentedItemCount = 0))
+        assertFalse(isMediaGridInitialLoading(error, presentedItemCount = 4))
     }
 }

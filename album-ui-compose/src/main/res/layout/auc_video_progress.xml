@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zero thumb offset keeps the whole capsule inside the track, including 0% and 100%. -->
+<SeekBar xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/auc_video_controls_height"
+    android:background="@android:color/transparent"
+    android:contentDescription="@string/auc_video_progress"
+    android:layoutDirection="ltr"
+    android:max="10000"
+    android:maxHeight="@dimen/auc_video_progress_height"
+    android:minHeight="@dimen/auc_video_progress_height"
+    android:minWidth="@dimen/auc_video_controls_height"
+    android:paddingStart="9dp"
+    android:paddingEnd="9dp"
+    android:progressDrawable="@drawable/auc_video_progress_track"
+    android:progressTint="@null"
+    android:progressBackgroundTint="@null"
+    android:secondaryProgressTint="@null"
+    android:splitTrack="false"
+    android:thumb="@drawable/auc_video_progress_thumb"
+    android:thumbOffset="0dp"
+    android:thumbTint="@null" />

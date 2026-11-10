@@ -27,9 +27,9 @@ internal class SystemThumbnailFetcher(
     private val options: Options,
 ) : Fetcher {
     override suspend fun fetch(): FetchResult? {
-        if (Build.VERSION.SDK_INT >= 29) {
-            val width = (options.size.width as? Dimension.Pixels)?.px ?: return null
-            val height = (options.size.height as? Dimension.Pixels)?.px ?: return null
+        val width = (options.size.width as? Dimension.Pixels)?.px
+        val height = (options.size.height as? Dimension.Pixels)?.px
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && width != null && height != null) {
             val bitmap = loadThumbnail(options.context.contentResolver, data.toAndroidUri(), Size(width, height))
             if (bitmap != null) {
                 return ImageFetchResult(bitmap.asImage(), isSampled = true, dataSource = DataSource.DISK)
@@ -55,7 +55,7 @@ internal class SystemThumbnailFetcher(
             Thread(runnable, "album-system-thumbnail").apply { isDaemon = true }
         }
 
-        @androidx.annotation.RequiresApi(29)
+        @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
         internal suspend fun loadThumbnail(
             resolver: ContentResolver,
             uri: android.net.Uri,
@@ -74,6 +74,9 @@ internal class SystemThumbnailFetcher(
                     } catch (_: IllegalArgumentException) {
                         null
                     } catch (_: UnsupportedOperationException) {
+                        null
+                    } catch (_: NullPointerException) {
+                        // The framework dereferences a null asset returned by some providers.
                         null
                     }
                     continuation.resume(bitmap) { _, value, _ -> value?.recycle() }

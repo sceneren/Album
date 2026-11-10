@@ -17,6 +17,15 @@ fun interface AlbumImageLoader {
         target: AlbumImageTarget,
     )
 
+    /**
+     * 加载保持完整画幅的预览大图。宿主应读取原始 URI 并按显示尺寸采样，避免读取已裁剪缩略图。
+     * Coil 可用网格请求的 `placeholderMemoryCacheKey` 占位，大图使用独立缓存并在成功后替换小图。
+     * 默认沿用 [load] 的 PREVIEW_IMAGE 分支，兼容已有宿主实现。
+     */
+    fun loadPreview(imageView: ImageView, media: AlbumMedia) {
+        load(imageView, media, AlbumImageTarget.PREVIEW_IMAGE)
+    }
+
     /** RecyclerView 回收或重新绑定时清理旧请求；默认仅移除 Drawable。 */
     fun clear(imageView: ImageView) {
         imageView.setImageDrawable(null)

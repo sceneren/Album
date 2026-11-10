@@ -46,6 +46,12 @@
     <dimen name="auc_preview_page_counter_text_size">18sp</dimen>
     <dimen name="auc_preview_selection_icon_size">16dp</dimen>
     <dimen name="auc_preview_video_play_size">64dp</dimen>
+    <dimen name="auc_video_controls_height">48dp</dimen>
+    <dimen name="auc_video_controls_margin">24dp</dimen>
+    <dimen name="auc_video_controls_icon_size">24dp</dimen>
+    <dimen name="auc_video_progress_height">6dp</dimen>
+    <dimen name="auc_video_progress_thumb_width">18dp</dimen>
+    <dimen name="auc_video_back_margin_top">4dp</dimen>
     <dimen name="auc_preview_done_action_padding_start">10dp</dimen>
     <dimen name="auc_preview_done_action_padding_end">8dp</dimen>
     <dimen name="auc_preview_done_icon_gap">4dp</dimen>

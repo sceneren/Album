@@ -58,10 +58,15 @@ jobs:
         run: |
           ./gradlew --no-daemon \
             :album-api:testDebugUnitTest \
+            :album-ui-view:testDebugUnitTest \
+            :album-ui-compose:testDebugUnitTest \
+            :album-video-media3:testDebugUnitTest \
             :app:testDebugUnitTest \
             :album-api:assembleRelease \
             :album-ui-view:assembleRelease \
-            :album-ui-compose:assembleRelease
+            :album-ui-compose:assembleRelease \
+            :album-video-api:assembleRelease \
+            :album-video-media3:assembleRelease
 
       - name: Prepare release assets
         env:
@@ -76,6 +81,10 @@ jobs:
             "release-assets/album-ui-view-${RELEASE_VERSION}.aar"
           cp album-ui-compose/build/outputs/aar/album-ui-compose-release.aar \
             "release-assets/album-ui-compose-${RELEASE_VERSION}.aar"
+          cp album-video-api/build/outputs/aar/album-video-api-release.aar \
+            "release-assets/album-video-api-${RELEASE_VERSION}.aar"
+          cp album-video-media3/build/outputs/aar/album-video-media3-release.aar \
+            "release-assets/album-video-media3-${RELEASE_VERSION}.aar"
           cd release-assets
           sha256sum ./*.aar > SHA256SUMS.txt
 

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/auv_preview_video_controls"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/auv_video_controls_height"
+    android:layout_gravity="bottom"
+    android:layout_marginStart="@dimen/auv_video_controls_margin"
+    android:layout_marginEnd="@dimen/auv_video_controls_margin"
+    android:layout_marginBottom="@dimen/auv_video_controls_margin"
+    android:background="@drawable/auv_bg_video_controls"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:visibility="gone">
+
+    <ImageButton
+        android:id="@+id/auv_preview_video_play"
+        android:layout_width="@dimen/auv_video_controls_height"
+        android:layout_height="match_parent"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/auv_video_pause"
+        android:padding="@dimen/auv_video_button_padding"
+        android:src="@drawable/auv_ic_video_pause" />
+
+    <!-- Do not let the capsule hang half its width past the track endpoints. -->
+    <SeekBar
+        android:id="@+id/auv_preview_video_progress"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@null"
+        android:contentDescription="@string/auv_video_progress"
+        android:layoutDirection="ltr"
+        android:max="10000"
+        android:maxHeight="@dimen/auv_video_progress_height"
+        android:minHeight="@dimen/auv_video_progress_height"
+        android:minWidth="@dimen/auv_video_controls_height"
+        android:paddingStart="@dimen/auv_video_seek_padding"
+        android:paddingEnd="@dimen/auv_video_seek_padding"
+        android:progressDrawable="@drawable/auv_video_progress"
+        android:progressBackgroundTint="@null"
+        android:progressTint="@null"
+        android:secondaryProgressTint="@null"
+        android:splitTrack="false"
+        android:thumb="@drawable/auv_video_thumb"
+        android:thumbOffset="0dp"
+        android:thumbTint="@null" />
+
+    <ImageButton
+        android:id="@+id/auv_preview_video_mute"
+        android:layout_width="@dimen/auv_video_controls_height"
+        android:layout_height="match_parent"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/auv_video_unmute"
+        android:padding="@dimen/auv_video_button_padding"
+        android:src="@drawable/auv_ic_video_volume_off" />
+</LinearLayout>

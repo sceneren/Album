@@ -27,6 +27,7 @@ android {
 
 dependencies {
     api(project(":album-api"))
+    api(project(":album-video-api"))
     api(libs.androidx.activity.ktx)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

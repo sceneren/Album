@@ -1,0 +1,9 @@
+com.github.sceneren.album.video.album-video-api-pngs-0 D:\StudioProjects_lib\Album\album-video-api\build\generated\res\pngs\release
+com.github.sceneren.album.video.album-video-api-updated_navigation_xml-1 D:\StudioProjects_lib\Album\album-video-api\build\generated\updated_navigation_xml\release
+com.github.sceneren.album.video.album-video-api-mergeReleaseResources-2 D:\StudioProjects_lib\Album\album-video-api\build\intermediates\incremental\release\mergeReleaseResources\merged.dir
+com.github.sceneren.album.video.album-video-api-mergeReleaseResources-3 D:\StudioProjects_lib\Album\album-video-api\build\intermediates\incremental\release\mergeReleaseResources\stripped.dir
+com.github.sceneren.album.video.album-video-api-release-4 D:\StudioProjects_lib\Album\album-video-api\build\intermediates\merged_res\release\mergeReleaseResources
+com.github.sceneren.album.video.album-video-api-release-5 D:\StudioProjects_lib\Album\album-video-api\build\intermediates\packaged_res\release\packageReleaseResources
+com.github.sceneren.album.video.album-video-api-main-6 D:\StudioProjects_lib\Album\album-video-api\src\main\res
+com.github.sceneren.album.video.album-video-api-release-7 D:\StudioProjects_lib\Album\album-video-api\src\release\res
+gradleHome-0 C:\Users\Administrator\.gradle

@@ -9,8 +9,8 @@
 ## 2. Project Facts
 
 - Android project using Gradle Kotlin DSL and Kotlin; min SDK 24, target/compile SDK 37.
-- Modules: `:app` (host demo), `:album-api` (data-only Android Library), `:album-ui-view` (View picker UI library), and `:album-ui-compose` (Compose picker UI library).
-- `:app` depends on `:album-api`, `:album-ui-view`, and `:album-ui-compose`; `:album-ui-view` and `:album-ui-compose` depend on `:album-api`; `:album-api` must never depend on UI modules or `:app`.
+- Modules: `:app` (host demo), `:album-api` (data-only Android Library), `:album-ui-view` (View picker UI library), `:album-ui-compose` (Compose picker UI library), `:album-video-api` (lightweight playback contract), and optional `:album-video-media3` (Media3 playback engine).
+- `:app` depends on `:album-api`, `:album-ui-view`, `:album-ui-compose`, and optional `:album-video-media3`; both UI libraries depend on `:album-api` and `:album-video-api`, never Media3. `:album-api` must never depend on UI/video modules or `:app`. `:album-video-media3` depends only on `:album-video-api` and Media3, not either picker UI or the data API.
 - App package/application id: `com.github.sceneren.photopicker`; library namespaces: `com.github.sceneren.album.api`, `com.github.sceneren.album.ui.view`, `com.github.sceneren.album.ui.compose`.
 - Main entry: `app/src/main/java/com/github/sceneren/photopicker/MainActivity.kt`.
 
@@ -19,7 +19,8 @@
 - `:album-api` owns public media models, permission-state resolution, Photo Picker registration and system grant management (`ContentResolver.persistedUriPermissions`), MediaStore querying, directory aggregation, Paging sources, session persistence, camera capture, and file materialization/compression.
 - `:album-api` is data-only. Do not enable Compose or add Compose UI, Material3, Coil, or app resources to it.
 - `:album-ui-view` and `:album-ui-compose` provide reusable picker UI without depending on Coil; image loading is delegated via `AlbumImageLoader`.
-- `:app` owns demo UI, Coil `ImageLoader` wiring, and Manifest declarations.
+- `:app` owns demo UI, Coil `ImageLoader` wiring, optional `AlbumVideoPlayerFactory` registration, and Manifest declarations.
+- `:album-video-api` owns only the main-thread/asynchronous-decoding playback contract and rendering View; no Media3/Compose/Coil dependency. `:album-video-media3` is opt-in. A missing UI factory must fall back to static `VIDEO_COVER`, without controls or a decoder.
 
 ## 4. Media and Permission Rules
 

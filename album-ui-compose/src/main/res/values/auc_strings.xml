@@ -3,6 +3,11 @@
     <!-- Keep picker copy aligned with album-ui-view/src/main/res/values/auv_strings.xml. -->
     <string name="auc_toggle_selection">切换选择状态</string>
     <string name="auc_video_play">播放视频</string>
+    <string name="auc_video_pause">暂停视频</string>
+    <string name="auc_video_mute">静音</string>
+    <string name="auc_video_unmute">取消静音</string>
+    <string name="auc_video_progress">视频播放进度</string>
+    <string name="auc_video_play_failed">视频播放失败，点击播放按钮重试</string>
     <string name="auc_preview_load_failed">预览加载失败</string>
     <string name="auc_back">返回</string>
     <string name="auc_title">全部</string>
@@ -15,6 +20,8 @@
     <string name="auc_capture">拍摄</string>
     <string name="auc_add_more">添加更多</string>
     <string name="auc_denied_permission">你已设置%1$s只能访问相册部分照片，建议设为「允许访问所有照片」</string>
+    <string name="auc_denied_permission_videos">你已设置%1$s只能访问相册部分视频，建议设为「允许访问所有视频」</string>
+    <string name="auc_denied_permission_media">你已设置%1$s只能访问相册部分媒体，建议设为「允许访问所有媒体」</string>
     <string name="auc_camera_failed">拍摄失败</string>
     <string name="auc_cancel_failed">取消失败</string>
     <string name="auc_select_first">请先选择媒体</string>

@@ -9,8 +9,13 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DimenRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -30,7 +35,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,6 +47,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -54,6 +60,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -112,7 +119,6 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
-import com.github.panpf.zoomimage.ZoomImage
 import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.AlbumCameraCaptureType
 import com.github.sceneren.album.api.AlbumCameraPermissionRequestFactory
@@ -129,6 +135,8 @@ import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.MediaAccessStatus
 import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.SingleSelectionFinishMode
+import com.github.sceneren.album.video.AlbumVideoPlayerFactory
+import com.github.sceneren.album.ui.compose.internal.video.VideoPreviewSession
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -170,6 +178,7 @@ data class AlbumPickerAnimation(
  * 宿主负责导航，并应在退出动画完成后的 [onResult] 或 [onCancel] 回调中移除此组件。
  * [animation] 为 null 或 [AlbumPickerAnimation.None] 时不播放打开和关闭动画。
  * [imageLoader] 为 null 时，使用通过 [AlbumUi] 配置的进程级图片加载器。
+ * [videoPlayerFactory] 默认使用 [AlbumUi] 的可选配置；显式传 null 时只显示静态视频封面。
  * [systemBarStyle] 控制系统栏颜色和图标明暗；null 表示完全由宿主管理。
  * 需要嵌入已有页面时使用 [AlbumPickerContent]。
  */
@@ -183,6 +192,7 @@ fun AlbumPicker(
     imageLoader: AlbumImageLoader? = null,
     animation: AlbumPickerAnimation? = AlbumPickerAnimation.Default,
     systemBarStyle: AlbumPickerSystemBarStyle? = AlbumPickerSystemBarStyle(),
+    videoPlayerFactory: AlbumVideoPlayerFactory? = AlbumUi.videoPlayerFactoryOrNull(),
 ) {
     key(config) {
         AlbumPickerHost(
@@ -192,6 +202,7 @@ fun AlbumPicker(
             modifier = modifier,
             appearance = appearance,
             imageLoader = imageLoader,
+            videoPlayerFactory = videoPlayerFactory,
             animation = animation,
             systemBarStyle = systemBarStyle,
         )
@@ -211,6 +222,7 @@ internal fun AlbumPickerHost(
     embedded: Boolean = false,
     state: AlbumPickerState? = null,
     systemBarStyle: AlbumPickerSystemBarStyle? = null,
+    videoPlayerFactory: AlbumVideoPlayerFactory? = null,
 ) {
     val context = LocalContext.current
     val applicationContext = context.applicationContext
@@ -250,6 +262,9 @@ internal fun AlbumPickerHost(
     }
     var accessStatus by remember { mutableStateOf(MediaAccessStatus.DENIED) }
     var feed by remember { mutableStateOf<AlbumMediaFeed?>(null) }
+    val pagingItems = feed?.pagingData?.collectAsLazyPagingItems()
+    // The refresh consumer outlives recompositions, including the first null feed.
+    val currentPagingItems by rememberUpdatedState(pagingItems)
     var activeFeedSignature by remember { mutableStateOf<ComposeFeedSignature?>(null) }
     var directories by remember { mutableStateOf<List<AlbumDirectory>>(emptyList()) }
     var preview by remember { mutableStateOf<PreviewState?>(null) }
@@ -290,14 +305,14 @@ internal fun AlbumPickerHost(
             bucketId = current.bucketId,
             accessStatus = latestAccessStatus,
         )
-        val shouldReloadFeed = forceReload ||
-            feed == null ||
-            activeFeedSignature != targetSignature ||
-            latestAccessStatus == MediaAccessStatus.PARTIAL ||
-            accessChanged
-        if (shouldReloadFeed) {
+        if (feed == null || activeFeedSignature != targetSignature) {
+            // A directory/permission change needs a new route, not a refresh of the old source.
             activeFeedSignature = targetSignature
             feed = api.getMediaFeed(config.mediaFilter, current.bucketId)
+        } else if (forceReload || latestAccessStatus == MediaAccessStatus.PARTIAL) {
+            // Keep the presenter and its snapshot while the new generation loads. Replacing
+            // the Flow here clears every visible cell on return from the system picker.
+            currentPagingItems?.refresh()
         }
         directories = if (latestAccessStatus == MediaAccessStatus.FULL) {
             if (forceReload || directories.isEmpty() || accessChanged) {
@@ -703,9 +718,10 @@ internal fun AlbumPickerHost(
                     accessStatus = accessStatus,
                     areMediaPermissionsDeclared = areMediaPermissionsDeclared,
                     directories = directories,
-                    feed = feed,
+                    pagingItems = pagingItems,
                     preview = preview,
                     imageLoader = resolvedImageLoader,
+                    videoPlayerFactory = videoPlayerFactory,
                     onBack = ::cancelPicker,
                     onDirectory = { bucketId ->
                         if (shouldUpdateDirectory(session.bucketId, bucketId)) {
@@ -840,11 +856,12 @@ internal fun shouldShowPermissionUpgradeButton(
     arePermissionsDeclared &&
     accessStatus != MediaAccessStatus.FULL
 
-/** 当数据源尚未建立或分页首刷尚未完成时，媒体网格应保持加载状态。 */
+/** 只有尚无可展示内容时才遮盖首刷；后台刷新保留已有网格。 */
 internal fun isMediaGridInitialLoading(
-    feed: AlbumMediaFeed?,
     refreshLoadState: LoadState?,
-): Boolean = feed == null || refreshLoadState is LoadState.Loading
+    presentedItemCount: Int,
+): Boolean = presentedItemCount == 0 &&
+    (refreshLoadState == null || refreshLoadState is LoadState.Loading)
 
 /** 表示 `PREVIEW_PAGE_SIZE` 对应的数据。 */
 private const val PREVIEW_PAGE_SIZE = 30
@@ -853,7 +870,7 @@ private const val PREVIEW_PREFETCH_DISTANCE = 3
 
 @Composable
 /** 执行 `AlbumPickerScreen` 方法定义的处理。 */
-private fun AlbumPickerScreen(
+internal fun AlbumPickerScreen(
     embedded: Boolean,
     systemBarStyle: AlbumPickerSystemBarStyle?,
     modifier: Modifier,
@@ -863,9 +880,10 @@ private fun AlbumPickerScreen(
     accessStatus: MediaAccessStatus,
     areMediaPermissionsDeclared: Boolean,
     directories: List<AlbumDirectory>,
-    feed: AlbumMediaFeed?,
+    pagingItems: LazyPagingItems<AlbumMedia>?,
     preview: PreviewState?,
     imageLoader: AlbumImageLoader,
+    videoPlayerFactory: AlbumVideoPlayerFactory?,
     onBack: () -> Unit,
     onDirectory: (Long) -> Unit,
     onRequestPermission: () -> Unit,
@@ -902,14 +920,15 @@ private fun AlbumPickerScreen(
     LaunchedEffect(accessStatus) {
         if (accessStatus != MediaAccessStatus.FULL) directoryMenu = false
     }
-    val pagingItems: LazyPagingItems<AlbumMedia>? = feed?.pagingData?.collectAsLazyPagingItems()
+    val gridState = key(accessStatus, session.bucketId) { rememberLazyGridState() }
     val selectionLimitReached = session.selectedItems.size >= config.maxSelectionCount
     val isInitialGridLoading = isMediaGridInitialLoading(
-        feed = feed,
         refreshLoadState = pagingItems?.loadState?.refresh,
+        presentedItemCount = (pagingItems?.itemCount ?: 0) +
+            if (accessStatus == MediaAccessStatus.FULL) session.cameraItems.size else 0,
     )
 
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    AlbumPreviewLayout(modifier) { sharedTransitionScope ->
         Scaffold(
             containerColor = Color.Black,
             contentWindowInsets = if (embedded) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
@@ -1115,7 +1134,7 @@ private fun AlbumPickerScreen(
                                 )
                                 Text(
                                     text = stringResource(
-                                        R.string.auc_denied_permission,
+                                        config.mediaFilter.permissionUpgradeMessageRes(),
                                         applicationName,
                                     ),
                                     modifier = Modifier.weight(1f),
@@ -1189,26 +1208,17 @@ private fun AlbumPickerScreen(
                 }
             },
         ) { padding ->
-            if (isInitialGridLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = accent)
-                }
-            } else {
+            // The grid remains in composition across refreshes, including empty results.
+            Box(Modifier.fillMaxSize().padding(padding)) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(appearance.gridSpanCount),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
                     horizontalArrangement = Arrangement.spacedBy(appearance.gridItemSpacingDp.dp),
                 ) {
                     if (config.camera.enabled) {
-                        item(key = "action_camera") {
+                        item(key = "action_camera", contentType = "action") {
                             ActionTile(
                                 label = stringResource(R.string.auc_capture),
                                 customIconRes = appearance.cameraIconRes,
@@ -1219,7 +1229,7 @@ private fun AlbumPickerScreen(
                         }
                     }
                     if (accessStatus != MediaAccessStatus.FULL) {
-                        item(key = "action_add") {
+                        item(key = "action_add", contentType = "action") {
                             ActionTile(
                                 label = stringResource(R.string.auc_add_more),
                                 customIconRes = appearance.addIconRes,
@@ -1230,7 +1240,7 @@ private fun AlbumPickerScreen(
                         }
                     }
                     if (accessStatus == MediaAccessStatus.FULL) {
-                        items(session.cameraItems, key = { "camera:${it.uri}" }) { item ->
+                        items(session.cameraItems, key = { "camera:${it.uri}" }, contentType = { "media" }) { item ->
                             MediaTile(
                                 item,
                                 item.uri in session.selectedUris,
@@ -1244,12 +1254,14 @@ private fun AlbumPickerScreen(
                                     )
                                 },
                                 onToggle = onToggle,
+                                sharedTransitionScope = sharedTransitionScope,
+                                previewVisible = preview != null,
                             )
                         }
                     }
                     if (pagingItems?.loadState?.refresh is LoadState.Error ||
                         pagingItems?.loadState?.append is LoadState.Error) {
-                        item(key = "load_error", span = { GridItemSpan(maxLineSpan) }) {
+                        item(key = "load_error", contentType = "error", span = { GridItemSpan(maxLineSpan) }) {
                             TextButton(onClick = { pagingItems.retry() }) {
                                 Text(stringResource(R.string.auc_load_failed_retry))
                             }
@@ -1272,9 +1284,22 @@ private fun AlbumPickerScreen(
                                         onGridPreview(selected, pagingItems.itemSnapshotList.items)
                                     },
                                     onToggle = onToggle,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    previewVisible = preview != null,
                                 )
                             }
                         }
+                    }
+                }
+                if (isInitialGridLoading) {
+                    val interactionSource = remember { MutableInteractionSource() }
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.Black)
+                            .clickable(interactionSource = interactionSource, indication = null, onClick = {})
+                            .clearAndSetSemantics { },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = accent)
                     }
                 }
             }
@@ -1341,8 +1366,17 @@ private fun AlbumPickerScreen(
             }
         }
 
-        preview?.let { state ->
-            key(state.id) {
+        AnimatedContent(
+            targetState = preview,
+            modifier = Modifier.fillMaxSize(),
+            contentKey = { it?.id },
+            transitionSpec = {
+                fadeIn(tween(PREVIEW_TRANSITION_MILLIS)) togetherWith
+                    fadeOut(tween(PREVIEW_TRANSITION_MILLIS))
+            },
+            label = "albumPreview",
+        ) { state ->
+            if (state != null) {
                 AlbumPreviewScreen(
                     embedded = embedded,
                     systemBarStyle = systemBarStyle,
@@ -1350,10 +1384,13 @@ private fun AlbumPickerScreen(
                     session = session,
                     appearance = appearance,
                     imageLoader = imageLoader,
+                    videoPlayerFactory = videoPlayerFactory,
                     onToggle = onToggle,
                     onLoadMore = onPreviewLoadMore,
                     onClose = onClosePreview,
                     onConfirm = onConfirm,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this@AnimatedContent,
                 )
             }
         }
@@ -1456,17 +1493,20 @@ private const val DIRECTORY_PANEL_ANIMATION_DURATION_MILLIS = 200
 
 @Composable
 /** 执行 `AlbumPreviewScreen` 方法定义的处理。 */
-private fun AlbumPreviewScreen(
+internal fun AlbumPreviewScreen(
     embedded: Boolean,
     systemBarStyle: AlbumPickerSystemBarStyle?,
     state: PreviewState,
     session: AlbumPickerSessionSnapshot,
     appearance: AlbumPickerAppearance,
     imageLoader: AlbumImageLoader,
+    videoPlayerFactory: AlbumVideoPlayerFactory?,
     onToggle: (AlbumMedia) -> Unit,
     onLoadMore: () -> Unit,
     onClose: () -> Unit,
     onConfirm: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val toolbar = appearance.toolbarColor?.toColor() ?: colorResource(R.color.auc_toolbar)
     val bottom = appearance.bottomBarColor?.toColor() ?: colorResource(R.color.auc_bottom)
@@ -1489,133 +1529,188 @@ private fun AlbumPreviewScreen(
 
     val currentMedia = state.items.getOrNull(pagerState.currentPage)
     val currentSelected = currentMedia?.uri in session.selectedUris
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(previewBackground)
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .background(systemBarStyle?.statusBarColor?.toColor() ?: toolbar)
-                .then(if (embedded) Modifier else Modifier.statusBarsPadding())
-                .background(toolbar)
-                .height(dimensionResource(R.dimen.auc_toolbar_height))
-                .padding(
-                    horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
-                    vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                ),
-        ) {
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                Icon(
-                    painter = painterResource(
-                        appearance.backIconRes ?: R.drawable.auc_ic_album_back,
-                    ),
-                    contentDescription = stringResource(R.string.auc_back),
-                    tint = Color.Unspecified,
-                )
-            }
-            Text(
-                text = stringResource(
-                    R.string.auc_preview_position,
-                    pagerState.currentPage + 1,
-                    state.items.size,
-                ),
-                color = primary,
-                fontSize = dimensionSp(R.dimen.auc_preview_page_counter_text_size),
-                modifier = Modifier.align(Alignment.Center),
-            )
-            IconButton(
-                onClick = { currentMedia?.let(onToggle) },
-                enabled = currentMedia != null,
-                modifier = Modifier.align(Alignment.CenterEnd),
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (currentSelected) {
-                            appearance.checkedIconRes ?: R.drawable.auc_ic_album_checked
-                        } else {
-                            appearance.uncheckedIconRes ?: R.drawable.auc_ic_album_unchecked
-                        },
-                    ),
-                    contentDescription = stringResource(R.string.auc_toggle_selection),
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(
-                        dimensionResource(R.dimen.auc_preview_selection_icon_size),
-                    ),
-                )
-            }
+    val videoMode = videoPlayerFactory != null && currentMedia?.mediaType == AlbumMediaType.VIDEO
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val videoSession = remember(videoPlayerFactory, context) {
+        videoPlayerFactory?.let { factory -> VideoPreviewSession { factory.create(context) } }
+    }
+    DisposableEffect(videoSession, lifecycleOwner) {
+        val lifecycle = lifecycleOwner.lifecycle
+        val observer = LifecycleEventObserver { _, _ ->
+            videoSession?.setForeground(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
         }
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            beyondViewportPageCount = 1,
-            key = { index -> state.items[index].uri.toString() },
-        ) { index ->
-            val media = state.items[index]
-            if (media.mediaType == AlbumMediaType.IMAGE) {
-                ZoomImage(
-                    painter = imageLoader.painter(
-                        media,
-                        AlbumImageTarget.PREVIEW_IMAGE,
-                    ),
-                    contentDescription = media.displayName,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                    scrollBar = null,
-                )
-            } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Image(
-                        painter = imageLoader.painter(
-                            media,
-                            AlbumImageTarget.VIDEO_COVER,
+        lifecycle.addObserver(observer)
+        videoSession?.setForeground(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+        onDispose {
+            lifecycle.removeObserver(observer)
+            videoSession?.setForeground(false)
+        }
+    }
+    DisposableEffect(videoSession) {
+        onDispose { videoSession?.close() }
+    }
+    val previewActive = animatedVisibilityScope == null ||
+        animatedVisibilityScope.transition.targetState == EnterExitState.Visible
+    val playableUri = currentMedia?.takeIf {
+        it.mediaType == AlbumMediaType.VIDEO && !pagerState.isScrollInProgress && previewActive &&
+            sharedTransitionScope?.isTransitionActive != true
+    }?.uri
+    SideEffect { videoSession?.show(playableUri) }
+    if (videoMode && !embedded && systemBarStyle != null) {
+        AlbumPickerSystemBars(
+            statusBarColor = previewBackground.toArgb(),
+            navigationBarColor = previewBackground.toArgb(),
+            darkStatusBarIcons = false,
+            darkNavigationBarIcons = false,
+        )
+    }
+    Box(Modifier.fillMaxSize().background(previewBackground)) {
+        Column(Modifier.fillMaxSize()) {
+            if (!videoMode) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(systemBarStyle?.statusBarColor?.toColor() ?: toolbar)
+                        .then(if (embedded) Modifier else Modifier.statusBarsPadding())
+                        .background(toolbar)
+                        .height(dimensionResource(R.dimen.auc_toolbar_height))
+                        .padding(
+                            horizontal = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                            vertical = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
                         ),
-                        contentDescription = media.displayName,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
+                ) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.align(Alignment.CenterStart),
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                appearance.backIconRes ?: R.drawable.auc_ic_album_back,
+                            ),
+                            contentDescription = stringResource(R.string.auc_back),
+                            tint = Color.Unspecified,
+                        )
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.auc_preview_position,
+                            pagerState.currentPage + 1,
+                            state.items.size,
+                        ),
+                        color = primary,
+                        fontSize = dimensionSp(R.dimen.auc_preview_page_counter_text_size),
+                        modifier = Modifier.align(Alignment.Center),
                     )
-                    Icon(
-                        painter = painterResource(
-                            appearance.videoIconRes ?: R.drawable.auc_ic_album_play,
+                    IconButton(
+                        onClick = { currentMedia?.let(onToggle) },
+                        enabled = currentMedia != null,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (currentSelected) {
+                                    appearance.checkedIconRes ?: R.drawable.auc_ic_album_checked
+                                } else {
+                                    appearance.uncheckedIconRes ?: R.drawable.auc_ic_album_unchecked
+                                },
+                            ),
+                            contentDescription = stringResource(R.string.auc_toggle_selection),
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(
+                                dimensionResource(R.dimen.auc_preview_selection_icon_size),
+                            ),
+                        )
+                    }
+                }
+            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                beyondViewportPageCount = 1,
+                key = { index -> state.items[index].uri.toString() },
+            ) { index ->
+                val media = state.items[index]
+                if (media.mediaType == AlbumMediaType.IMAGE) {
+                    AlbumPreviewImage(
+                        media = media,
+                        painter = imageLoader.previewPainter(media),
+                        sharedTransitionScope = sharedTransitionScope.takeIf { index == pagerState.currentPage },
+                        animatedVisibilityScope = animatedVisibilityScope,
+                    )
+                } else {
+                    val active = videoSession?.takeIf { it.currentUri == media.uri }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        AlbumVideoPreview(
+                            media = media,
+                            imageLoader = imageLoader,
+                            session = active,
+                        )
+                        if (videoPlayerFactory == null) {
+                            Icon(
+                                painter = painterResource(appearance.videoIconRes ?: R.drawable.auc_ic_album_play),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(dimensionResource(R.dimen.auc_preview_video_play_size)),
+                            )
+                        }
+                    }
+                }
+            }
+            if (!embedded && !videoMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(systemBarStyle?.navigationBarColor?.toColor() ?: bottom)
+                        .then(if (embedded) Modifier else Modifier.navigationBarsPadding())
+                        .background(bottom)
+                        .height(dimensionResource(R.dimen.auc_bottom_height))
+                        .padding(
+                            start = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                            top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
+                            end = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                            bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
                         ),
-                        contentDescription = stringResource(R.string.auc_video_play),
-                        tint = Color.Unspecified,
-                        modifier = Modifier
-                            .size(dimensionResource(R.dimen.auc_preview_video_play_size))
-                            .clickable {
-                                // 视频预览仅显示封面，点击图标不在选择器内播放。
-                            },
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SelectionFinishAction(
+                        selectedCount = session.selectedItems.size,
+                        appearance = appearance,
+                        onConfirm = onConfirm,
                     )
                 }
             }
         }
-        if (!embedded) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(systemBarStyle?.navigationBarColor?.toColor() ?: bottom)
-                    .then(if (embedded) Modifier else Modifier.navigationBarsPadding())
-                    .background(bottom)
-                    .height(dimensionResource(R.dimen.auc_bottom_height))
-                    .padding(
-                        start = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
-                        top = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                        end = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
-                        bottom = dimensionResource(R.dimen.auc_toolbar_padding_vertical),
-                    ),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
+        if (videoMode && videoSession != null) {
+            Box(
+                Modifier.fillMaxSize()
+                    .then(if (embedded) Modifier else Modifier.windowInsetsPadding(WindowInsets.safeDrawing)),
             ) {
-                SelectionFinishAction(
-                    selectedCount = session.selectedItems.size,
-                    appearance = appearance,
-                    onConfirm = onConfirm,
+                IconButton(
+                    onClick = {
+                        videoSession.close()
+                        onClose()
+                    },
+                    modifier = Modifier.align(Alignment.TopStart)
+                        .padding(
+                            start = dimensionResource(R.dimen.auc_toolbar_padding_horizontal),
+                            top = dimensionResource(R.dimen.auc_video_back_margin_top),
+                        )
+                        .size(dimensionResource(R.dimen.auc_toolbar_back_size)),
+                ) {
+                    Icon(
+                        painterResource(appearance.backIconRes ?: R.drawable.auc_ic_album_back),
+                        contentDescription = stringResource(R.string.auc_back),
+                        tint = Color.Unspecified,
+                    )
+                }
+                AlbumVideoControls(
+                    session = videoSession,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(dimensionResource(R.dimen.auc_video_controls_margin)),
                 )
             }
         }
@@ -1753,6 +1848,8 @@ private fun MediaTile(
     imageLoader: AlbumImageLoader,
     onPreview: (AlbumMedia) -> Unit,
     onToggle: (AlbumMedia) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    previewVisible: Boolean = false,
 ) {
     Box(
         Modifier
@@ -1761,7 +1858,7 @@ private fun MediaTile(
             .background(Color.Black)
             .clickable(enabled = !selectionBlocked) { onPreview(media) },
     ) {
-        MediaThumbnail(media, imageLoader)
+        MediaThumbnail(media, imageLoader, sharedTransitionScope, previewVisible)
         if (selected || selectionBlocked) {
             Box(
                 Modifier
@@ -1880,11 +1977,13 @@ private fun BoxScope.MediaInfo(media: AlbumMedia) {
 private fun MediaThumbnail(
     media: AlbumMedia,
     imageLoader: AlbumImageLoader,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    previewVisible: Boolean = false,
 ) {
     Image(
         painter = imageLoader.painter(media, AlbumImageTarget.GRID_THUMBNAIL),
         contentDescription = media.displayName,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().sharedAlbumThumbnail(media, sharedTransitionScope, !previewVisible),
         contentScale = ContentScale.Crop,
     )
 }

@@ -18,4 +18,7 @@
     <color name="auv_media_blocked_scrim">#66FFFFFF</color>
     <color name="auv_media_badge_background">#B36D8FAF</color>
     <color name="auv_processing_dialog_background">#CC454545</color>
+    <color name="auv_video_controls_background">#D9222222</color>
+    <color name="auv_video_controls_foreground">#FFAAAAAA</color>
+    <color name="auv_video_progress_unplayed">#FF4D4D4D</color>
 </resources>
