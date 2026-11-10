@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-11-09 18:50:58",
+  "scan_time": "2026-11-10 10:21:04",
   "module_count": 6,
   "modules": [
     {
@@ -402,7 +402,7 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 66,
+          "file_count": 67,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -435,6 +435,7 @@
             "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
             "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
             "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
@@ -476,7 +477,7 @@
           ]
         }
       ],
-      "file_count": 66,
+      "file_count": 67,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -509,6 +510,7 @@
         "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
         "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
         "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
@@ -555,7 +557,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (66个文件)\n    └── github/  (66个文件)\n        └── sceneren/  (66个文件)\n            └── album/  (66个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (67个文件)\n    └── github/  (67个文件)\n        └── sceneren/  (67个文件)\n            └── album/  (67个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",

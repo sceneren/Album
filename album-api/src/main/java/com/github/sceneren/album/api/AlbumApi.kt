@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import com.github.sceneren.album.api.internal.mediastore.AndroidMediaStoreDataSource
+import com.github.sceneren.album.api.internal.mediastore.AndroidMediaChangeObserver
 import com.github.sceneren.album.api.internal.mediastore.MediaStoreDataSource
 import com.github.sceneren.album.api.internal.mediastore.MediaStoreMediaPagingSource
 import com.github.sceneren.album.api.internal.permission.AndroidMediaAccessResolver
@@ -15,6 +16,7 @@ import com.github.sceneren.album.api.internal.picker.AuthorizedMediaPagingSource
 import com.github.sceneren.album.api.internal.picker.ContentResolverUriAccessChecker
 import com.github.sceneren.album.api.internal.picker.ContentResolverUriMetadataReader
 import com.github.sceneren.album.api.internal.picker.PersistableGrantManager
+import com.github.sceneren.album.api.internal.picker.PersistedUriGrant
 import com.github.sceneren.album.api.internal.picker.PhotoPickerRegistrar
 import com.github.sceneren.album.api.internal.picker.PhotoPickerResultProcessor
 import com.github.sceneren.album.api.internal.picker.PickedUriMetadata
@@ -24,11 +26,15 @@ import com.github.sceneren.album.api.internal.picker.UriMetadataReader
 import com.github.sceneren.album.api.internal.picker.allows
 import com.github.sceneren.album.api.internal.picker.toAlbumMedia
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
 /**
@@ -50,7 +56,27 @@ class AlbumApi internal constructor(
     private val cameraMediaLoader: (AlbumMediaFilter) -> List<AlbumMedia> = { emptyList() },
     private val cameraMediaDeleter: (Uri) -> Boolean = { false },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mediaChanges: Flow<Unit> = emptyFlow(),
+    private val cacheGeneration: AtomicLong = AtomicLong(),
 ) {
+    /**
+     * 监听媒体提供方的批量变化；宿主应仅在界面可见时收集，并刷新当前分页与目录。
+     * 不同提供方的通知能力不同，回到前台时仍应调用 [invalidateMediaCache] 后刷新。
+     */
+    fun observeMediaChanges(): Flow<Unit> = mediaChanges.flowOn(ioDispatcher)
+
+    /**
+     * 使历史元数据失效；接下来的分页会按需校验照片是否仍存在，不逐张打开历史图片内容流。
+     * 此方法不释放系统授权，也不清空当前界面的 Paging 快照。
+     */
+    suspend fun invalidateMediaCache(): Unit = withContext(ioDispatcher) {
+        synchronized(metadataCache) {
+            cacheGeneration.incrementAndGet()
+            metadataReader.invalidateCache()
+            metadataCache.clear()
+        }
+    }
+
     /** 返回 [mediaFilter] 对应的有效媒体库访问状态。 */
     fun getMediaAccessStatus(
         mediaFilter: AlbumMediaFilter = AlbumMediaFilter.IMAGES,
@@ -101,6 +127,9 @@ class AlbumApi internal constructor(
 
             MediaAccessStatus.PARTIAL,
             MediaAccessStatus.DENIED -> Pager(config) {
+                // 同一代分页固定授权与相机快照，滚动追加时不反复跨进程读取、排序整个授权列表。
+                val grants by lazy { grantManager.persistedReadGrants() }
+                val cameraItems by lazy { cameraMediaLoader(mediaFilter) }
                 AuthorizedMediaPagingSource { offset, limit ->
                     withContext(ioDispatcher) {
                         loadAuthorizedPage(
@@ -108,6 +137,8 @@ class AlbumApi internal constructor(
                             mediaFilter = mediaFilter,
                             offset = offset,
                             limit = limit,
+                            grants = grants,
+                            cameraItems = cameraItems,
                         )
                     }
                 }
@@ -249,8 +280,10 @@ class AlbumApi internal constructor(
         mediaFilter: AlbumMediaFilter,
         offset: Int,
         limit: Int,
+        grants: List<PersistedUriGrant> = grantManager.persistedReadGrants(),
+        cameraItems: List<AlbumMedia> = cameraMediaLoader(mediaFilter),
     ): List<AlbumMedia> {
-        val slice = loadPersistedAndCameraSlice(mediaFilter, offset, limit)
+        val slice = loadPersistedAndCameraSlice(mediaFilter, offset, limit, grants, cameraItems)
         if (status == MediaAccessStatus.DENIED || slice.items.size >= limit) {
             return slice.items
         }
@@ -289,9 +322,9 @@ class AlbumApi internal constructor(
         mediaFilter: AlbumMediaFilter,
         offset: Int,
         limit: Int,
+        grants: List<PersistedUriGrant>,
+        cameraItems: List<AlbumMedia>,
     ): PersistedSlice {
-        val grants = grantManager.persistedReadGrants()
-        val cameraItems = cameraMediaLoader(mediaFilter)
         val seenUris = HashSet<Uri>(cameraItems.size + minOf(grants.size, offset + limit))
         val matchedUris = HashSet<Uri>(cameraItems.size + minOf(grants.size, offset + limit))
         val result = ArrayList<AlbumMedia>(limit)
@@ -311,11 +344,11 @@ class AlbumApi internal constructor(
 
         for (grant in grants) {
             if (!seenUris.add(grant.uri)) continue
-            val item = resolvePersistedGrantMedia(grant.uri, grant.persistedAtEpochMillis, mediaFilter)
+            val metadata = resolvePersistedGrantMetadata(grant.uri, mediaFilter)
                 ?: continue
-            matchedUris += item.uri
+            matchedUris += grant.uri
             if (matchedIndex >= offset) {
-                result += item
+                result += metadata.toAlbumMedia(selectedAtEpochMillis = grant.persistedAtEpochMillis)
                 if (result.size >= limit) {
                     return PersistedSlice(result, matchedIndex + 1, matchedUris)
                 }
@@ -332,26 +365,32 @@ class AlbumApi internal constructor(
         val seenMatchedUris: Set<Uri>,
     )
 
-    private fun resolvePersistedGrantMedia(
+    private fun resolvePersistedGrantMetadata(
         uri: Uri,
-        persistedAtEpochMillis: Long?,
         mediaFilter: AlbumMediaFilter,
-    ): AlbumMedia? {
+    ): PickedUriMetadata? {
+        val generation = cacheGeneration.get()
         val cached = metadataCache[uri]
         if (cached != null) {
             return if (mediaFilter.allows(cached.mediaType)) {
-                cached.toAlbumMedia(selectedAtEpochMillis = persistedAtEpochMillis)
+                cached
             } else {
                 null
             }
         }
-        val type = runCatching { metadataReader.requiredType(uri) }.getOrNull() ?: return null
-        if (!mediaFilter.allows(type)) return null
-        val metadata = runCatching {
+        val metadata = try {
+            val type = metadataReader.requiredType(uri)
+            if (!mediaFilter.allows(type)) return null
             metadataReader.read(uri, type, allowStreamProbe = false)
-        }.getOrNull() ?: return null
-        metadataCache[uri] = metadata
-        return metadata.toAlbumMedia(selectedAtEpochMillis = persistedAtEpochMillis)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return null
+        }
+        synchronized(metadataCache) {
+            if (cacheGeneration.get() == generation) metadataCache[uri] = metadata
+        }
+        return metadata
     }
 
     /** 创建由 View/Compose 相册页面共用的选择会话客户端。 */
@@ -417,13 +456,14 @@ class AlbumApi internal constructor(
         const val DEFAULT_PAGE_SIZE: Int = 50
 
         private val sharedMetadataCache = ConcurrentHashMap<Uri, PickedUriMetadata>()
+        private val sharedCacheGeneration = AtomicLong()
 
         /** 创建由系统 MediaStore 与 ContentResolver 授权管理支持的应用级 API 实例。 */
         fun create(context: Context): AlbumApi {
             val appContext = context.applicationContext
             val resolver = appContext.contentResolver
             val grantManager = AndroidPersistableGrantManager(resolver)
-            val metadataReader = ContentResolverUriMetadataReader(resolver, sharedMetadataCache)
+            val metadataReader = ContentResolverUriMetadataReader(resolver, sharedMetadataCache, sharedCacheGeneration)
             val processor = PhotoPickerResultProcessor(
                 grantManager = grantManager,
                 metadataReader = metadataReader,
@@ -439,6 +479,8 @@ class AlbumApi internal constructor(
                 metadataReader = metadataReader,
                 uriAccessChecker = ContentResolverUriAccessChecker(resolver),
                 metadataCache = sharedMetadataCache,
+                mediaChanges = AndroidMediaChangeObserver(resolver, grantManager).changes(),
+                cacheGeneration = sharedCacheGeneration,
                 cameraMediaLoader = { filter ->
                     AlbumPickerClient.loadCompletedCameraMedia(appContext, filter)
                 },

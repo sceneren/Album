@@ -8,14 +8,25 @@ import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.resolveAlbumMediaSpecialFormat
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.FileNotFoundException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /** 负责 `ContentResolverUriMetadataReader` 相关的数据与行为。 */
 internal class ContentResolverUriMetadataReader(
     private val resolver: ContentResolver,
     private val metadataCache: MutableMap<Uri, PickedUriMetadata> = ConcurrentHashMap(),
+    private val cacheGeneration: AtomicLong = AtomicLong(),
 ) : UriMetadataReader {
-    private val mimeCache = ConcurrentHashMap<Uri, String>()
+    private val mimeCache = ConcurrentHashMap<Uri, Pair<Long, String>>()
+
+    override fun invalidateCache() {
+        synchronized(metadataCache) {
+            cacheGeneration.incrementAndGet()
+            metadataCache.clear()
+            mimeCache.clear()
+        }
+    }
 
     /** 执行 `requiredType` 方法定义的处理。 */
     override fun requiredType(uri: Uri): AlbumMediaType {
@@ -34,6 +45,7 @@ internal class ContentResolverUriMetadataReader(
         type: AlbumMediaType,
         allowStreamProbe: Boolean,
     ): PickedUriMetadata {
+        val generation = cacheGeneration.get()
         metadataCache[uri]?.let { cached ->
             if (cached.mediaType == type) return cached
         }
@@ -70,13 +82,20 @@ internal class ContentResolverUriMetadataReader(
             durationMillis = optional?.durationMillis,
             specialFormat = resolvedSpecialFormat,
         ).also { resolved ->
-            metadataCache[uri] = resolved
+            synchronized(metadataCache) {
+                if (cacheGeneration.get() == generation) metadataCache[uri] = resolved
+            }
         }
     }
 
-    private fun resolveMimeType(uri: Uri): String =
-        mimeCache[uri] ?: (resolver.getType(uri)?.also { mimeCache[uri] = it }
-            ?: throw IllegalArgumentException("Unable to determine media MIME type"))
+    private fun resolveMimeType(uri: Uri): String {
+        val generation = cacheGeneration.get()
+        mimeCache[uri]?.takeIf { it.first == generation }?.let { return it.second }
+        return (resolver.getType(uri) ?: throw IllegalArgumentException("Unable to determine media MIME type"))
+            .also { mime ->
+                if (cacheGeneration.get() == generation) mimeCache[uri] = generation to mime
+            }
+    }
 
     private fun queryOptionalMetadata(
         uri: Uri,
@@ -85,16 +104,22 @@ internal class ContentResolverUriMetadataReader(
     ): OptionalMetadata? {
         val projected = try {
             resolver.query(uri, METADATA_PROJECTION, null, null, null)?.use { cursor ->
-                if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type, mimeType)
+                if (!cursor.moveToFirst()) throw FileNotFoundException("Media no longer exists: $uri")
+                cursor.readOptionalMetadata(type, mimeType)
             }
+        } catch (denied: SecurityException) {
+            throw denied
         } catch (_: RuntimeException) {
             null
         }
         if (projected != null) return projected
         return try {
             resolver.query(uri, null, null, null, null)?.use { cursor ->
-                if (!cursor.moveToFirst()) null else cursor.readOptionalMetadata(type, mimeType)
+                if (!cursor.moveToFirst()) throw FileNotFoundException("Media no longer exists: $uri")
+                cursor.readOptionalMetadata(type, mimeType)
             }
+        } catch (denied: SecurityException) {
+            throw denied
         } catch (_: RuntimeException) {
             null
         }

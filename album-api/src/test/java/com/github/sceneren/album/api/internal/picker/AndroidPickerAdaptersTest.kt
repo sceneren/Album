@@ -12,6 +12,7 @@ import com.github.sceneren.album.api.AlbumMediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.fail
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -22,6 +23,36 @@ import org.robolectric.shadows.ShadowContentResolver
 @Config(sdk = [34])
 /** 验证 `AndroidPickerAdaptersTest` 覆盖的行为。 */
 class AndroidPickerAdaptersTest {
+    @Test
+    fun deletedPhotoCannotBeRecreatedFromCachedMimeAfterInvalidation() {
+        val provider = PickerMetadataProvider()
+        ShadowContentResolver.registerProviderInternal("picker", provider)
+        val reader = ContentResolverUriMetadataReader(
+            ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+        )
+        val imageUri = uri("image")
+        reader.read(imageUri, reader.requiredType(imageUri), allowStreamProbe = false)
+        provider.deleted = true
+        reader.invalidateCache()
+
+        assertThrows(java.io.FileNotFoundException::class.java) {
+            reader.read(imageUri, reader.requiredType(imageUri), allowStreamProbe = false)
+        }
+        assertEquals(2, provider.typeQueries)
+    }
+
+    @Test
+    fun revokedPhotoPermissionIsNotConvertedIntoAnEmptyMetadataItem() {
+        val provider = PickerMetadataProvider()
+        ShadowContentResolver.registerProviderInternal("picker", provider)
+        val reader = ContentResolverUriMetadataReader(
+            ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+        )
+        provider.denied = true
+        assertThrows(SecurityException::class.java) {
+            reader.read(uri("image"), AlbumMediaType.IMAGE, allowStreamProbe = false)
+        }
+    }
     @Test
     /** 验证 `metadataReaderMapsImageVideoAndOptionalColumns` 所描述的场景。 */
     fun metadataReaderMapsImageVideoAndOptionalColumns() {
@@ -77,14 +108,20 @@ class AndroidPickerAdaptersTest {
 
     /** 负责 `PickerMetadataProvider` 相关的数据与行为。 */
     private class PickerMetadataProvider : ContentProvider() {
+        var deleted = false
+        var denied = false
+        var typeQueries = 0
         /** 处理 `onCreate` 回调。 */
         override fun onCreate(): Boolean = true
 
         /** 获取 `getType` 所需的数据。 */
-        override fun getType(uri: Uri): String = when (uri.lastPathSegment) {
+        override fun getType(uri: Uri): String {
+            typeQueries++
+            return when (uri.lastPathSegment) {
             "image", "motion" -> "image/jpeg"
             "video" -> "video/mp4"
             else -> "application/octet-stream"
+            }
         }
 
         /** 获取 `query` 所需的数据。 */
@@ -104,6 +141,8 @@ class AndroidPickerAdaptersTest {
                 "standard_mime_type_extension",
             ),
         ).apply {
+            if (denied) throw SecurityException("permission revoked")
+            if (deleted) return@apply
             val video = uri.lastPathSegment == "video"
             val motion = uri.lastPathSegment == "motion"
             addRow(

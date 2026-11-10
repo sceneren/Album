@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-11-09 16:52:59",
-  "new_scan_time": "2026-11-09 18:50:58",
+  "old_scan_time": "2026-11-09 18:50:58",
+  "new_scan_time": "2026-11-10 10:21:04",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -10,28 +10,17 @@
     "modules_added": 0,
     "modules_removed": 0,
     "modules_renamed": 0,
-    "modules_changed": 2,
-    "modules_unchanged": 4
+    "modules_changed": 1,
+    "modules_unchanged": 5
   },
   "modules": {
-    "album-ui-compose": {
+    "album-api": {
       "status": "changed",
       "files": {
-        "total_old": 12,
-        "total_new": 13,
+        "total_old": 66,
+        "total_new": 67,
         "added": [
-          "com\\github\\sceneren\\album\\ui\\compose\\AlbumPreviewImage.kt"
-        ],
-        "removed": []
-      }
-    },
-    "album-ui-view": {
-      "status": "changed",
-      "files": {
-        "total_old": 25,
-        "total_new": 26,
-        "added": [
-          "com\\github\\sceneren\\album\\ui\\view\\PreviewSharedElementTransition.kt"
+          "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt"
         ],
         "removed": []
       }

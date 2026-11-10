@@ -113,6 +113,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -276,6 +277,7 @@ internal fun AlbumPickerHost(
         Channel<Unit>(Channel.CONFLATED).apply { trySend(Unit) }
     }
     var isForceReloadPending by remember(config, sessionId) { mutableStateOf(true) }
+    var isMetadataInvalidationPending by remember(config, sessionId) { mutableStateOf(true) }
     var isExternalLauncherInFlight by remember { mutableStateOf(false) }
     var isCameraPermissionRequestInFlight by remember { mutableStateOf(false) }
     var pendingCameraMediaType by rememberSaveable { mutableStateOf<AlbumMediaType?>(null) }
@@ -293,7 +295,8 @@ internal fun AlbumPickerHost(
     }
 
     /** 更新 `refreshContentNow` 对应的状态。 */
-    suspend fun refreshContentNow(forceReload: Boolean = false) {
+    suspend fun refreshContentNow(forceReload: Boolean = false, invalidateMetadata: Boolean = false) {
+        if (invalidateMetadata) api.invalidateMediaCache()
         val previousAccessStatus = accessStatus
         val latestAccessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val accessChanged = previousAccessStatus != latestAccessStatus
@@ -326,10 +329,11 @@ internal fun AlbumPickerHost(
     }
 
     /** 更新 `refreshContent` 对应的状态。 */
-    fun refreshContent(forceReload: Boolean = true) {
+    fun refreshContent(forceReload: Boolean = true, invalidateMetadata: Boolean = false) {
         if (forceReload) {
             isForceReloadPending = true
         }
+        if (invalidateMetadata) isMetadataInvalidationPending = true
         refreshRequests.trySend(Unit)
     }
 
@@ -643,11 +647,20 @@ internal fun AlbumPickerHost(
                 !isCameraPermissionRequestInFlight &&
                 !isFinished
             ) {
-                refreshContent(forceReload = false)
+                refreshContent(forceReload = true, invalidateMetadata = true)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(api, lifecycleOwner, config, sessionId) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            api.observeMediaChanges().collect {
+                if (!isExternalLauncherInFlight && !isCameraPermissionRequestInFlight && !isFinished) {
+                    refreshContent(forceReload = true, invalidateMetadata = true)
+                }
+            }
+        }
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -669,7 +682,7 @@ internal fun AlbumPickerHost(
                 confirm = ::confirmSelection,
                 preview = ::showSelectedPreview,
                 cancel = ::cancelPicker,
-                refresh = { refreshContent(forceReload = true) },
+                refresh = { refreshContent(forceReload = true, invalidateMetadata = true) },
             ),
         )
     }
@@ -680,8 +693,10 @@ internal fun AlbumPickerHost(
         for (request in refreshRequests) {
             if (!isFinished) {
                 val forceReload = isForceReloadPending
+                val invalidateMetadata = isMetadataInvalidationPending
                 isForceReloadPending = false
-                refreshContentNow(forceReload = forceReload)
+                isMetadataInvalidationPending = false
+                refreshContentNow(forceReload = forceReload, invalidateMetadata = invalidateMetadata)
             }
         }
     }

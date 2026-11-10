@@ -7,3 +7,5 @@ Reusable Android View UI library depending on `:album-api`, `:album-video-api`, 
 `AlbumUi.setVideoPlayerFactory` optionally supplies an engine for full-screen video with a floating existing back icon and a 48dp play/seek/mute capsule. Without a factory, previews retain static VIDEO_COVER and original chrome. `internal/video` owns one current attached/settled/RESUMED player, releases on drag/background/dismissal, and restores per-URI position/pause plus preview-wide mute. Fake-engine tests cover lifecycle, controls, fallback, neighboring pages, insets and geometry.
 
 Configuration, file materialization, persistence and result contracts are shared through `album-api`. Runtime permission and real-provider validation requires a device.
+
+Foreground resume and batched provider notifications invalidate cached metadata on IO before refreshing the retained Pager and directories for all access routes. Provider observation is RESUMED-scoped and cancels its registrations when the picker stops.

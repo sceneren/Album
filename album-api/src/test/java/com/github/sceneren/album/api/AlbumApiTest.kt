@@ -227,6 +227,33 @@ class AlbumApiTest {
     }
 
     @Test
+    fun invalidatingMetadataRemovesDeletedPhotosEvenWhenTheirGrantAndMimeRemain() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        grants.seed(uri("deleted"), persistedAt = 20L)
+        grants.seed(uri("keep"), persistedAt = 10L)
+        assertEquals(2, api.loadMediaPage().getOrThrow().size)
+
+        metadataReader.missingUris += uri("deleted")
+        api.invalidateMediaCache()
+
+        assertEquals(listOf(uri("keep")), api.loadMediaPage().getOrThrow().map { it.uri })
+        assertTrue(uri("deleted") in grants.persistedReadUris())
+        assertEquals(1, metadataReader.cacheInvalidations)
+    }
+
+    @Test
+    fun scrollingReadsPersistedGrantsOnlyOncePerPagingGeneration() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        (1..100).forEach { grants.seed(uri("image-$it"), persistedAt = it.toLong()) }
+
+        val items = api.getMediaFeed(pageSize = 20).pagingData.asSnapshot { scrollTo(79) }
+
+        assertTrue(items.size >= 80)
+        assertEquals(1, grants.snapshotReads)
+        assertEquals(items.size, metadataReader.readCalls)
+    }
+
+    @Test
     /** 验证 `partialSyncDoesNotReconcileWhenAccessIsFullOrDenied` 所描述的场景。 */
     fun partialSyncDoesNotReconcileWhenAccessIsFullOrDenied() = runTest {
         grants.seed(uri("stale"))
@@ -411,6 +438,7 @@ class AlbumApiTest {
         private val persisted = linkedMapOf<Uri, Long>()
         val released = mutableListOf<Uri>()
         var releaseFailureFor: Uri? = null
+        var snapshotReads = 0
 
         fun seed(uri: Uri, persistedAt: Long = 1L) {
             persisted[uri] = persistedAt
@@ -418,13 +446,15 @@ class AlbumApiTest {
 
         override fun persistedReadUris(): Set<Uri> = persisted.keys.toSet()
 
-        override fun persistedReadGrants(): List<PersistedUriGrant> =
-            persisted.entries
+        override fun persistedReadGrants(): List<PersistedUriGrant> {
+            snapshotReads++
+            return persisted.entries
                 .sortedWith(
                     compareByDescending<Map.Entry<Uri, Long>> { it.value }
                         .thenBy { it.key.toString() },
                 )
                 .map { (uri, timestamp) -> PersistedUriGrant(uri, timestamp) }
+        }
 
         override fun takeRead(uri: Uri) {
             persisted[uri] = System.currentTimeMillis()
@@ -453,6 +483,10 @@ class AlbumApiTest {
         val types = mutableMapOf<Uri, AlbumMediaType>()
         var failOnStreamProbe = false
         var readCalls = 0
+        var cacheInvalidations = 0
+        val missingUris = mutableSetOf<Uri>()
+
+        override fun invalidateCache() { cacheInvalidations++ }
 
         override fun requiredType(uri: Uri): AlbumMediaType =
             types[uri] ?: AlbumMediaType.IMAGE
@@ -463,6 +497,7 @@ class AlbumApiTest {
             allowStreamProbe: Boolean,
         ): PickedUriMetadata {
             readCalls++
+            if (uri in missingUris) throw java.io.FileNotFoundException("deleted")
             if (failOnStreamProbe) {
                 check(!allowStreamProbe) { "Paging must not probe historical content streams" }
             }

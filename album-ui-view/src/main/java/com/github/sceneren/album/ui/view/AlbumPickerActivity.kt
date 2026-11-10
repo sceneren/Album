@@ -31,6 +31,8 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.recyclerview.widget.ConcatAdapter
@@ -165,6 +167,13 @@ class AlbumPickerActivity : ComponentActivity() {
         }
 
         bindViews()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                api.observeMediaChanges().collect {
+                    if (!isConfirming && !isCameraPermissionRequestInFlight) refreshChangedMedia()
+                }
+            }
+        }
         applyAppearance()
         applySystemBarInsets()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -198,7 +207,15 @@ class AlbumPickerActivity : ComponentActivity() {
             suppressNextResumeRefresh = false
             return
         }
-        refreshContent()
+        refreshChangedMedia()
+    }
+
+    /** 前台恢复和媒体变化均更新当前 Pager，后台校验元数据后再保留锚点刷新。 */
+    private fun refreshChangedMedia() {
+        lifecycleScope.launch {
+            api.invalidateMediaCache()
+            refreshContent(forceReloadFeed = true)
+        }
     }
 
     /** 执行 `finish` 方法定义的处理。 */

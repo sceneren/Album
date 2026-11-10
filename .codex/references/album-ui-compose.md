@@ -13,3 +13,5 @@ Reusable Compose UI library depending on `:album-api`, `:album-video-api`, Compo
 - `AlbumVideoPreview` / `internal/video/VideoPreviewSession` render the engine View through AndroidView and own the floating back/capsule play/seek/mute controls. Only the settled foreground video creates a player; drag/background/disposal release it, preserving per-URI position/pause and preview-wide mute. Robolectric Compose tests exercise custom engines, fallback, controls and prefetched pages.
 
 Resources use `auc_`. Both UI variants surface Paging errors with retry; neither changes API-layer permission routing. Tests cover presentation, state ownership/actions and system-bar apply/restore. Device checks are required for embedding geometry, system insets and Activity Result flows.
+
+Both full and embedded hosts invalidate metadata and refresh the retained Pager on foreground resume for every access route. Provider changes are collected only while RESUMED and coalesced before in-place refresh; explicit state.refresh also invalidates metadata. Adding photos reuses freshly processed metadata.
