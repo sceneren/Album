@@ -8,7 +8,7 @@
     proguardFiles="build\intermediates\default_proguard_files\global\proguard-android-optimize.txt-9.5.1"
     consumerProguardFiles="consumer-rules.pro"
     partialResultsDir="build\intermediates\lint_partial_results\debug\lintAnalyzeDebug\out"
-    desugaredMethodsFiles="C:\Users\Administrator\.gradle\caches\9.8.2\transforms\220de2ab62ab2ac73d57c87ba9970c4e\transformed\D8BackportedDesugaredMethods.txt">
+    desugaredMethodsFiles="C:\Users\Administrator\.gradle\caches\9.9.0\transforms\60e1843aa03306c1c2faed5b0c8ce754\transformed\D8BackportedDesugaredMethods.txt">
   <buildFeatures/>
   <sourceProviders>
     <sourceProvider
@@ -28,6 +28,6 @@
       type="MAIN"
       applicationId="com.github.sceneren.album.video"
       generatedSourceFolders="build\generated\ap_generated_sources\debug\out"
-      desugaredMethodsFiles="C:\Users\Administrator\.gradle\caches\9.8.2\transforms\220de2ab62ab2ac73d57c87ba9970c4e\transformed\D8BackportedDesugaredMethods.txt">
+      desugaredMethodsFiles="C:\Users\Administrator\.gradle\caches\9.9.0\transforms\60e1843aa03306c1c2faed5b0c8ce754\transformed\D8BackportedDesugaredMethods.txt">
   </artifact>
 </variant>

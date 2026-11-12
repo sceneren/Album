@@ -12,15 +12,14 @@ internal interface UriMetadataReader {
     fun invalidateCache(uris: Set<Uri>) {}
 
     /** 绕过旧缓存检查已加载的授权文件，不打开内容流。 */
-    fun readFresh(uri: Uri): PickedUriMetadata = read(uri, requiredType(uri), allowStreamProbe = false)
+    fun readFresh(uri: Uri): PickedUriMetadata = read(uri, requiredType(uri))
 
     /** 执行 `requiredType` 方法定义的处理。 */
     fun requiredType(uri: Uri): AlbumMediaType
 
-    /** 获取 `read` 所需的数据。 */
+    /** 查询媒体基本信息及文件名后缀标签，不读取图片内容或特殊格式元数据。 */
     fun read(
         uri: Uri,
         type: AlbumMediaType,
-        allowStreamProbe: Boolean = true,
     ): PickedUriMetadata
 }

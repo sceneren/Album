@@ -210,7 +210,6 @@ class PhotoPickerResultProcessorTest {
         override fun read(
             uri: Uri,
             type: AlbumMediaType,
-            allowStreamProbe: Boolean,
         ): PickedUriMetadata {
             if (uri == readFailureFor) error("metadata failed")
             return PickedUriMetadata(

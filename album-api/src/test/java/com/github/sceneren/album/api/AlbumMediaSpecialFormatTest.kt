@@ -3,75 +3,36 @@ package com.github.sceneren.album.api
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** Verifies provider metadata and backwards-compatible special-format fallbacks. */
+/** Verifies suffix-only tags without guessing from ordinary image/video extensions. */
 class AlbumMediaSpecialFormatTest {
     @Test
-    fun providerCodeTakesPriority() {
-        assertEquals(
-            AlbumMediaSpecialFormat.MOTION_PHOTO,
-            resolveAlbumMediaSpecialFormat(
-                specialFormatCode = 2,
-                mimeType = "image/gif",
-                displayName = "image.gif",
-                xmp = null,
-            ),
-        )
-    }
-
-    @Test
-    fun gifUsesMimeTypeOrFileExtensionFallback() {
-        assertEquals(
-            AlbumMediaSpecialFormat.GIF,
-            resolveAlbumMediaSpecialFormat(null, "image/gif", "image", null),
-        )
-        assertEquals(
-            AlbumMediaSpecialFormat.GIF,
-            resolveAlbumMediaSpecialFormat(null, null, "IMAGE.GIF", null),
-        )
-    }
-
-    @Test
-    fun indexedXmpRecognizesMotionPhoto() {
-        val xmp = "<rdf GCamera:MotionPhoto=\"1\" />".encodeToByteArray()
-
-        assertEquals(
-            AlbumMediaSpecialFormat.MOTION_PHOTO,
-            resolveAlbumMediaSpecialFormat(null, "image/jpeg", "image.jpg", xmp),
-        )
-    }
-
-    @Test
-    fun fileNameAloneDoesNotRecognizeMotionPhoto() {
-        assertEquals(
-            AlbumMediaSpecialFormat.NONE,
-            resolveAlbumMediaSpecialFormat(null, "image/jpeg", "MVIMG_001.jpg", null),
-        )
-        assertEquals(
-            AlbumMediaSpecialFormat.NONE,
-            resolveAlbumMediaSpecialFormat(null, "image/png", "MVIMG_001.png", null),
-        )
-    }
-    @Test
-    fun motionXmpSupportsHeicElementsAndSingleQuotedAttributes() {
-        for (xmp in listOf("<rdf GCamera:MotionPhoto = '1' />", "<GCamera:MicroVideo> 1 </GCamera:MicroVideo>")) {
-            assertEquals(
-                AlbumMediaSpecialFormat.MOTION_PHOTO,
-                resolveAlbumMediaSpecialFormat(null, "image/heic", "image.heic", xmp.encodeToByteArray()),
-            )
+    fun gifExtensionIsCaseInsensitive() {
+        for (name in listOf("image.gif", "IMAGE.GIF", "image.GiF")) {
+            assertEquals(AlbumMediaSpecialFormat.GIF, resolveAlbumMediaSpecialFormat(name))
         }
     }
 
     @Test
-    fun disabledAndUnrelatedMetadataDoNotRecognizeMotionPhoto() {
-        for (xmp in listOf("<rdf GCamera:MotionPhoto='0' />", "<rdf NotMotionPhoto='1' />", "<rdf GCamera:MotionPhoto='10' />")) {
-            assertEquals(
-                AlbumMediaSpecialFormat.NONE,
-                resolveAlbumMediaSpecialFormat(null, "image/jpeg", "image.jpg", xmp.encodeToByteArray()),
-            )
+    fun onlyDedicatedLivePhotoExtensionGetsMotionTag() {
+        for (name in listOf("image.livp", "IMAGE.LIVP", "image.LiVp")) {
+            assertEquals(AlbumMediaSpecialFormat.MOTION_PHOTO, resolveAlbumMediaSpecialFormat(name))
         }
-        assertEquals(
-            AlbumMediaSpecialFormat.NONE,
-            resolveAlbumMediaSpecialFormat(null, "image/png", "image.png", "<rdf MotionPhoto='1' />".encodeToByteArray()),
-        )
+    }
+
+    @Test
+    fun commonExtensionsAndNamePrefixesDoNotGuessMotionOrAnimation() {
+        for (name in listOf(
+            "image.jpg", "image.jpeg", "image.heic", "image.heif", "image.png", "image.webp",
+            "image.avif", "video.mov", "video.mp4", "archive.zip", "MVIMG_001.jpg", "LIVE_001.heic",
+        )) {
+            assertEquals(name, AlbumMediaSpecialFormat.NONE, resolveAlbumMediaSpecialFormat(name))
+        }
+    }
+
+    @Test
+    fun missingOrNonFinalExtensionDoesNotCreateTag() {
+        for (name in listOf(null, "", "image", "gif", "livp", "image.livp.jpg", "image.gif.backup", "image.livp.")) {
+            assertEquals(name, AlbumMediaSpecialFormat.NONE, resolveAlbumMediaSpecialFormat(name))
+        }
     }
 }

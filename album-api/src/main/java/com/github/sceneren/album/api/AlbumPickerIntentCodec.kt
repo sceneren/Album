@@ -1,6 +1,7 @@
 package com.github.sceneren.album.api
 
 import android.content.Intent
+import android.content.ClipData
 import android.net.Uri
 import java.util.UUID
 
@@ -34,10 +35,7 @@ object AlbumPickerIntentCodec {
     private const val EXTRA_RESULT_TYPES = "album_picker.result.types"
     /** 表示 `EXTRA_RESULT_STATUSES` 对应的数据。 */
     private const val EXTRA_RESULT_STATUSES = "album_picker.result.statuses"
-    /** 表示 `EXTRA_RESULT_ORIGINAL_PATHS` 对应的数据。 */
-    private const val EXTRA_RESULT_ORIGINAL_PATHS = "album_picker.result.original_paths"
-    /** 表示 `EXTRA_RESULT_PATHS` 对应的数据。 */
-    private const val EXTRA_RESULT_PATHS = "album_picker.result.paths"
+    private const val EXTRA_RESULT_LEASE = "album_picker.result.lease"
 
     /** 执行 `putConfig` 方法定义的处理。 */
     fun putConfig(intent: Intent, config: AlbumPickerConfig): Intent = intent.apply {
@@ -78,12 +76,18 @@ object AlbumPickerIntentCodec {
 
     /** 执行 `putResult` 方法定义的处理。 */
     fun putResult(intent: Intent, result: AlbumPickerResult): Intent = intent.apply {
+        val uris = result.items.flatMap { listOf(it.originalUri, it.resultUri) }.distinct()
+        if (uris.isNotEmpty()) {
+            clipData = ClipData.newRawUri("Album", uris.first()).apply {
+                uris.drop(1).forEach { addItem(ClipData.Item(it)) }
+            }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        putExtra(EXTRA_RESULT_LEASE, result.generatedMediaLeaseId)
         putExtra(EXTRA_RESULT_ORIGINAL_URIS, ArrayList(result.items.map { it.originalUri.toString() }))
         putExtra(EXTRA_RESULT_URIS, ArrayList(result.items.map { it.resultUri.toString() }))
         putExtra(EXTRA_RESULT_TYPES, result.items.map { it.mediaType.name }.toTypedArray())
         putExtra(EXTRA_RESULT_STATUSES, result.items.map { it.compressionStatus.name }.toTypedArray())
-        putExtra(EXTRA_RESULT_ORIGINAL_PATHS, result.items.map { it.originalFilePath }.toTypedArray())
-        putExtra(EXTRA_RESULT_PATHS, result.items.map { it.filePath }.toTypedArray())
     }
 
     /** 获取 `readResult` 所需的数据。 */
@@ -92,22 +96,18 @@ object AlbumPickerIntentCodec {
         val resultUris = requireNotNull(intent.getStringArrayListExtra(EXTRA_RESULT_URIS))
         val types = requireNotNull(intent.getStringArrayExtra(EXTRA_RESULT_TYPES))
         val statuses = requireNotNull(intent.getStringArrayExtra(EXTRA_RESULT_STATUSES))
-        val originalPaths = requireNotNull(intent.getStringArrayExtra(EXTRA_RESULT_ORIGINAL_PATHS))
-        val paths = requireNotNull(intent.getStringArrayExtra(EXTRA_RESULT_PATHS))
         require(
             originals.size == resultUris.size && originals.size == types.size &&
-                originals.size == statuses.size && originals.size == originalPaths.size &&
-                originals.size == paths.size,
+                originals.size == statuses.size,
         ) { "相册结果字段数量不一致" }
         return AlbumPickerResult(
+            generatedMediaLeaseId = intent.getStringExtra(EXTRA_RESULT_LEASE),
             items = originals.indices.map { index ->
                 AlbumPickerResultItem(
                     originalUri = Uri.parse(originals[index]),
                     resultUri = Uri.parse(resultUris[index]),
                     mediaType = AlbumMediaType.valueOf(types[index]),
                     compressionStatus = AlbumCompressionStatus.valueOf(statuses[index]),
-                    originalFilePath = originalPaths[index],
-                    filePath = paths[index],
                 )
             },
         )

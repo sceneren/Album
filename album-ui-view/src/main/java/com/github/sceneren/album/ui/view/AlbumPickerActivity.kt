@@ -22,6 +22,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
@@ -36,6 +37,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.paging.LoadState
 import androidx.paging.PagingData
+import androidx.paging.awaitNotLoading
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -50,13 +52,17 @@ import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerIntentCodec
+import com.github.sceneren.album.api.AlbumPickerFileTooLargeException
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.PhotoPickResult
 import com.github.sceneren.album.api.MediaAccessStatus
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -71,11 +77,14 @@ class AlbumPickerActivity : ComponentActivity() {
     private lateinit var client: com.github.sceneren.album.api.AlbumPickerClient
     private lateinit var imageLoader: AlbumImageLoader
     private lateinit var session: AlbumPickerSessionSnapshot
+    private val sessionOpened = CompletableDeferred<Unit>()
+    private var isSessionReady = false
 
     private lateinit var root: View
     private lateinit var toolbar: View
     private lateinit var bottomBar: View
     private lateinit var grid: RecyclerView
+    private lateinit var mediaLoading: View
     private lateinit var titleAction: View
     private lateinit var title: TextView
     private lateinit var titleArrow: ImageView
@@ -96,12 +105,15 @@ class AlbumPickerActivity : ComponentActivity() {
     private var cameraLauncher: com.github.sceneren.album.api.AlbumCameraLauncher? = null
     private var photoPicker: com.github.sceneren.album.api.AlbumPhotoPickerLauncher? = null
     private var feedJob: Job? = null
+    private var mediaRefreshState: LoadState? = null
     private var directoryJob: Job? = null
     private var messageToast: Toast? = null
     private var previewDialog: AlbumPreviewDialog? = null
     private var processingDialog: Dialog? = null
     private var processingSpinnerAnimator: ObjectAnimator? = null
     private var isConfirming = false
+    private var isProcessingPhotoPickerResult = false
+    private var photoPickerRefreshCompletion: CompletableDeferred<Unit>? = null
     private var isCancelling = false
     private var isCameraPermissionRequestInFlight = false
     private var pendingCameraMediaType: AlbumMediaType? = null
@@ -151,11 +163,23 @@ class AlbumPickerActivity : ComponentActivity() {
         mediaChangeTracker = api.createMediaChangeTracker(config.mediaFilter)
         client = api.createPickerClient(this)
         val sessionId = requireNotNull(intent.getStringExtra(AlbumPickerIntentCodec.EXTRA_SESSION_ID))
-        session = client.openSession(config, sessionId)
+        session = AlbumPickerSessionSnapshot(
+            sessionId, emptyList(), emptyList(), emptySet(), AlbumDirectory.ALL_BUCKET_ID, null, false,
+        )
 
-        photoPicker = api.registerPhotoPicker(this, config.mediaFilter, maxSelectionCount = null) { result ->
-            if (result is PhotoPickResult.Failed) showMessage(getString(R.string.auv_selection_failed))
-            refreshContent()
+        val photoPickerLauncher = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+            handlePhotoPickerResult(uris)
+        }
+        val photoPickerRequest = PickVisualMediaRequest.Builder().setMediaType(
+            when (config.mediaFilter) {
+                AlbumMediaFilter.IMAGES -> ActivityResultContracts.PickVisualMedia.ImageOnly
+                AlbumMediaFilter.VIDEOS -> ActivityResultContracts.PickVisualMedia.VideoOnly
+                AlbumMediaFilter.IMAGES_AND_VIDEOS -> ActivityResultContracts.PickVisualMedia.ImageAndVideo
+            },
+        ).build()
+        photoPicker = object : com.github.sceneren.album.api.AlbumPhotoPickerLauncher {
+            override val mediaFilter = config.mediaFilter
+            override fun launch() = photoPickerLauncher.launch(photoPickerRequest)
         }
         cameraLauncher = client.registerCamera(this, session.sessionId) { result ->
             result.onSuccess { updated ->
@@ -174,7 +198,26 @@ class AlbumPickerActivity : ComponentActivity() {
 
         bindViews()
         lifecycleScope.launch {
-            for (request in refreshRequests) refreshContentNow()
+            try {
+                val restored = client.openSessionAsync(config, sessionId)
+                accessStatus = api.getMediaAccessStatus(config.mediaFilter)
+                renderSession(restored)
+                isSessionReady = true
+                renderActions()
+            } finally {
+                sessionOpened.complete(Unit)
+            }
+            for (request in refreshRequests) {
+                // A check already running before the result arrived cannot finish its loading dialog.
+                val completion = photoPickerRefreshCompletion
+                try {
+                    refreshContentNow()
+                    completion?.complete(Unit)
+                } catch (failure: Throwable) {
+                    completion?.completeExceptionally(failure)
+                    throw failure
+                }
+            }
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -188,15 +231,17 @@ class AlbumPickerActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             /** 执行 `handleOnBackPressed` 方法定义的处理。 */
             override fun handleOnBackPressed() {
-                if (isConfirming || isCancelling) return
+                if (isConfirming || isProcessingPhotoPickerResult || isCancelling) return
                 if (isDirectoryPanelVisible()) {
                     hideDirectoryPanel()
                     return
                 }
                 isCancelling = true
                 lifecycleScope.launch {
+                    // Opening may still be doing disk IO. Remove only after it has finished creating state.
+                    sessionOpened.await()
                     client.cancel(session.sessionId)
-                    setResult(Activity.RESULT_CANCELED)
+                    setResult(RESULT_CANCELED)
                     finish()
                 }
             }
@@ -246,6 +291,7 @@ class AlbumPickerActivity : ComponentActivity() {
         toolbar = findViewById(R.id.auv_picker_toolbar)
         bottomBar = findViewById(R.id.auv_picker_bottom)
         grid = findViewById(R.id.auv_picker_grid)
+        mediaLoading = findViewById(R.id.auv_picker_loading)
         titleAction = findViewById(R.id.auv_picker_title_action)
         title = findViewById(R.id.auv_picker_title)
         titleArrow = findViewById(R.id.auv_picker_title_arrow)
@@ -303,11 +349,20 @@ class AlbumPickerActivity : ComponentActivity() {
         retryButton.setOnClickListener { mediaAdapter.retry() }
         mediaAdapter.addLoadStateListener { states ->
             retryButton.isVisible = states.refresh is LoadState.Error || states.append is LoadState.Error
+            mediaRefreshState = states.refresh
+            renderMediaLoading()
         }
         directoryAdapter = DirectoryAdapter(imageLoader, ::selectDirectory)
         directoryList.layoutManager = LinearLayoutManager(this)
         directoryList.adapter = directoryAdapter
         directoryList.itemAnimator = null
+        renderMediaLoading()
+    }
+
+    /** 会话初始化和首刷期间显示转圈；已有媒体时保留网格，空结果和错误结束等待。 */
+    private fun renderMediaLoading() {
+        mediaLoading.isVisible = mediaAdapter.itemCount == 0 && cameraAdapter.itemCount == 0 &&
+            (mediaRefreshState == null || mediaRefreshState is LoadState.Loading)
     }
 
     @Suppress("DEPRECATION")
@@ -405,6 +460,12 @@ class AlbumPickerActivity : ComponentActivity() {
 
     private suspend fun refreshContentNow() {
         if (isConfirming || isCancelling || isFinishing || isDestroyed) return
+        val layout = grid.layoutManager as GridLayoutManager
+        val loaded = mediaAdapter.snapshot().items
+        val mediaOffset = actionAdapter.itemCount + cameraAdapter.itemCount
+        val visible = (layout.findFirstVisibleItemPosition()..layout.findLastVisibleItemPosition())
+            .mapNotNull { loaded.getOrNull(it - mediaOffset)?.uri }
+        mediaChangeTracker.setObservedUris(visible + session.selectedUris)
         val mediaChanged = mediaChangeTracker.hasChanges().getOrDefault(false)
         if (isConfirming || isCancelling || isFinishing || isDestroyed) return
         val previousAccessStatus = accessStatus
@@ -438,7 +499,9 @@ class AlbumPickerActivity : ComponentActivity() {
                 applicationName,
             )
         }
-        renderSession(client.snapshot(session.sessionId))
+        val current = client.snapshotAsync(session.sessionId)
+        if (isConfirming || isCancelling || isFinishing || isDestroyed) return
+        renderSession(current)
         val targetSignature = FeedSignature(
             mediaFilter = config.mediaFilter,
             bucketId = session.bucketId,
@@ -484,6 +547,7 @@ class AlbumPickerActivity : ComponentActivity() {
             value = if (accessStatus == MediaAccessStatus.FULL) updated.cameraItems else emptyList(),
             selectedUris = updated.selectedUris,
         )
+        renderMediaLoading()
         mediaAdapter.updateSelection(updated.selectedUris)
         previewDialog?.updateSelection(updated.selectedUris)
         previewButton.text = if (updated.selectedItems.isEmpty()) {
@@ -525,6 +589,7 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 更新 `toggleMedia` 对应的状态。 */
     private fun toggleMedia(media: AlbumMedia) {
+        if (!isSessionReady || isConfirming || isProcessingPhotoPickerResult || isCancelling) return
         if (media.uri !in session.selectedUris && session.selectedItems.size >= config.maxSelectionCount) {
             showSelectionLimitMessage()
             return
@@ -548,7 +613,11 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 执行 `confirmSelection` 方法定义的处理。 */
     private fun confirmSelection() {
-        if (isConfirming) return
+        if (!isSessionReady) {
+            lifecycleScope.launch { sessionOpened.await(); if (isSessionReady) confirmSelection() }
+            return
+        }
+        if (isConfirming || isProcessingPhotoPickerResult || isCancelling) return
         if (session.selectedItems.isEmpty()) {
             showMessage(getString(R.string.auv_select_first))
             return
@@ -558,14 +627,15 @@ class AlbumPickerActivity : ComponentActivity() {
         showProcessingDialog()
         lifecycleScope.launch {
             client.confirm(session.sessionId).onSuccess { result ->
-                setResult(Activity.RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
+                setResult(RESULT_OK, AlbumPickerIntentCodec.putResult(Intent(), result))
                 finish()
             }.onFailure { failure ->
                 isConfirming = false
                 hideProcessingDialog()
                 doneAction.isEnabled = true
                 showMessage(
-                    getString(
+                    if (failure is AlbumPickerFileTooLargeException) getString(R.string.auv_file_too_large)
+                    else getString(
                         R.string.auv_process_failed,
                         failure.message ?: getString(R.string.auv_retry),
                     ),
@@ -576,6 +646,7 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 执行 `showProcessingDialog` 方法定义的处理。 */
     private fun showProcessingDialog() {
+        if (isFinishing || isDestroyed || processingDialog?.isShowing == true) return
         processingSpinnerAnimator?.cancel()
         processingDialog = Dialog(this, R.style.auv_theme_album_picker_processing).apply {
             setContentView(R.layout.auv_dialog_album_processing)
@@ -631,6 +702,7 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 检查宿主的相机权限声明，并在需要时先请求授权。 */
     private fun launchCamera() {
+        if (!isSessionReady || isConfirming || isProcessingPhotoPickerResult || isCancelling) return
         if (isCameraPermissionRequestInFlight) return
         val mediaType = cameraMediaType()
         if (AlbumCameraPermissionRequestFactory.shouldRequest(this)) {
@@ -650,7 +722,40 @@ class AlbumPickerActivity : ComponentActivity() {
 
     /** 执行 `photoPickerLaunch` 方法定义的处理。 */
     private fun photoPickerLaunch() {
+        if (!isSessionReady || isConfirming || isProcessingPhotoPickerResult || isCancelling) return
         photoPicker?.launch()
+    }
+
+    /** 返回后立即显示转圈，持续到结果处理和列表刷新结束；取消选择不显示。 */
+    private fun handlePhotoPickerResult(uris: List<android.net.Uri>) {
+        if (uris.isEmpty()) { refreshContent(); return }
+        if (isProcessingPhotoPickerResult || isFinishing || isDestroyed) return
+        isProcessingPhotoPickerResult = true
+        showProcessingDialog()
+        lifecycleScope.launch {
+            val completion = CompletableDeferred<Unit>()
+            try {
+                sessionOpened.await()
+                if (!isSessionReady) return@launch
+                val result = api.processPhotoPickerResult(uris, config.mediaFilter)
+                if (result is PhotoPickResult.Failed) showMessage(getString(R.string.auv_selection_failed))
+                photoPickerRefreshCompletion = completion
+                refreshContent()
+                completion.await()
+                // Let the requested Paging generation start before observing its terminal state.
+                yield()
+                mediaAdapter.loadStateFlow.awaitNotLoading()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                showMessage(getString(R.string.auv_selection_failed))
+            } finally {
+                if (photoPickerRefreshCompletion === completion) photoPickerRefreshCompletion = null
+                completion.cancel()
+                isProcessingPhotoPickerResult = false
+                if (!isConfirming) hideProcessingDialog()
+            }
+        }
     }
 
     /** 执行 `cameraMediaType` 方法定义的处理。 */

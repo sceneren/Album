@@ -117,7 +117,11 @@ class AlbumToastHandlerTest {
         }
 
         compose.onNodeWithText("拍摄").performClick()
-        compose.waitUntil(5_000) { ShadowToast.shownToastCount() == 1 }
+        try {
+            compose.waitUntil(5_000) { ShadowToast.shownToastCount() == 1 }
+        } catch (failure: Throwable) {
+            throw AssertionError("Camera toast count=${ShadowToast.shownToastCount()}, latest=${ShadowToast.getTextOfLatestToast()}", failure)
+        }
         val defaultToast = ShadowToast.getLatestToast()
         assertEquals("没有可用相机", ShadowToast.getTextOfLatestToast())
         assertEquals(Toast.LENGTH_SHORT, defaultToast.duration)

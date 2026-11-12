@@ -15,6 +15,7 @@ import com.github.sceneren.album.api.internal.picker.PickerRegistrar
 import com.github.sceneren.album.api.internal.picker.UriAccessChecker
 import com.github.sceneren.album.api.internal.picker.UriMetadataReader
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.async
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -114,7 +115,6 @@ class AlbumApiTest {
         val second = uri("edited")
         grants.seed(first)
         grants.seed(second)
-        metadataReader.failOnStreamProbe = true
         val tracker = api.createMediaChangeTracker()
         assertFalse(tracker.hasChanges().getOrThrow())
         assertEquals(2, api.loadMediaPage().getOrThrow().size)
@@ -186,7 +186,6 @@ class AlbumApiTest {
         permissions.result = MediaAccessStatus.DENIED
         grants.seed(uri("keep"), persistedAt = 100L)
         accessChecker.failOnRead = true
-        metadataReader.failOnStreamProbe = true
 
         val items = api.getMediaFeed(AlbumMediaFilter.IMAGES)
             .pagingData
@@ -206,7 +205,8 @@ class AlbumApiTest {
         assertEquals(sessionId, opened.sessionId)
 
         val capture = firstClient.prepareCamera(sessionId, AlbumMediaType.IMAGE).getOrThrow()
-        val cameraFile = File(capture.filePath).apply { writeText("captured") }
+        context.contentResolver.openOutputStream(capture.uri)!!.use { it.write("captured".toByteArray()) }
+        val cameraFile = File(context.getExternalFilesDir(null), "camera").listFiles()!!.single()
         val recoveredClient = api.createPickerClient(context)
 
         try {
@@ -283,6 +283,72 @@ class AlbumApiTest {
 
         assertEquals(firstPage, reenteredFirstPage)
         assertEquals(20, metadataReader.readCalls)
+    }
+
+    @Test fun foregroundRevalidationIsBoundedAndOldPagesAreCheckedOnDemand() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        (1..500).forEach { grants.seed(uri("many-$it"), persistedAt = it.toLong()) }
+        api.loadMediaPage(limit = 500).getOrThrow()
+        val before = metadataReader.readCalls
+        val tracker = api.createMediaChangeTracker()
+        tracker.hasChanges().getOrThrow()
+        assertEquals(AlbumApi.MAX_REVALIDATION_URIS, metadataReader.readCalls - before)
+        val after = metadataReader.readCalls
+        assertEquals(20, api.loadMediaPage(offset = 0, limit = 20).getOrThrow().size)
+        assertEquals(20, metadataReader.readCalls - after)
+    }
+
+    @Test fun visibleAndSelectedUrisAreCheckedEvenOutsideTheRecentPageWindow() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        (1..500).forEach { grants.seed(uri("priority-$it"), persistedAt = it.toLong()) }
+        val loaded = api.loadMediaPage(limit = 500).getOrThrow()
+        val visible = loaded.first().uri
+        val tracker = api.createMediaChangeTracker()
+        tracker.setObservedUris(setOf(visible))
+        tracker.hasChanges().getOrThrow()
+        metadataReader.missingUris += visible
+        val before = metadataReader.readCalls
+        assertTrue(tracker.hasChanges().getOrThrow())
+        assertTrue(visible in metadataReader.invalidatedUris)
+        assertTrue(metadataReader.readCalls - before <= AlbumApi.MAX_REVALIDATION_URIS)
+    }
+
+    @Test fun generatedDeletionUsesOnlyOwnedUrisAndRejectsPathTraversalAndSourceMedia() = runTest {
+        val root = context.getExternalFilesDir(null)!!
+        val generated = File(root, "luban/delete.jpg").apply { parentFile!!.mkdirs(); writeText("jpeg") }
+        val camera = File(root, "camera/keep.jpg").apply { parentFile!!.mkdirs(); writeText("camera") }
+        val authority = "${context.packageName}.album.api.fileprovider"
+        assertFalse(api.deleteGeneratedMedia(context, uri("source")).getOrThrow())
+        assertFalse(api.deleteGeneratedMedia(context, Uri.parse("content://$authority/album_api_luban/%2E%2E/camera/keep.jpg")).getOrThrow())
+        assertTrue(camera.exists())
+        assertTrue(api.deleteGeneratedMedia(context, Uri.parse("content://$authority/album_api_luban/delete.jpg")).getOrThrow())
+        assertFalse(generated.exists())
+    }
+
+    @Test fun blockedForegroundUriRevalidationDoesNotBlockPagingSignatures() = runTest {
+        permissions.result = MediaAccessStatus.DENIED
+        (1..100).forEach { grants.seed(uri("parallel-$it"), persistedAt = it.toLong()) }
+        api.loadMediaPage(limit = 20).getOrThrow()
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        metadataReader.beforeFreshRead = {
+            entered.countDown()
+            check(release.await(10, java.util.concurrent.TimeUnit.SECONDS))
+        }
+        val checking = async(kotlinx.coroutines.Dispatchers.Default) {
+            api.createMediaChangeTracker().hasChanges().getOrThrow()
+        }
+        try {
+            assertTrue(entered.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            val page = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                kotlinx.coroutines.withTimeout(3_000) { api.getMediaFeed(pageSize = 20).pagingData.asSnapshot() }
+            }
+            assertTrue(page.isNotEmpty())
+            assertEquals(1L, release.count)
+        } finally {
+            release.countDown()
+            checking.await()
+        }
     }
 
     @Test
@@ -567,8 +633,12 @@ class AlbumApiTest {
 
     /** 负责 `FakeUriMetadataReader` 相关的数据与行为。 */
     private class FakeUriMetadataReader : UriMetadataReader {
+        var beforeFreshRead: (() -> Unit)? = null
+        override fun readFresh(uri: Uri): PickedUriMetadata {
+            beforeFreshRead?.invoke()
+            return read(uri, requiredType(uri))
+        }
         val types = mutableMapOf<Uri, AlbumMediaType>()
-        var failOnStreamProbe = false
         var readCalls = 0
         var cacheInvalidations = 0
         val missingUris = mutableSetOf<Uri>()
@@ -584,13 +654,9 @@ class AlbumApiTest {
         override fun read(
             uri: Uri,
             type: AlbumMediaType,
-            allowStreamProbe: Boolean,
         ): PickedUriMetadata {
             readCalls++
             if (uri in missingUris) throw java.io.FileNotFoundException("deleted")
-            if (failOnStreamProbe) {
-                check(!allowStreamProbe) { "Paging must not probe historical content streams" }
-            }
             return PickedUriMetadata(
                 uri = uri,
                 mediaType = type,

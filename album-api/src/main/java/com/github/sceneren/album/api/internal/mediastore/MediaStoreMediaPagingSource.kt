@@ -9,6 +9,7 @@ internal class MediaStoreMediaPagingSource(
     bucketId: Long,
 ) : ConsistentMediaPagingSource(
     readSignature = { dataSource.getChangeSignature(mediaFilter) },
+    readEndSignature = { dataSource.getPagingEndSignature(mediaFilter) },
     findPositions = { dataSource.findPositions(mediaFilter, bucketId, it) },
     loadPage = { offset, limit -> dataSource.loadPage(mediaFilter, bucketId, offset, limit) },
 )

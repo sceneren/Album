@@ -27,6 +27,7 @@
     <string name="auv_camera_unavailable">没有可用相机</string>
     <string name="auv_select_first">请先选择媒体</string>
     <string name="auv_process_failed">处理失败：%1$s</string>
+    <string name="auv_file_too_large">选择的文件太大</string>
     <string name="auv_retry">请重试</string>
     <string name="auv_selection_failed">选择失败</string>
     <string name="auv_selection_limit_images">你最多只能选择%1$d张图片</string>
@@ -42,4 +43,5 @@
     <string name="auv_media_badge_live_photo">实况</string>
     <string name="auv_video_duration">视频时长 %1$s</string>
     <string name="auv_load_failed_retry">加载失败，点击重试</string>
+    <string name="auv_loading_media">正在加载媒体</string>
 </resources>

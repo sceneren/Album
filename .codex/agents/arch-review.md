@@ -14,7 +14,7 @@ Use this checklist when a change affects module boundaries, data flow, permissio
 - [ ] `:album-ui-view` (`AlbumPickerActivity`) and `:album-ui-compose` (`AlbumPicker` / `AlbumPickerContent`) own picker UI state and delegate data/session work to `:album-api`.
 - [ ] UI libraries depend only on the lightweight `:album-video-api`, never Media3 or a concrete engine. Missing video factory preserves static covers. Optional `:album-video-media3` depends only on the playback contract and Media3.
 - [ ] `AlbumApi` and `AndroidMediaStoreDataSource` own MediaStore and system-authorized URI queries and return `AlbumDirectory`, `AlbumMedia`, or `AlbumMediaFeed`.
-- [ ] `AlbumPickerClient` and `AlbumFileMaterializer` own `content://` to app-specific file materialization, compression, and cleanup.
+- [ ] `AlbumPickerClient`, `AlbumUriImageCompressor` and `AlbumGeneratedMediaCache` own URI-only confirmation, compressed-image output, quota/lease protection and cleanup; originals are not copied.
 
 ## Android Media
 

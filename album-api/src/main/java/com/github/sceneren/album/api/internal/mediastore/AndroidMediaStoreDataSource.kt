@@ -7,7 +7,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.ext.SdkExtensions
+import android.os.SystemClock
 import android.provider.MediaStore
 import com.github.sceneren.album.api.AlbumDirectory
 import com.github.sceneren.album.api.AlbumMedia
@@ -34,7 +34,13 @@ internal class AndroidMediaStoreDataSource(
     private val contentResolver = appContext.contentResolver
     private val filesUri = MediaStore.Files.getContentUri(EXTERNAL_VOLUME)
     private val signatureMutex = Mutex()
-    private val signatureCache = mutableMapOf<AlbumMediaFilter, Pair<List<StoreGeneration>, String>>()
+    private val signatureCache = mutableMapOf<AlbumMediaFilter, CachedSignature>()
+    private val changeMonitor by lazy { MediaStoreChangeMonitor.get(appContext) }
+
+    private data class CachedSignature(
+        val generation: List<StoreGeneration>?, val revision: Long,
+        val readAtMillis: Long, val value: String,
+    )
 
     private data class StoreGeneration(val volume: String, val version: String, val generation: Long)
 
@@ -68,13 +74,24 @@ internal class AndroidMediaStoreDataSource(
         }
     }
 
-    override suspend fun getChangeSignature(mediaFilter: AlbumMediaFilter): String = withContext(ioDispatcher) {
+    override suspend fun getChangeSignature(mediaFilter: AlbumMediaFilter): String = readSignature(mediaFilter, false)
+
+    override suspend fun refreshChangeSignature(mediaFilter: AlbumMediaFilter): String = readSignature(mediaFilter, true)
+
+    override suspend fun getPagingEndSignature(mediaFilter: AlbumMediaFilter): String = readSignature(mediaFilter, false, ignoreExpiry = true)
+
+    private suspend fun readSignature(mediaFilter: AlbumMediaFilter, forceRefresh: Boolean, ignoreExpiry: Boolean = false): String = withContext(ioDispatcher) {
         signatureMutex.withLock {
             val generation = storeGeneration(mediaFilter)
-            signatureCache[mediaFilter]?.takeIf { generation != null && it.first == generation }
-                ?.let { return@withLock it.second }
+            val revision = if (generation == null) changeMonitor.revision.get() else 0L
+            val now = SystemClock.elapsedRealtime()
+            signatureCache[mediaFilter]?.takeIf { cached ->
+                if (generation != null) cached.generation == generation
+                else !forceRefresh && cached.generation == null && cached.revision == revision &&
+                    (ignoreExpiry || now - cached.readAtMillis < if (changeMonitor.observing) SIGNATURE_TTL_MILLIS else UNOBSERVED_TTL_MILLIS)
+            }?.let { return@withLock it.value }
             // Stream a small projection instead of allocating AlbumMedia for the entire library.
-            // Generation catches same-second/same-size edits on API 30+, including indexed XMP.
+            // Generation catches same-second/same-size edits on API 30+.
             val projection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 BASE_MEDIA_PROJECTION + MediaStore.MediaColumns.GENERATION_MODIFIED
             } else BASE_MEDIA_PROJECTION
@@ -92,8 +109,9 @@ internal class AndroidMediaStoreDataSource(
                 }
             }
             val signature = digest.digest().joinToString("") { "%02x".format(Locale.ROOT, it) }
-            if (generation != null && generation == storeGeneration(mediaFilter)) {
-                signatureCache[mediaFilter] = generation to signature
+            if (if (generation != null) generation == storeGeneration(mediaFilter)
+                else revision == changeMonitor.revision.get()) {
+                signatureCache[mediaFilter] = CachedSignature(generation, revision, SystemClock.elapsedRealtime(), signature)
             }
             signature
         }
@@ -191,8 +209,6 @@ internal class AndroidMediaStoreDataSource(
         val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_ID)
         val bucketNameColumn =
             cursor.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME)
-        val specialFormatColumn = cursor.getColumnIndex(SPECIAL_FORMAT_COLUMN)
-        val xmpColumn = cursor.getColumnIndex(MediaStore.MediaColumns.XMP)
 
         return buildList(cursor.count) {
             while (cursor.moveToNext()) {
@@ -220,12 +236,7 @@ internal class AndroidMediaStoreDataSource(
                         bucketName = cursor.stringOrNull(bucketNameColumn),
                         selectedAtEpochMillis = null,
                         source = AlbumMediaSource.MEDIA_STORE,
-                        specialFormat = resolveAlbumMediaSpecialFormat(
-                            specialFormatCode = cursor.intOrNull(specialFormatColumn),
-                            mimeType = mimeType,
-                            displayName = displayName,
-                            xmp = cursor.blobOrNull(xmpColumn),
-                        ),
+                        specialFormat = resolveAlbumMediaSpecialFormat(displayName),
                         generationModified = cursor.positiveLongOrNull(
                             cursor.getColumnIndex(MediaStore.MediaColumns.GENERATION_MODIFIED),
                         ),
@@ -297,6 +308,8 @@ internal class AndroidMediaStoreDataSource(
         const val EXTERNAL_VOLUME = "external"
         /** 表示 `SORT_ORDER` 对应的数据。 */
         const val SORT_ORDER = "date_added DESC, _id DESC"
+        const val SIGNATURE_TTL_MILLIS = 30_000L
+        const val UNOBSERVED_TTL_MILLIS = 1_000L
 
         /** 表示 `PROJECTION` 对应的数据。 */
         private val BASE_MEDIA_PROJECTION = arrayOf(
@@ -314,23 +327,10 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )
 
-        private fun mediaProjection(): Array<String> = (when {
-            supportsSpecialFormatColumn() -> BASE_MEDIA_PROJECTION + SPECIAL_FORMAT_COLUMN
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                BASE_MEDIA_PROJECTION + MediaStore.MediaColumns.XMP
-            }
-            else -> BASE_MEDIA_PROJECTION
-        }) + if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            arrayOf(MediaStore.MediaColumns.GENERATION_MODIFIED)
-        } else emptyArray()
-
-        private fun supportsSpecialFormatColumn(): Boolean =
-            Build.VERSION.SDK_INT >= API_LEVEL_WITH_SPECIAL_FORMAT ||
-                (
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                        SdkExtensions.getExtensionVersion(Build.VERSION_CODES.S) >=
-                        SPECIAL_FORMAT_S_EXTENSION_VERSION
-                )
+        private fun mediaProjection(): Array<String> = BASE_MEDIA_PROJECTION +
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                arrayOf(MediaStore.MediaColumns.GENERATION_MODIFIED)
+            } else emptyArray()
 
         /** 表示 `DIRECTORY_PROJECTION` 对应的数据。 */
         val DIRECTORY_PROJECTION = arrayOf(
@@ -340,9 +340,5 @@ internal class AndroidMediaStoreDataSource(
             MediaStore.Images.ImageColumns.BUCKET_ID,
             MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
         )
-
-        private const val SPECIAL_FORMAT_COLUMN = "_special_format"
-        private const val API_LEVEL_WITH_SPECIAL_FORMAT = 37
-        private const val SPECIAL_FORMAT_S_EXTENSION_VERSION = 21
     }
 }

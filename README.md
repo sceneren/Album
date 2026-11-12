@@ -148,8 +148,8 @@ com.github.sceneren.album.ui.compose.AlbumUi.setVideoPlayerFactory(videoPlayerFa
 ```kotlin
 private val albumPicker = registerForActivityResult(AlbumPickerContract()) { result ->
     result?.items.orEmpty().forEach { item ->
-        // 应用内处理文件时使用 item.filePath
-        // 需要 URI 或跨组件传递时使用 item.resultUri
+        // 统一使用 item.resultUri，通过 ContentResolver 流式读取、展示或上传
+        // item.originalUri 保留原始媒体身份；未压缩时两个 URI 相同
     }
 }
 
@@ -197,17 +197,23 @@ Compose 版本不声明独立 Activity。宿主负责把 `AlbumPicker` 放入自
 
 内部通过 `DisposableEffect` 保存宿主原有的系统栏颜色、图标明暗模式和导航栏对比度设置，在 `AlbumPicker` 离开组合时逐项恢复。因此完成或取消选择后，宿主页面原有的系统栏样式不会被永久修改。Android 15 及以上由组件现有的系统栏 inset 背景负责覆盖透明系统栏区域，旧版系统则同时使用 Window 系统栏颜色兼容非 edge-to-edge 宿主。
 
-## 结果与文件
+## URI 结果与压缩文件
 
-确认选择后，媒体会物化到应用专属外部存储目录；相同 URI、媒体版本和大小会复用已存在的完整文件。`AlbumPickerResultItem` 的主要字段：
+确认后统一返回 URI，不再复制原图或原视频，也不返回文件路径：
 
-- `originalUri`：系统返回的原始媒体 URI。
-- `originalFilePath`：复制到 `files/photo_picker` 后的原始文件绝对路径。
-- `filePath`：最终文件绝对路径；启用并完成图片压缩后指向压缩文件。
-- `resultUri`：最终文件对应的 URI，需要 URI 形式时使用。
-- `compressionStatus`：未启用、按大小跳过、已压缩或视频不适用。
+- `originalUri`：用户选择的原始媒体 URI。
+- `resultUri`：最终消费的 URI。未压缩、按大小跳过压缩和视频直接返回原始 URI；压缩图片返回本库 FileProvider URI。
+- `mediaType` / `compressionStatus`：媒体类型和压缩状态。
 
-生成文件位于应用专属目录，卸载应用时会被系统清理。应用也可以通过 `AlbumApi.deleteGeneratedMedia()` 或 `AlbumApi.clearGeneratedMedia()` 主动清理。相同媒体的多个结果可能持有同一路径，因此 `deleteGeneratedMedia()` 表示驱逐共享缓存；调用前应确保该路径不再被使用。
+压缩直接从 URI 读取，只有压缩结果写入 `getExternalFilesDir(null)/luban`；没有临时原图副本。相机原有输出保留并直接返回 URI。
+
+宿主在 IO 线程使用 `contentResolver.openInputStream(item.resultUri)` 流式上传。原始 URI 依赖提供方媒体仍存在且授权有效；Photo Picker 会尽可能保留持久读取授权。跨应用传递使用 URI 和临时读取授权。
+
+压缩文件容量预算默认为确认时当前可用存储的一半。空间不足时按 LRU 清理旧的未使用文件；当前处理及未释放结果受到保护。压缩输出自身超过预算时提示“选择的文件太大”，失败/取消不留下未完成输出。
+
+上传和其他消费者完成后调用 `albumApi.releaseGeneratedMedia(context, result)`，将压缩结果标为可回收；仍在使用或后台上传中的结果不要提前释放。保留完整 `result`（含租约标识）以便任务完成后释放。重复释放安全。`deleteGeneratedMedia(context, item.resultUri)` 显式删除本库生成的 URI；`clearGeneratedMedia(context)` 显式清理包括相机输出的全部生成文件。两者都不会删除原始 MediaStore/Photo Picker 媒体。
+
+这是结果接口变更：旧版路径字段和基于路径的删除入口已移除，接入方需改为 URI。
 
 ## 更多文档
 

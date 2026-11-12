@@ -176,7 +176,7 @@ class MediaGridRefreshUiTest {
                     },
                     videoPlayerFactory = null, onBack = {}, onDirectory = {}, onRequestPermission = {},
                     onAddMore = {}, onCamera = {}, onToggle = {}, onGridPreview = { _, _ -> },
-                    onSelectedPreview = {}, onPreviewLoadMore = {}, onClosePreview = {}, onConfirm = {}, isConfirming = false,
+                    onSelectedPreview = {}, onPreviewLoadMore = {}, onClosePreview = {}, onConfirm = {}, isProcessing = false,
                 )
             }
         }

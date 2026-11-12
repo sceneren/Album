@@ -14,8 +14,8 @@ import org.robolectric.annotation.Config
 /** 验证 `AlbumPickerIntentCodecTest` 覆盖的行为。 */
 class AlbumPickerIntentCodecTest {
     @Test
-    /** 验证 `roundTripsConfigAndRealFilePathsWithoutParcelables` 所描述的场景。 */
-    fun roundTripsConfigAndRealFilePathsWithoutParcelables() {
+    /** 验证 `roundTripsConfigUrisAndLeaseWithoutPaths` 所描述的场景。 */
+    fun roundTripsConfigUrisAndLeaseWithoutPaths() {
         val config = AlbumPickerConfig(
             mediaFilter = AlbumMediaFilter.IMAGES_AND_VIDEOS,
             maxSelectionCount = 3,
@@ -40,16 +40,19 @@ class AlbumPickerIntentCodecTest {
                     resultUri = Uri.parse("content://copied/1"),
                     mediaType = AlbumMediaType.IMAGE,
                     compressionStatus = AlbumCompressionStatus.COMPRESSED,
-                    originalFilePath = "/sdcard/Android/data/example/files/photo_picker/a.jpg",
-                    filePath = "/sdcard/Android/data/example/files/luban/a.jpg",
                 ),
             ),
+            generatedMediaLeaseId = "lease-1",
         )
 
         val decoded = AlbumPickerIntentCodec.readResult(
             AlbumPickerIntentCodec.putResult(Intent(), result),
         )
         assertEquals(result, decoded)
-        assertTrue(decoded.items.single().filePath.contains("files/luban"))
+        val encoded = AlbumPickerIntentCodec.putResult(Intent(), result)
+        assertEquals("lease-1", decoded.generatedMediaLeaseId)
+        assertTrue(encoded.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+        assertEquals(2, encoded.clipData!!.itemCount)
+        assertTrue(encoded.extras!!.keySet().none { it.contains("paths") })
     }
 }

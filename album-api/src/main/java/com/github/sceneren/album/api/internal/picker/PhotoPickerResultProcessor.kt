@@ -82,10 +82,9 @@ internal class PhotoPickerResultProcessor(
             )
         }
 
-        val allowStreamProbe = typedUris.size <= STREAM_PROBE_BATCH_LIMIT
         val metadata = try {
             typedUris.map { (uri, type) ->
-                metadataReader.read(uri, type, allowStreamProbe = allowStreamProbe)
+                metadataReader.read(uri, type)
             }
         } catch (exception: Exception) {
             exception.rethrowCancellationAfter { releaseNewGrants(newGrants) }
@@ -113,11 +112,6 @@ internal class PhotoPickerResultProcessor(
                 // 尽力回滚新增授权，最终仍以原始失败原因作为结果。
             }
         }
-    }
-
-    private companion object {
-        /** 批量选择超过该阈值时不逐张打开输入流探测 XMP，仅使用游标元数据以保证大批量返回秒开。 */
-        const val STREAM_PROBE_BATCH_LIMIT = 5
     }
 }
 

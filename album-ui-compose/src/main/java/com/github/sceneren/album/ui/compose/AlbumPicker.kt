@@ -3,6 +3,7 @@ package com.github.sceneren.album.ui.compose
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.net.Uri
+import androidx.core.net.toUri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -94,6 +95,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
@@ -115,6 +117,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.paging.LoadState
+import androidx.paging.awaitNotLoading
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -130,6 +133,7 @@ import com.github.sceneren.album.api.AlbumMediaPermissionRequestFactory
 import com.github.sceneren.album.api.AlbumMediaSpecialFormat
 import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.api.AlbumPickerConfig
+import com.github.sceneren.album.api.AlbumPickerFileTooLargeException
 import com.github.sceneren.album.api.AlbumPickerResult
 import com.github.sceneren.album.api.AlbumPickerSessionSnapshot
 import com.github.sceneren.album.api.MediaAccessStatus
@@ -138,8 +142,11 @@ import com.github.sceneren.album.api.SingleSelectionFinishMode
 import com.github.sceneren.album.video.AlbumVideoPlayerFactory
 import com.github.sceneren.album.ui.compose.internal.video.VideoPreviewSession
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.withTimeoutOrNull
@@ -261,17 +268,33 @@ internal fun AlbumPickerHost(
     }
 
     var session by remember(api, client, config, sessionId) {
-        mutableStateOf(client.openSession(config, sessionId))
+        mutableStateOf(AlbumPickerSessionSnapshot(
+            sessionId, emptyList(), emptyList(), emptySet(), AlbumDirectory.ALL_BUCKET_ID, null, false,
+        ))
     }
-    var accessStatus by remember { mutableStateOf(MediaAccessStatus.DENIED) }
+    var isSessionReady by remember(client, config, sessionId) { mutableStateOf(false) }
+    val sessionOpened = remember(client, config, sessionId) { kotlinx.coroutines.CompletableDeferred<Unit>() }
+    LaunchedEffect(client, config, sessionId) {
+        try {
+            session = client.openSessionAsync(config, sessionId)
+            isSessionReady = true
+        } finally {
+            sessionOpened.complete(Unit)
+        }
+    }
+    var accessStatus by remember(api, config.mediaFilter) { mutableStateOf(api.getMediaAccessStatus(config.mediaFilter)) }
+    var visibleMediaUris by remember(config, sessionId) { mutableStateOf<Set<Uri>>(emptySet()) }
     var feed by remember { mutableStateOf<AlbumMediaFeed?>(null) }
     val pagingItems = feed?.pagingData?.collectAsLazyPagingItems()
     // The refresh consumer outlives recompositions, including the first null feed.
     val currentPagingItems by rememberUpdatedState(pagingItems)
+    val currentPresentedFeed by rememberUpdatedState(feed)
     var activeFeedSignature by remember { mutableStateOf<ComposeFeedSignature?>(null) }
     var directories by remember { mutableStateOf<List<AlbumDirectory>>(emptyList()) }
     var preview by remember { mutableStateOf<PreviewState?>(null) }
     var isConfirming by remember { mutableStateOf(false) }
+    var isProcessingPhotoPickerResult by remember { mutableStateOf(false) }
+    var photoPickerRefreshCompletion by remember { mutableStateOf<CompletableDeferred<Unit>?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
     var isFinished by remember { mutableStateOf(false) }
     var pendingCompletion by remember { mutableStateOf<PickerCompletion?>(null) }
@@ -290,9 +313,17 @@ internal fun AlbumPickerHost(
         messageToast = AlbumUi.showToast(context, message)
     }
 
+    fun runAfterSessionOpen(action: () -> Unit) {
+        scope.launch {
+            sessionOpened.await()
+            if (isSessionReady && !isFinished) action()
+        }
+    }
+
     /** 更新 `refreshContentNow` 对应的状态。 */
     suspend fun refreshContentNow() {
         if (isConfirming || isCancelling || isFinished) return
+        mediaChangeTracker.setObservedUris(visibleMediaUris + session.selectedUris)
         val mediaChanged = mediaChangeTracker.hasChanges().getOrDefault(false)
         // Confirmation/cancellation can remove the session while the provider check is suspended.
         if (isConfirming || isCancelling || isFinished) return
@@ -300,7 +331,8 @@ internal fun AlbumPickerHost(
         val latestAccessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val accessChanged = previousAccessStatus != latestAccessStatus
         accessStatus = latestAccessStatus
-        val current = client.snapshot(session.sessionId)
+        val current = client.snapshotAsync(session.sessionId)
+        if (isConfirming || isCancelling || isFinished) return
         session = current
         val targetSignature = ComposeFeedSignature(
             mediaFilter = config.mediaFilter,
@@ -335,7 +367,8 @@ internal fun AlbumPickerHost(
 
     /** 执行 `confirmSelection` 方法定义的处理。 */
     fun confirmSelection() {
-        if (isConfirming || isCancelling || isFinished) return
+        if (!isSessionReady) { runAfterSessionOpen(::confirmSelection); return }
+        if (isConfirming || isProcessingPhotoPickerResult || isCancelling || isFinished) return
         if (session.selectedItems.isEmpty()) {
             showMessage(applicationContext.getString(R.string.auc_select_first))
             return
@@ -349,7 +382,8 @@ internal fun AlbumPickerHost(
             }.onFailure { failure ->
                 isConfirming = false
                 showMessage(
-                    applicationContext.getString(
+                    if (failure is AlbumPickerFileTooLargeException) applicationContext.getString(R.string.auc_file_too_large)
+                    else applicationContext.getString(
                         R.string.auc_process_failed,
                         failure.message ?: applicationContext.getString(R.string.auc_retry),
                     ),
@@ -361,8 +395,19 @@ internal fun AlbumPickerHost(
 
     /** 执行 `handlePhotoPickerResult` 方法定义的处理。 */
     fun handlePhotoPickerResult(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            isExternalLauncherInFlight = false
+            refreshContent()
+            return
+        }
+        if (isProcessingPhotoPickerResult || isFinished) return
+        isProcessingPhotoPickerResult = true
+        isExternalLauncherInFlight = true
         scope.launch {
+            val completion = CompletableDeferred<Unit>()
             try {
+                sessionOpened.await()
+                if (!isSessionReady) return@launch
                 val result = api.processPhotoPickerResult(
                     uris = uris,
                     mediaFilter = config.mediaFilter,
@@ -371,9 +416,26 @@ internal fun AlbumPickerHost(
                 if (result is PhotoPickResult.Failed) {
                     showMessage(applicationContext.getString(R.string.auc_selection_failed))
                 }
-            } finally {
-                isExternalLauncherInFlight = false
+                photoPickerRefreshCompletion = completion
                 refreshContent()
+                completion.await()
+                yield()
+                val targetFeed = feed
+                if (targetFeed != null) {
+                    val presented = snapshotFlow { currentPresentedFeed to currentPagingItems }.first {
+                        it.first === targetFeed && it.second != null
+                    }.second!!
+                    snapshotFlow { presented.loadState }.awaitNotLoading()
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                showMessage(applicationContext.getString(R.string.auc_selection_failed))
+            } finally {
+                if (photoPickerRefreshCompletion === completion) photoPickerRefreshCompletion = null
+                completion.cancel()
+                isProcessingPhotoPickerResult = false
+                isExternalLauncherInFlight = false
             }
         }
     }
@@ -451,6 +513,8 @@ internal fun AlbumPickerHost(
 
     /** 在无需请求权限或已获授权后准备输出文件并启动系统相机。 */
     fun launchPreparedCamera(mediaType: AlbumMediaType) {
+        if (!isSessionReady) { runAfterSessionOpen { launchPreparedCamera(mediaType) }; return }
+        if (isConfirming || isProcessingPhotoPickerResult || isCancelling || isFinished) return
         scope.launch {
             client.prepareCamera(session.sessionId, mediaType).onSuccess { capture ->
                 isExternalLauncherInFlight = true
@@ -490,6 +554,8 @@ internal fun AlbumPickerHost(
 
     /** 执行 `launchPhotoPicker` 方法定义的处理。 */
     fun launchPhotoPicker() {
+        if (!isSessionReady) { runAfterSessionOpen(::launchPhotoPicker); return }
+        if (isConfirming || isProcessingPhotoPickerResult || isCancelling || isFinished) return
         isExternalLauncherInFlight = true
         try {
             multiplePhotoPickerLauncher.launch(photoPickerRequest)
@@ -530,6 +596,8 @@ internal fun AlbumPickerHost(
 
     /** 更新 `toggleMedia` 对应的状态。 */
     fun toggleMedia(media: AlbumMedia) {
+        if (!isSessionReady) { runAfterSessionOpen { toggleMedia(media) }; return }
+        if (isConfirming || isProcessingPhotoPickerResult || isCancelling || isFinished) return
         if (
             media.uri !in session.selectedUris &&
             session.selectedItems.size >= config.maxSelectionCount
@@ -619,7 +687,7 @@ internal fun AlbumPickerHost(
 
     /** 判断 `cancelPicker` 条件是否成立。 */
     fun cancelPicker() {
-        if (isCancelling || isConfirming || isFinished) return
+        if (isCancelling || isConfirming || isProcessingPhotoPickerResult || isFinished) return
         if (preview != null) {
             closePreview()
             return
@@ -632,6 +700,7 @@ internal fun AlbumPickerHost(
         visibilityState.targetState = false
         scope.launch {
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                sessionOpened.await()
                 runCatching { client.cancel(session.sessionId) }
             }
         }
@@ -671,11 +740,14 @@ internal fun AlbumPickerHost(
         state?.attach(stateOwner)
         onDispose { state?.detach(stateOwner) }
     }
+    // Read during composition so a nested screen update also refreshes the host's action state.
+    val selectedItems = session.selectedItems
+    val hostProcessing = isConfirming || isProcessingPhotoPickerResult || isCancelling || isFinished
     SideEffect {
         state?.update(
             token = stateOwner,
-            selected = session.selectedItems,
-            processing = isConfirming || isCancelling || isFinished,
+            selected = selectedItems,
+            processing = hostProcessing,
             callbacks = AlbumPickerState.Actions(
                 confirm = ::confirmSelection,
                 preview = ::showSelectedPreview,
@@ -688,9 +760,17 @@ internal fun AlbumPickerHost(
         visibilityState.targetState || !visibilityState.isIdle
     BackHandler(enabled = occupiesInput && (!embedded || preview != null), onBack = ::cancelPicker)
     LaunchedEffect(refreshRequests) {
+        sessionOpened.await()
         for (request in refreshRequests) {
             if (!isFinished) {
-                refreshContentNow()
+                val completion = photoPickerRefreshCompletion
+                try {
+                    refreshContentNow()
+                    completion?.complete(Unit)
+                } catch (failure: Throwable) {
+                    completion?.completeExceptionally(failure)
+                    throw failure
+                }
             }
         }
     }
@@ -731,6 +811,7 @@ internal fun AlbumPickerHost(
                     preview = preview,
                     imageLoader = resolvedImageLoader,
                     videoPlayerFactory = videoPlayerFactory,
+                    onVisibleUris = { visibleMediaUris = it },
                     onBack = ::cancelPicker,
                     onDirectory = { bucketId ->
                         if (shouldUpdateDirectory(session.bucketId, bucketId)) {
@@ -761,7 +842,7 @@ internal fun AlbumPickerHost(
                     onPreviewLoadMore = ::loadMorePreview,
                     onClosePreview = ::closePreview,
                     onConfirm = ::confirmSelection,
-                    isConfirming = isConfirming,
+                    isProcessing = isConfirming || isProcessingPhotoPickerResult,
                 )
                 if (isCancelling || isFinished) InteractionBlocker(blockBack = !embedded)
             }
@@ -904,7 +985,8 @@ internal fun AlbumPickerScreen(
     onPreviewLoadMore: () -> Unit,
     onClosePreview: () -> Unit,
     onConfirm: () -> Unit,
-    isConfirming: Boolean,
+    isProcessing: Boolean,
+    onVisibleUris: (Set<Uri>) -> Unit = {},
 ) {
     val applicationContext = LocalContext.current.applicationContext
     val applicationName = remember(applicationContext) {
@@ -929,6 +1011,15 @@ internal fun AlbumPickerScreen(
         if (accessStatus != MediaAccessStatus.FULL) directoryMenu = false
     }
     val gridState = key(accessStatus, session.bucketId) { rememberLazyGridState() }
+    val currentOnVisibleUris by rememberUpdatedState(onVisibleUris)
+    LaunchedEffect(gridState) {
+        snapshotFlow {
+            gridState.layoutInfo.visibleItemsInfo.mapNotNull { info ->
+                val key = (info.key as? String)?.removePrefix("camera:") ?: return@mapNotNull null
+                key.toUri().takeIf { it.scheme == "content" || it.scheme == "file" }
+            }.toSet()
+        }.collect { currentOnVisibleUris(it) }
+    }
     val selectionLimitReached = session.selectedItems.size >= config.maxSelectionCount
     val isInitialGridLoading = isMediaGridInitialLoading(
         refreshLoadState = pagingItems?.loadState?.refresh,
@@ -1300,9 +1391,18 @@ internal fun AlbumPickerScreen(
                     }
                 }
                 if (isInitialGridLoading) {
+                    // Loading media must not cover camera/add actions while session/provider IO runs.
+                    val actions = (if (config.camera.enabled) 1 else 0) +
+                        (if (accessStatus != MediaAccessStatus.FULL) 1 else 0)
+                    val spans = appearance.gridSpanCount
+                    val direction = LocalLayoutDirection.current
+                    val gridWidth = this@AlbumPreviewLayout.maxWidth - padding.calculateLeftPadding(direction) - padding.calculateRightPadding(direction)
+                    val cellHeight = ((gridWidth - appearance.gridItemSpacingDp.dp * (spans - 1)) / spans).coerceAtLeast(0.dp)
+                    val actionRows = (actions + spans - 1) / spans
+                    val actionHeight = (cellHeight + appearance.gridItemSpacingDp.dp) * actionRows
                     val interactionSource = remember { MutableInteractionSource() }
                     Box(
-                        modifier = Modifier.fillMaxSize().background(Color.Black)
+                        modifier = Modifier.fillMaxSize().padding(top = actionHeight).background(Color.Black)
                             .clickable(interactionSource = interactionSource, indication = null, onClick = {})
                             .clearAndSetSemantics { },
                         contentAlignment = Alignment.Center,
@@ -1402,7 +1502,7 @@ internal fun AlbumPickerScreen(
                 )
             }
         }
-        if (isConfirming) ProcessingOverlay(blockBack = !embedded)
+        if (isProcessing) ProcessingOverlay(blockBack = !embedded)
     }
 }
 

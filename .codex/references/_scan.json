@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-11-12 10:20:57",
+  "scan_time": "2026-11-12 11:41:11",
   "module_count": 6,
   "modules": [
     {
@@ -402,7 +402,7 @@
       "source_dirs": [
         {
           "root": "album-api\\src\\main\\java",
-          "file_count": 69,
+          "file_count": 73,
           "file_list": [
             "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
             "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -426,6 +426,7 @@
             "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerConfig.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerExtensions.kt",
+            "com\\github\\sceneren\\album\\api\\AlbumPickerFileTooLargeException.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerIntentCodec.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerResult.kt",
             "com\\github\\sceneren\\album\\api\\AlbumPickerResultItem.kt",
@@ -434,12 +435,14 @@
             "com\\github\\sceneren\\album\\api\\PhotoPickFailure.kt",
             "com\\github\\sceneren\\album\\api\\PhotoPickResult.kt",
             "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
-            "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumGeneratedMediaCache.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumUriImageCompressor.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\file\\CompletedCameraMediaSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\ConsistentMediaPagingSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreChangeMonitor.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
             "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreQuerySpec.kt",
@@ -471,6 +474,7 @@
             "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelectionReducer.kt",
             "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionState.kt",
             "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt",
+            "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumSessionLocks.kt",
             "com\\github\\sceneren\\album\\api\\internal\\session\\CameraAddResult.kt",
             "com\\github\\sceneren\\album\\api\\internal\\session\\JSONObjectExtensions.kt"
           ],
@@ -479,7 +483,7 @@
           ]
         }
       ],
-      "file_count": 69,
+      "file_count": 73,
       "file_list": [
         "com\\github\\sceneren\\album\\api\\AlbumApi.kt",
         "com\\github\\sceneren\\album\\api\\AlbumCameraCapture.kt",
@@ -503,6 +507,7 @@
         "com\\github\\sceneren\\album\\api\\AlbumPickerClient.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerConfig.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerExtensions.kt",
+        "com\\github\\sceneren\\album\\api\\AlbumPickerFileTooLargeException.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerIntentCodec.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerResult.kt",
         "com\\github\\sceneren\\album\\api\\AlbumPickerResultItem.kt",
@@ -511,12 +516,14 @@
         "com\\github\\sceneren\\album\\api\\PhotoPickFailure.kt",
         "com\\github\\sceneren\\album\\api\\PhotoPickResult.kt",
         "com\\github\\sceneren\\album\\api\\SingleSelectionFinishMode.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumFileMaterializer.kt",
-        "com\\github\\sceneren\\album\\api\\internal\\file\\MaterializedMedia.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumGeneratedMediaCache.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\file\\AlbumUriImageCompressor.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\file\\CompletedCameraMediaSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaChangeObserver.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\AndroidMediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\ConsistentMediaPagingSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\CursorExtensions.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreChangeMonitor.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreDataSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreMediaPagingSource.kt",
         "com\\github\\sceneren\\album\\api\\internal\\mediastore\\MediaStoreQuerySpec.kt",
@@ -548,6 +555,7 @@
         "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSelectionReducer.kt",
         "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionState.kt",
         "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumPickerSessionStore.kt",
+        "com\\github\\sceneren\\album\\api\\internal\\session\\AlbumSessionLocks.kt",
         "com\\github\\sceneren\\album\\api\\internal\\session\\CameraAddResult.kt",
         "com\\github\\sceneren\\album\\api\\internal\\session\\JSONObjectExtensions.kt"
       ],
@@ -561,7 +569,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-api\\src\\main\\java/\n└── com/  (69个文件)\n    └── github/  (69个文件)\n        └── sceneren/  (69个文件)\n            └── album/  (69个文件)",
+      "tree": "album-api\\src\\main\\java/\n└── com/  (73个文件)\n    └── github/  (73个文件)\n        └── sceneren/  (73个文件)\n            └── album/  (73个文件)",
       "dependencies": [
         {
           "name": "libs.androidx.activity.ktx",

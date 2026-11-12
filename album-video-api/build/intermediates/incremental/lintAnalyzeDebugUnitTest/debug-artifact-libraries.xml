@@ -1,9 +1,9 @@
 <libraries>
   <library
       name=":@@:album-video-api::debug"
-      jars="C:\Users\Administrator\.gradle\caches\9.8.2\transforms\c694ebef36316908b3585d12f7f4c488\transformed\out\jars\classes.jar;C:\Users\Administrator\.gradle\caches\9.8.2\transforms\c694ebef36316908b3585d12f7f4c488\transformed\out\jars\libs\R.jar"
+      jars="C:\Users\Administrator\.gradle\caches\9.9.0\transforms\57b37fe60cbdd6554a7d489be1c8c55b\transformed\out\jars\classes.jar;C:\Users\Administrator\.gradle\caches\9.9.0\transforms\57b37fe60cbdd6554a7d489be1c8c55b\transformed\out\jars\libs\R.jar"
       resolved="com.github.sceneren.Album:album-video-api:0.4.4"
-      folder="C:\Users\Administrator\.gradle\caches\9.8.2\transforms\c694ebef36316908b3585d12f7f4c488\transformed\out"
+      folder="C:\Users\Administrator\.gradle\caches\9.9.0\transforms\57b37fe60cbdd6554a7d489be1c8c55b\transformed\out"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"

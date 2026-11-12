@@ -80,13 +80,31 @@
             android:text="@string/auv_load_failed_retry"
             android:visibility="gone" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/auv_picker_grid"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:background="@android:color/black"
-            android:clipToPadding="false" />
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/auv_picker_grid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/black"
+                android:clipToPadding="false" />
+
+            <ProgressBar
+                android:id="@+id/auv_picker_loading"
+                android:layout_width="@dimen/auv_processing_indicator_size"
+                android:layout_height="@dimen/auv_processing_indicator_size"
+                android:layout_gravity="center"
+                android:contentDescription="@string/auv_loading_media"
+                android:indeterminate="true"
+                android:indeterminateBehavior="repeat"
+                android:indeterminateDrawable="@drawable/auv_media_loading_spinner"
+                android:indeterminateDuration="1000"
+                android:indeterminateTint="@null"
+                android:interpolator="@android:interpolator/linear" />
+        </FrameLayout>
 
         <LinearLayout
             android:id="@+id/auv_picker_permission"

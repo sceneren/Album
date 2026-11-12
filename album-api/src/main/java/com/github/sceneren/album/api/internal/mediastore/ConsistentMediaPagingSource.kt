@@ -12,6 +12,7 @@ internal open class ConsistentMediaPagingSource(
     private val readSignature: suspend () -> Any,
     private val findPositions: suspend (Set<Uri>) -> Map<Uri, Int>,
     private val loadPage: suspend (Int, Int) -> List<AlbumMedia>,
+    private val readEndSignature: suspend () -> Any = readSignature,
 ) : PagingSource<Int, AlbumMedia>() {
     private var signature: Any? = null
     private var refreshItems: List<AlbumMedia> = emptyList()
@@ -38,7 +39,7 @@ internal open class ConsistentMediaPagingSource(
                 limit = maxOf(limit, refreshItems.size)
             }
             val data = if (limit == 0) emptyList() else loadPage(offset, limit)
-            if (before != readSignature()) {
+            if (before != readEndSignature()) {
                 invalidate()
                 LoadResult.Invalid()
             } else {

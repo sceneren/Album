@@ -5,14 +5,14 @@ import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.annotation.WorkerThread
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.github.sceneren.album.api.internal.file.AlbumFileMaterializer
-import com.github.sceneren.album.api.internal.file.MaterializationRequest
-import com.github.sceneren.album.api.internal.file.MaterializedMedia
+import com.github.sceneren.album.api.internal.file.AlbumUriImageCompressor
+import com.github.sceneren.album.api.internal.file.AlbumGeneratedMediaCache
 import com.github.sceneren.album.api.internal.picker.allows
 import com.github.sceneren.album.api.internal.session.AlbumPendingCameraCapture
 import com.github.sceneren.album.api.internal.session.AlbumPickerItemSource
@@ -20,10 +20,14 @@ import com.github.sceneren.album.api.internal.session.AlbumPickerSelection
 import com.github.sceneren.album.api.internal.session.AlbumPickerSelectionReducer
 import com.github.sceneren.album.api.internal.session.AlbumPickerSessionState
 import com.github.sceneren.album.api.internal.session.AlbumPickerSessionStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import top.zibin.luban.api.Luban
 import java.io.File
 import java.io.IOException
 import java.util.Locale
@@ -33,186 +37,223 @@ import java.util.UUID
 class AlbumPickerClient internal constructor(
     private val context: Context,
     private val externalRootOverride: File? = null,
+    private val availableBytesOverride: (() -> Long)? = null,
+    private val imageCompressor: suspend (Context, Uri, File, (Long) -> Unit) -> File = AlbumUriImageCompressor()::compress,
 ) {
     private val appContext = context.applicationContext
     private val store = AlbumPickerSessionStore(appContext)
-    private val materializer = AlbumFileMaterializer(
-        appContext,
-        appContext.contentResolver,
-        externalRootOverride ?: appContext.getExternalFilesDir(null),
-    )
 
-    /** 执行 `openSession` 方法定义的处理。 */
-    fun openSession(config: AlbumPickerConfig, sessionId: String? = null): AlbumPickerSessionSnapshot {
-        val state = sessionId?.let(store::load)
-            ?.takeIf { it.config == config }
-            ?: store.create(config, sessionId ?: UUID.randomUUID().toString())
-        return state.toSnapshot()
+    private val generatedCache by lazy {
+        val root = externalRoot()
+        availableBytesOverride?.let { AlbumGeneratedMediaCache(appContext, root, it) }
+            ?: AlbumGeneratedMediaCache(appContext, root)
     }
 
-    /** 执行 `snapshot` 方法定义的处理。 */
-    fun snapshot(sessionId: String): AlbumPickerSessionSnapshot =
-        requireNotNull(store.load(sessionId)) { "相册选择会话不存在: $sessionId" }.toSnapshot()
+    /** Synchronous compatibility API. Call off the main thread, or use [openSessionAsync]. */
+    @WorkerThread
+    fun openSession(config: AlbumPickerConfig, sessionId: String? = null): AlbumPickerSessionSnapshot =
+        runBlocking { openSessionAsync(config, sessionId) }
 
-    /** 仅更新选择状态，不读取或复制媒体内容；文件复制延迟到 [confirm]。 */
+    /** Open/restore a session and prune abandoned state on IO, serialized with session writes. */
+    suspend fun openSessionAsync(
+        config: AlbumPickerConfig,
+        sessionId: String? = null,
+    ): AlbumPickerSessionSnapshot {
+        val id = sessionId ?: UUID.randomUUID().toString()
+        return sessionOnIo(id) {
+            val state = store.load(id)?.takeIf { it.config == config } ?: store.create(config, id)
+            state.toSnapshot()
+        }
+    }
+
+    /** Synchronous compatibility API; preferences and JSON reads belong off the main thread. */
+    @WorkerThread
+    fun snapshot(sessionId: String): AlbumPickerSessionSnapshot = runBlocking { snapshotAsync(sessionId) }
+
+    /** Read a snapshot on IO after preceding writes to this session have completed. */
+    suspend fun snapshotAsync(sessionId: String): AlbumPickerSessionSnapshot =
+        sessionOnIo(sessionId) { requireState(sessionId).toSnapshot() }
+
+    private suspend fun <T> sessionOnIo(sessionId: String, block: suspend () -> T): T =
+        store.withSessionLock(sessionId) { withContext(Dispatchers.IO) { block() } }
+
+    private suspend fun <T> sessionResult(sessionId: String, block: suspend () -> T): Result<T> = try {
+        Result.success(sessionOnIo(sessionId, block))
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Throwable) {
+        Result.failure(failure)
+    }
+
+    /** 仅更新选择状态，不读取或复制媒体内容；[confirm] 仅为需要压缩的图片生成输出。 */
     suspend fun toggleSelection(
         sessionId: String,
         media: AlbumMedia,
-    ): Result<AlbumPickerSessionSnapshot> = runCatching {
-        withContext(Dispatchers.IO) {
-            val state = requireState(sessionId)
-            val existingCameraPath = state.cameraItems
-                .firstOrNull { it.uri == media.uri }
-                ?.filePath
-            val item = media.toSelection().copy(filePath = existingCameraPath)
-            val next = state.copy(
-                selected = AlbumPickerSelectionReducer.toggle(
-                    selected = state.selected,
-                    item = item,
-                    maxSelectionCount = state.config.maxSelectionCount,
-                ),
-                previewUri = media.uri,
-            )
-            store.save(next)
-            next.toSnapshot()
-        }
+    ): Result<AlbumPickerSessionSnapshot> = sessionResult(sessionId) {
+        val state = requireState(sessionId)
+        val existingCameraPath = state.cameraItems
+            .firstOrNull { it.uri == media.uri }
+            ?.filePath
+        val item = media.toSelection().copy(filePath = existingCameraPath)
+        val next = state.copy(
+            selected = AlbumPickerSelectionReducer.toggle(
+                selected = state.selected,
+                item = item,
+                maxSelectionCount = state.config.maxSelectionCount,
+            ),
+            previewUri = media.uri,
+        )
+        store.save(next)
+        next.toSnapshot()
     }
 
     /** 更新 `setBucket` 对应的状态。 */
     suspend fun setBucket(sessionId: String, bucketId: Long): Result<AlbumPickerSessionSnapshot> =
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val state = requireState(sessionId).copy(bucketId = bucketId)
-                store.save(state)
-                state.toSnapshot()
-            }
+        sessionResult(sessionId) {
+            val state = requireState(sessionId).copy(bucketId = bucketId)
+            store.save(state)
+            state.toSnapshot()
         }
 
     /** 创建或准备 `prepareCamera` 对应的对象。 */
     suspend fun prepareCamera(
         sessionId: String,
         mediaType: AlbumMediaType,
-    ): Result<AlbumCameraCapture> = runCatching {
-        withContext(Dispatchers.IO) {
-            val state = requireState(sessionId)
-            check(state.pendingCamera == null) { "已有一次拍摄正在进行" }
-            val root = externalRoot()
-            val directory = File(root, CAMERA_DIRECTORY).apply {
-                if (!exists() && !mkdirs()) throw IOException("无法创建拍摄目录")
-            }
-            val suffix = if (mediaType == AlbumMediaType.IMAGE) ".jpg" else ".mp4"
-            val file = File(directory, "${UUID.randomUUID()}$suffix")
-            val uri = fileUri(file)
-            store.save(
-                state.copy(
-                    pendingCamera = AlbumPendingCameraCapture(
-                        uri = uri,
-                        filePath = file.absolutePath,
-                        mediaType = mediaType,
-                    ),
-                ),
-            )
-            AlbumCameraCapture(uri, file.absolutePath, mediaType)
+    ): Result<AlbumCameraCapture> = sessionResult(sessionId) {
+        val state = requireState(sessionId)
+        check(state.pendingCamera == null) { "已有一次拍摄正在进行" }
+        val root = externalRoot()
+        val directory = File(root, CAMERA_DIRECTORY).apply {
+            if (!exists() && !mkdirs()) throw IOException("无法创建拍摄目录")
         }
+        val suffix = if (mediaType == AlbumMediaType.IMAGE) ".jpg" else ".mp4"
+        val file = File(directory, "${UUID.randomUUID()}$suffix")
+        val uri = fileUri(file)
+        store.save(
+            state.copy(
+                pendingCamera = AlbumPendingCameraCapture(
+                    uri = uri,
+                    filePath = file.absolutePath,
+                    mediaType = mediaType,
+                ),
+            ),
+        )
+        AlbumCameraCapture(uri, mediaType)
     }
 
     /** 执行 `completeCamera` 方法定义的处理。 */
     suspend fun completeCamera(
         sessionId: String,
         success: Boolean,
-    ): Result<AlbumPickerSessionSnapshot> = runCatching {
-        withContext(Dispatchers.IO) {
-            val state = requireState(sessionId)
-            val pending = requireNotNull(state.pendingCamera) { "没有待完成的拍摄" }
-            val file = File(pending.filePath)
-            if (!success || !file.exists() || file.length() <= 0L) {
-                file.delete()
-                val cleared = state.copy(pendingCamera = null)
-                store.save(cleared)
-                return@withContext cleared.toSnapshot()
-            }
-
-            val dimensionsAndDuration = probeCameraFileMetadata(file, pending.mediaType)
-            val item = AlbumPickerSelection(
-                uri = pending.uri,
-                mediaType = pending.mediaType,
-                displayName = file.name,
-                mimeType = if (pending.mediaType == AlbumMediaType.IMAGE) {
-                    "image/jpeg"
-                } else {
-                    "video/mp4"
-                },
-                sizeBytes = file.length(),
-                width = dimensionsAndDuration.width,
-                height = dimensionsAndDuration.height,
-                durationMillis = dimensionsAndDuration.durationMillis,
-                specialFormat = AlbumMediaSpecialFormat.NONE,
-                dateModifiedEpochSeconds = file.lastModified()
-                    .takeIf { it > 0L }
-                    ?.div(MILLIS_PER_SECOND),
-                source = AlbumPickerItemSource.CAMERA,
-                filePath = pending.filePath,
-            )
-            val added = AlbumPickerSelectionReducer.addCamera(
-                selected = state.selected,
-                cameraItems = state.cameraItems,
-                cameraItem = item,
-                config = state.config,
-            )
-            val next = state.copy(
-                selected = added.selected,
-                cameraItems = added.cameraItems,
-                pendingCamera = null,
-                previewUri = item.uri,
-            )
-            store.save(next)
-            next.toSnapshot()
+    ): Result<AlbumPickerSessionSnapshot> = sessionResult(sessionId) {
+        val state = requireState(sessionId)
+        val pending = requireNotNull(state.pendingCamera) { "没有待完成的拍摄" }
+        val file = File(pending.filePath)
+        if (!success || !file.exists() || file.length() <= 0L) {
+            file.delete()
+            val cleared = state.copy(pendingCamera = null)
+            store.save(cleared)
+            return@sessionResult cleared.toSnapshot()
         }
+
+        val dimensionsAndDuration = probeCameraFileMetadata(file, pending.mediaType)
+        val item = AlbumPickerSelection(
+            uri = pending.uri,
+            mediaType = pending.mediaType,
+            displayName = file.name,
+            mimeType = if (pending.mediaType == AlbumMediaType.IMAGE) {
+                "image/jpeg"
+            } else {
+                "video/mp4"
+            },
+            sizeBytes = file.length(),
+            width = dimensionsAndDuration.width,
+            height = dimensionsAndDuration.height,
+            durationMillis = dimensionsAndDuration.durationMillis,
+            specialFormat = AlbumMediaSpecialFormat.NONE,
+            dateModifiedEpochSeconds = file.lastModified()
+                .takeIf { it > 0L }
+                ?.div(MILLIS_PER_SECOND),
+            source = AlbumPickerItemSource.CAMERA,
+            filePath = pending.filePath,
+        )
+        val added = AlbumPickerSelectionReducer.addCamera(
+            selected = state.selected,
+            cameraItems = state.cameraItems,
+            cameraItem = item,
+            config = state.config,
+        )
+        val next = state.copy(
+            selected = added.selected,
+            cameraItems = added.cameraItems,
+            pendingCamera = null,
+            previewUri = item.uri,
+        )
+        store.save(next)
+        next.toSnapshot()
     }
 
-    /** 用户确认选择后，仅复制最终选中项并按配置压缩；相机已生成的私有文件直接复用不重复复制。 */
-    suspend fun confirm(sessionId: String): Result<AlbumPickerResult> = runCatching {
-        withContext(Dispatchers.IO) {
-            val state = requireState(sessionId)
-            check(state.pendingCamera == null) { "拍摄尚未完成" }
-            check(state.selected.isNotEmpty()) { "至少选择一个媒体" }
-            val copied = state.selected.map { selection ->
-                materializeSelection(selection)
-            }
-            val compressedFiles = mutableListOf<File>()
-            try {
-                val policy = AlbumCompressionPolicy(state.config.compression)
-                val items = state.selected.zip(copied).map { (selection, materialized) ->
-                    val status = policy.statusFor(selection.mediaType, materialized.sizeBytes)
-                    val resultFile = if (status == AlbumCompressionStatus.COMPRESSED) {
-                        val outputDir = lubanDirectory()
-                        val output = Luban.compress(File(materialized.filePath), outputDir)
-                            .getOrElse { throw it }
-                        compressedFiles += output
-                        output
-                    } else {
-                        File(materialized.filePath)
-                    }
-                    AlbumPickerResultItem(
-                        originalUri = selection.uri,
-                        resultUri = fileUri(resultFile),
-                        mediaType = selection.mediaType,
-                        compressionStatus = status,
-                        originalFilePath = materialized.originalFilePath,
-                        filePath = resultFile.absolutePath,
-                    )
+    /** Return source URIs without copying originals; only compressed images create private files. */
+    suspend fun confirm(sessionId: String): Result<AlbumPickerResult> {
+        var leasedResult: AlbumPickerResult? = null
+        var delivered = false
+        try {
+            val result = sessionResult(sessionId) {
+                val state = requireState(sessionId)
+                check(state.pendingCamera == null) { "拍摄尚未完成" }
+                check(state.selected.isNotEmpty()) { "至少选择一个媒体" }
+                val sizes = state.selected.map { selection ->
+                    val descriptor = appContext.contentResolver.openAssetFileDescriptor(selection.uri, "r")
+                        ?: throw IOException("无法读取所选媒体")
+                    descriptor.use { it.length.takeIf { bytes -> bytes >= 0L } ?: selection.sizeBytes }
                 }
-                store.remove(sessionId)
-                AlbumPickerResult(items)
-            } catch (failure: Throwable) {
-                compressedFiles.forEach(File::delete)
-                throw failure
+                val policy = AlbumCompressionPolicy(state.config.compression)
+                val statuses = state.selected.zip(sizes).map { (selection, bytes) -> policy.statusFor(selection.mediaType, bytes) }
+                if (AlbumCompressionStatus.COMPRESSED !in statuses) {
+                    val result = AlbumPickerResult(state.selected.zip(statuses).map { (selection, status) ->
+                        AlbumPickerResultItem(selection.uri, selection.uri, selection.mediaType, status)
+                    })
+                    store.remove(sessionId)
+                    result
+                } else {
+                    generatedCache.withBudget { budget ->
+                        val compressedFiles = mutableListOf<File>()
+                        try {
+                            val items = state.selected.zip(statuses).map { (selection, status) ->
+                                val resultUri = if (status == AlbumCompressionStatus.COMPRESSED) {
+                                    val output = imageCompressor(appContext, selection.uri, lubanDirectory()) { bytes ->
+                                        budget.checkFileSize(bytes)
+                                        budget.reserve(bytes)
+                                    }
+                                    compressedFiles += output
+                                    budget.protect(output.absolutePath)
+                                    fileUri(output)
+                                } else selection.uri
+                                AlbumPickerResultItem(selection.uri, resultUri, selection.mediaType, status)
+                            }
+                            currentCoroutineContext().ensureActive()
+                            val result = budget.publish(items, compressedFiles)
+                            leasedResult = result
+                            store.remove(sessionId)
+                            result
+                        } catch (failure: Throwable) {
+                            compressedFiles.forEach(File::delete)
+                            throw failure
+                        }
+                    }
+                }
+            }
+            delivered = result.isSuccess
+            return result
+        } finally {
+            if (!delivered) leasedResult?.let { result ->
+                withContext(NonCancellable + Dispatchers.IO) { generatedCache.release(result) }
             }
         }
     }
 
     /** 取消本次选择会话；已完成拍摄保留在相机目录中，仅删除尚未完成的拍摄文件。 */
-    suspend fun cancel(sessionId: String) = withContext(Dispatchers.IO) {
+    suspend fun cancel(sessionId: String) = sessionOnIo(sessionId) {
         store.load(sessionId)?.let { state ->
             state.pendingCamera?.let { File(it.filePath).delete() }
         }
@@ -257,38 +298,6 @@ class AlbumPickerClient internal constructor(
         )
     }
 
-    /** 物化单个选中项：若已是本应用相机目录中的有效文件则直接复用，避免二次复制。 */
-    private suspend fun materializeSelection(
-        selection: AlbumPickerSelection,
-    ): MaterializedMedia {
-        val maxBytes = if (selection.mediaType == AlbumMediaType.IMAGE) MAX_IMAGE_BYTES else null
-        if (selection.source == AlbumPickerItemSource.CAMERA && !selection.filePath.isNullOrBlank()) {
-            val cameraFile = File(selection.filePath)
-            if (cameraFile.isFile && cameraFile.length() > 0L) {
-                if (maxBytes != null && cameraFile.length() > maxBytes) {
-                    throw IOException("Selected media exceeds the allowed size")
-                }
-                return MaterializedMedia(
-                    originalUri = selection.uri,
-                    originalFilePath = cameraFile.absolutePath,
-                    filePath = cameraFile.absolutePath,
-                    sizeBytes = cameraFile.length(),
-                    reused = true,
-                )
-            }
-        }
-        return materializer.copy(
-            MaterializationRequest(
-                uri = selection.uri,
-                displayName = selection.displayName,
-                mimeType = selection.mimeType,
-                sizeBytes = selection.sizeBytes,
-                dateModifiedEpochSeconds = selection.dateModifiedEpochSeconds,
-                maxBytes = maxBytes,
-            ),
-        )
-    }
-
     /** 执行 `requireState` 方法定义的处理。 */
     private fun requireState(sessionId: String): AlbumPickerSessionState =
         requireNotNull(store.load(sessionId)) { "相册选择会话不存在: $sessionId" }
@@ -309,7 +318,7 @@ class AlbumPickerClient internal constructor(
         ?: appContext.getExternalFilesDir(null)
         ?: throw IOException("应用专属外部存储不可用")
 
-    private data class ProbedCameraMetadata(
+    internal data class ProbedCameraMetadata(
         val width: Int? = null,
         val height: Int? = null,
         val durationMillis: Long? = null,
@@ -321,8 +330,6 @@ class AlbumPickerClient internal constructor(
         const val CAMERA_DIRECTORY = "camera"
         /** 表示 `LUBAN_DIRECTORY` 对应的数据。 */
         const val LUBAN_DIRECTORY = "luban"
-        /** 单张图片复制上限，避免异常提供方耗尽应用存储。 */
-        const val MAX_IMAGE_BYTES = 256L * 1024 * 1024
         const val MILLIS_PER_SECOND = 1_000L
 
         /** 检查相机目录变化时仅读取文件属性，避免在前台恢复和每次分页时重新探测媒体内容。 */
@@ -345,11 +352,12 @@ class AlbumPickerClient internal constructor(
                 .toList()
         }
 
-        /** 读取应用专属相机目录中已完成的拍摄媒体，供无完整媒体权限时跨会话展示。 */
+        /** 仅枚举已完成相机文件的属性；内容元数据由分页窗口按需探测。 */
         fun loadCompletedCameraMedia(
             context: Context,
             mediaFilter: AlbumMediaFilter,
             externalRootOverride: File? = null,
+            onFile: (Uri, File) -> Unit = { _, _ -> },
         ): List<AlbumMedia> {
             val appContext = context.applicationContext
             val root = externalRootOverride ?: appContext.getExternalFilesDir(null) ?: return emptyList()
@@ -374,19 +382,20 @@ class AlbumPickerClient internal constructor(
                     else -> return@mapNotNull null
                 }
                 if (!mediaFilter.allows(mediaType)) return@mapNotNull null
-                val metadata = probeCameraFileMetadata(file, mediaType)
                 val lastModifiedMillis = file.lastModified().takeIf { it > 0L }
+                val uri = resolveFileUri(appContext, file)
+                onFile(uri, file)
                 AlbumMedia(
-                    uri = resolveFileUri(appContext, file),
+                    uri = uri,
                     mediaType = mediaType,
                     displayName = file.name,
                     mimeType = if (mediaType == AlbumMediaType.IMAGE) "image/jpeg" else "video/mp4",
                     sizeBytes = file.length(),
                     dateAddedEpochSeconds = lastModifiedMillis?.div(MILLIS_PER_SECOND),
                     dateModifiedEpochSeconds = lastModifiedMillis?.div(MILLIS_PER_SECOND),
-                    width = metadata.width,
-                    height = metadata.height,
-                    durationMillis = metadata.durationMillis,
+                    width = null,
+                    height = null,
+                    durationMillis = null,
                     bucketId = null,
                     bucketName = null,
                     selectedAtEpochMillis = lastModifiedMillis,
@@ -424,7 +433,7 @@ class AlbumPickerClient internal constructor(
             if (isDebuggable) Uri.fromFile(file) else throw failure
         }
 
-        private fun probeCameraFileMetadata(
+        internal fun probeCameraFileMetadata(
             file: File,
             mediaType: AlbumMediaType,
         ): ProbedCameraMetadata = runCatching {

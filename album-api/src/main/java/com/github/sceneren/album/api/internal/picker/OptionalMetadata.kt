@@ -14,10 +14,8 @@ internal data class OptionalMetadata(
     val height: Int?,
     /** 媒体时长，单位为毫秒。 */
     val durationMillis: Long?,
-    /** Provider-reported special visual format. */
+    /** 仅根据文件名后缀识别的媒体格式标签。 */
     val specialFormat: AlbumMediaSpecialFormat,
-    /** 提供方游标是否已包含特殊格式列（含普通图片标识 0），为 true 时无需打开输入流探测 XMP。 */
-    val hasProviderSpecialFormat: Boolean = false,
     val dateModifiedEpochSeconds: Long? = null,
     val generationModified: Long? = null,
 )

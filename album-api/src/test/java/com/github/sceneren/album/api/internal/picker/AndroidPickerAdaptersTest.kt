@@ -31,12 +31,12 @@ class AndroidPickerAdaptersTest {
             ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
         )
         val imageUri = uri("image")
-        reader.read(imageUri, reader.requiredType(imageUri), allowStreamProbe = false)
+        reader.read(imageUri, reader.requiredType(imageUri))
         provider.deleted = true
         reader.invalidateCache()
 
         assertThrows(java.io.FileNotFoundException::class.java) {
-            reader.read(imageUri, reader.requiredType(imageUri), allowStreamProbe = false)
+            reader.read(imageUri, reader.requiredType(imageUri))
         }
         assertEquals(2, provider.typeQueries)
     }
@@ -50,7 +50,7 @@ class AndroidPickerAdaptersTest {
         )
         provider.denied = true
         assertThrows(SecurityException::class.java) {
-            reader.read(uri("image"), AlbumMediaType.IMAGE, allowStreamProbe = false)
+            reader.read(uri("image"), AlbumMediaType.IMAGE)
         }
     }
     @Test
@@ -71,6 +71,43 @@ class AndroidPickerAdaptersTest {
         assertEquals(AlbumMediaType.VIDEO, video.mediaType)
         assertEquals(2_000L, video.durationMillis)
         assertEquals(AlbumMediaSpecialFormat.MOTION_PHOTO, motion.specialFormat)
+    }
+
+    @Test
+    fun jpegHeicAndHeifMetadataNeverOpenImageContent() {
+        val provider = PickerMetadataProvider().apply { exposesSpecialFormat = false }
+        ShadowContentResolver.registerProviderInternal("picker", provider)
+        val reader = ContentResolverUriMetadataReader(
+            ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+        )
+
+        for (name in listOf("image", "heic", "heif")) {
+            val imageUri = uri(name)
+            val media = reader.read(imageUri, reader.requiredType(imageUri))
+            assertEquals(100L, media.sizeBytes)
+            assertEquals(AlbumMediaSpecialFormat.NONE, media.specialFormat)
+            assertEquals(media, reader.readFresh(imageUri))
+        }
+
+        assertEquals(0, provider.contentOpens)
+        assertEquals(false, provider.lastProjection!!.any {
+            it in setOf(MediaStore.MediaColumns.XMP, "_special_format", "standard_mime_type_extension")
+        })
+    }
+
+    @Test
+    fun providerMotionMetadataCannotTagAnOrdinaryJpeg() {
+        val provider = PickerMetadataProvider()
+        ShadowContentResolver.registerProviderInternal("picker", provider)
+        val reader = ContentResolverUriMetadataReader(
+            ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+        )
+
+        val media = reader.read(uri("tagged-jpeg"), AlbumMediaType.IMAGE)
+
+        assertEquals("picked-image.jpg", media.displayName)
+        assertEquals(AlbumMediaSpecialFormat.NONE, media.specialFormat)
+        assertEquals(0, provider.contentOpens)
     }
 
     @Test
@@ -111,6 +148,9 @@ class AndroidPickerAdaptersTest {
         var deleted = false
         var denied = false
         var typeQueries = 0
+        var exposesSpecialFormat = true
+        var contentOpens = 0
+        var lastProjection: Array<out String>? = null
         /** 处理 `onCreate` 回调。 */
         override fun onCreate(): Boolean = true
 
@@ -118,9 +158,11 @@ class AndroidPickerAdaptersTest {
         override fun getType(uri: Uri): String {
             typeQueries++
             return when (uri.lastPathSegment) {
-            "image", "motion" -> "image/jpeg"
-            "video" -> "video/mp4"
-            else -> "application/octet-stream"
+                "image", "motion", "tagged-jpeg" -> "image/jpeg"
+                "heic" -> "image/heic"
+                "heif" -> "image/heif"
+                "video" -> "video/mp4"
+                else -> "application/octet-stream"
             }
         }
 
@@ -139,22 +181,41 @@ class AndroidPickerAdaptersTest {
                 MediaStore.MediaColumns.HEIGHT,
                 MediaStore.Video.VideoColumns.DURATION,
                 "standard_mime_type_extension",
+                MediaStore.MediaColumns.XMP,
             ),
         ).apply {
             if (denied) throw SecurityException("permission revoked")
             if (deleted) return@apply
+            lastProjection = projection?.copyOf()
             val video = uri.lastPathSegment == "video"
-            val motion = uri.lastPathSegment == "motion"
+            val motion = uri.lastPathSegment in setOf("motion", "tagged-jpeg")
             addRow(
                 arrayOf<Any?>(
-                    if (video) "picked-video" else "picked-image",
+                    when (uri.lastPathSegment) {
+                        "video" -> "picked-video"
+                        "motion" -> "picked-live.LIVP"
+                        "tagged-jpeg" -> "picked-image.jpg"
+                        "heic" -> "picked-image.heic"
+                        "heif" -> "picked-image.heif"
+                        else -> "picked-image"
+                    },
                     100L,
                     10,
                     20,
                     if (video) 2_000L else 0L,
-                    if (motion) 2 else 0,
+                    when {
+                        !exposesSpecialFormat -> null
+                        motion -> 2
+                        else -> 0
+                    },
+                    if (motion) "<rdf GCamera:MotionPhoto='1' />".encodeToByteArray() else null,
                 ),
             )
+        }
+
+        override fun openAssetFile(uri: Uri, mode: String): android.content.res.AssetFileDescriptor {
+            contentOpens++
+            throw java.io.FileNotFoundException("Image content must not be opened for format tags")
         }
 
         /** 执行 `insert` 方法定义的处理。 */

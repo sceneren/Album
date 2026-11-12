@@ -20,10 +20,15 @@ import org.json.JSONObject
 internal class AlbumPickerSessionStore(
     context: Context,
 ) {
-    private val preferences = context.applicationContext.getSharedPreferences(
-        PREFERENCES_NAME,
-        Context.MODE_PRIVATE,
-    )
+    private val appContext = context.applicationContext
+    private val preferences by lazy {
+        appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
+
+    private fun lockKey(sessionId: String) = "${appContext.packageName}:$sessionId"
+
+    suspend fun <T> withSessionLock(sessionId: String, block: suspend () -> T): T =
+        AlbumSessionLocks.withLock(lockKey(sessionId), block)
 
     /** 创建或准备 `create` 对应的对象。 */
     fun create(
@@ -63,8 +68,6 @@ internal class AlbumPickerSessionStore(
             }.getOrNull()
             if (!pendingPath.isNullOrBlank()) {
                 add(pendingPath)
-            } else if (runCatching { decode(sessionId, raw) }.isFailure) {
-                preferences.edit { remove(sessionId) }
             }
         }
     }
@@ -90,9 +93,6 @@ internal class AlbumPickerSessionStore(
             }
             val updatedAt = json.optLong("updatedAt", now)
             if (now - updatedAt > SESSION_TTL_MILLIS) {
-                json.optJSONObject("pendingCamera")?.optNullableString("filePath")?.let { path ->
-                    File(path).delete()
-                }
                 expiredKeys += key
             } else {
                 validEntries += key to updatedAt
@@ -104,20 +104,21 @@ internal class AlbumPickerSessionStore(
                 .sortedBy { it.second }
                 .take(validEntries.size - MAX_ACTIVE_SESSIONS + 1)
             overflow.forEach { (key, _) ->
-                preferences.getString(key, null)?.let { raw ->
-                    runCatching {
-                        JSONObject(raw).optJSONObject("pendingCamera")?.optNullableString("filePath")
-                    }.getOrNull()?.let { path ->
-                        File(path).delete()
-                    }
-                }
                 expiredKeys += key
             }
         }
 
-        if (expiredKeys.isNotEmpty()) {
-            preferences.edit {
-                expiredKeys.forEach(::remove)
+        expiredKeys.forEach { key ->
+            AlbumSessionLocks.ifIdle(lockKey(key)) {
+                // Recheck under the same lock as client writes; a recent save cancels eviction.
+                val original = entries.firstOrNull { it.first == key }?.second
+                val raw = preferences.getString(key, null) ?: return@ifIdle
+                val current = runCatching { JSONObject(raw) }.getOrNull()
+                if (current?.toString() != original?.toString()) return@ifIdle
+                current?.optJSONObject("pendingCamera")?.optNullableString("filePath")?.let { path ->
+                    File(path).delete()
+                }
+                preferences.edit { remove(key) }
             }
         }
     }

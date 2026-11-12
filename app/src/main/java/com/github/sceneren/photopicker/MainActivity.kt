@@ -2,6 +2,8 @@ package com.github.sceneren.photopicker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import com.github.sceneren.album.api.AlbumCompressionConfig
 import com.github.sceneren.album.api.AlbumMediaFilter
 import com.github.sceneren.album.api.AlbumPickerConfig
 import com.github.sceneren.album.api.AlbumPickerResult
+import com.github.sceneren.album.api.AlbumApi
 import com.github.sceneren.album.api.SingleSelectionFinishMode
 import com.github.sceneren.album.ui.compose.AlbumPicker
 import com.github.sceneren.photopicker.ui.theme.AlbumTheme
@@ -44,9 +47,19 @@ import com.github.sceneren.album.ui.view.AlbumPickerRequest as ViewPickerRequest
 /** 仅用于演示两个可复用 UI 模块，媒体查询和选择状态均由模块负责。 */
 class MainActivity : ComponentActivity() {
     private var lastResult by mutableStateOf<AlbumPickerResult?>(null)
+    private val albumApi by lazy { AlbumApi.create(applicationContext) }
+
+    private fun showResult(result: AlbumPickerResult?) {
+        val previous = lastResult
+        lastResult = result
+        // The demo only displays the current result. Its previous result is no longer consumed.
+        if (previous != null && previous != result) lifecycleScope.launch {
+            albumApi.releaseGeneratedMedia(applicationContext, previous)
+        }
+    }
 
     private val viewPicker = registerForActivityResult(ViewPickerContract()) { result ->
-        lastResult = result
+        showResult(result)
     }
 
     /** 处理 `onCreate` 回调。 */
@@ -73,7 +86,7 @@ class MainActivity : ComponentActivity() {
                                 maxSelectionCount = 9,
                                 singleSelectionFinishMode = SingleSelectionFinishMode.EXPLICIT_CONFIRM,
                             ),
-                            onResult = { lastResult = it; showEmbeddedPicker = false },
+                            onResult = { showResult(it); showEmbeddedPicker = false },
                             onCancel = { showEmbeddedPicker = false },
                             modifier = Modifier.padding(paddingValues),
                         )
@@ -107,7 +120,7 @@ class MainActivity : ComponentActivity() {
                     AlbumPicker(
                         config = pickerConfig,
                         onResult = { result ->
-                            lastResult = result
+                            showResult(result)
                             showComposePicker = false
                         },
                         onCancel = { showComposePicker = false },
@@ -210,7 +223,7 @@ internal fun DemoScreen(
                         text = stringResource(
                             R.string.result_item_format,
                             item.mediaType.name,
-                            item.filePath,
+                            item.resultUri.toString(),
                         ),
                         style = MaterialTheme.typography.bodySmall,
                     )

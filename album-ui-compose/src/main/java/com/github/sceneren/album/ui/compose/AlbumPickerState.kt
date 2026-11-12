@@ -19,7 +19,7 @@ class AlbumPickerState internal constructor() {
     var selectedItems: List<AlbumMedia> by mutableStateOf(emptyList())
         private set
 
-    /** 正在生成结果或取消会话时为 true。 */
+    /** 正在处理 Photo Picker 返回及其列表刷新、生成结果或取消会话时为 true。 */
     var isProcessing: Boolean by mutableStateOf(false)
         private set
 

@@ -11,7 +11,7 @@
 ## Media and Persistence
 
 - Use `content://` URIs and `ContentResolver`; never depend on raw external paths.
-- Run MediaStore, metadata, file materialization, and grant operations on an IO dispatcher.
+- Run MediaStore, metadata, URI decoding/compressed-output writes, session persistence/pruning and grant operations on IO. Selection results are URI-only; do not materialize original images/videos. Protect compressed-result leases until consumers explicitly release them.
 - Close cursors with `use` and keep projections minimal, especially for full-library directory aggregation.
 - On resume/provider notifications, compare a retained media change tracker before refreshing. Keep the presenter and scroll state; invalidate only edited URI metadata. Paging generations must reject pages spanning a dataset mutation and restore by surviving URI.
 - Preserve deterministic order for paging and system-persisted selections (`ContentResolver.persistedUriPermissions`).

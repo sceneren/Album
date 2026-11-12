@@ -32,6 +32,64 @@ import org.robolectric.shadows.ShadowContentResolver
 /** 验证 `AndroidMediaStoreDataSourceTest` 覆盖的行为。 */
 class AndroidMediaStoreDataSourceTest {
     @Test
+    @Config(sdk = [29])
+    fun slowPageDoesNotTriggerASecondFullScanOnlyBecauseTheWindowExpired() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val provider = RecordingMediaProvider(listOf(imageRow(id = 9)))
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        provider.beforePageQuery = {
+            org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(31))
+        }
+        val source = AndroidMediaStoreDataSource(context, StandardTestDispatcher(testScheduler))
+        val paging = MediaStoreMediaPagingSource(source, AlbumMediaFilter.IMAGES, AlbumDirectory.ALL_BUCKET_ID)
+        val result = paging.load(androidx.paging.PagingSource.LoadParams.Refresh(null, 2, false))
+        org.junit.Assert.assertTrue(result is androidx.paging.PagingSource.LoadResult.Page)
+        assertEquals(1, provider.fullScans)
+    }
+
+    @Test
+    @Config(sdk = [29, 34])
+    fun mutationNotificationDuringPageLoadStillRejectsTheMixedGeneration() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val provider = RecordingMediaProvider(listOf(imageRow(id = 9), imageRow(id = 8)))
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        val source = AndroidMediaStoreDataSource(context, StandardTestDispatcher(testScheduler))
+        provider.beforePageQuery = {
+            provider.beforePageQuery = null
+            provider.rows = listOf(imageRow(id = 10), imageRow(id = 9), imageRow(id = 8))
+            context.contentResolver.notifyChange(Uri.parse("content://media/external/images/media/10"), null)
+        }
+        val paging = MediaStoreMediaPagingSource(source, AlbumMediaFilter.IMAGES, AlbumDirectory.ALL_BUCKET_ID)
+        val result = paging.load(androidx.paging.PagingSource.LoadParams.Refresh(null, 2, false))
+        org.junit.Assert.assertTrue(result is androidx.paging.PagingSource.LoadResult.Invalid)
+        org.junit.Assert.assertTrue(paging.invalid)
+    }
+
+    @Test
+    @Config(sdk = [29, 34])
+    fun pageSignatureChecksReuseOneScanAndNotificationsInvalidateTheCache() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val provider = RecordingMediaProvider(listOf(imageRow(id = 9), imageRow(id = 8)))
+        ShadowContentResolver.registerProviderInternal("media", provider)
+        val source = AndroidMediaStoreDataSource(context, StandardTestDispatcher(testScheduler))
+        val paging = MediaStoreMediaPagingSource(source, AlbumMediaFilter.IMAGES, AlbumDirectory.ALL_BUCKET_ID)
+        val params = androidx.paging.PagingSource.LoadParams.Refresh<Int>(null, 2, false)
+        paging.load(params)
+        paging.load(params)
+        assertEquals(1, provider.fullScans)
+        assertEquals(2, provider.pageQueries)
+        val before = source.getChangeSignature(AlbumMediaFilter.IMAGES)
+        provider.rows = listOf(imageRow(id = 9), imageRow(id = 7))
+        context.contentResolver.notifyChange(Uri.parse("content://media/external/images/media/7"), null)
+        org.junit.Assert.assertNotEquals(before, source.getChangeSignature(AlbumMediaFilter.IMAGES))
+        assertEquals(2, provider.fullScans)
+        // Foreground recovery bypasses the time window even when the provider omitted notifyChange.
+        provider.rows = listOf(imageRow(id = 9))
+        org.junit.Assert.assertNotEquals(before, source.refreshChangeSignature(AlbumMediaFilter.IMAGES))
+        assertEquals(3, provider.fullScans)
+    }
+
+    @Test
     @Config(sdk = [29, 30])
     fun signatureDetectsOldFileReplacementAndMetadataEditsWithAnUnchangedCount() = runTest {
         val provider = RecordingMediaProvider(listOf(imageRow(id = 9), imageRow(id = 8)))
@@ -40,10 +98,10 @@ class AndroidMediaStoreDataSourceTest {
         val initial = source.getChangeSignature(AlbumMediaFilter.IMAGES)
         assertEquals(initial, source.getChangeSignature(AlbumMediaFilter.IMAGES))
         provider.rows = listOf(imageRow(id = 9), imageRow(id = 7))
-        val replaced = source.getChangeSignature(AlbumMediaFilter.IMAGES)
+        val replaced = source.refreshChangeSignature(AlbumMediaFilter.IMAGES)
         org.junit.Assert.assertNotEquals(initial, replaced)
         provider.rows = listOf(imageRow(id = 9), imageRow(id = 7) + (MediaStore.MediaColumns.SIZE to 999L))
-        org.junit.Assert.assertNotEquals(replaced, source.getChangeSignature(AlbumMediaFilter.IMAGES))
+        org.junit.Assert.assertNotEquals(replaced, source.refreshChangeSignature(AlbumMediaFilter.IMAGES))
         org.junit.Assert.assertFalse(provider.lastProjection!!.contains(MediaStore.MediaColumns.XMP))
     }
 
@@ -55,7 +113,7 @@ class AndroidMediaStoreDataSourceTest {
         val initial = source.getChangeSignature(AlbumMediaFilter.IMAGES)
         val before = source.loadPage(AlbumMediaFilter.IMAGES, -1, 0, 10).single()
         provider.rows = listOf(imageRow(id = 9) + (MediaStore.MediaColumns.GENERATION_MODIFIED to 2L))
-        org.junit.Assert.assertNotEquals(initial, source.getChangeSignature(AlbumMediaFilter.IMAGES))
+        org.junit.Assert.assertNotEquals(initial, source.refreshChangeSignature(AlbumMediaFilter.IMAGES))
         val after = source.loadPage(AlbumMediaFilter.IMAGES, -1, 0, 10).single()
         assertEquals(1L, before.generationModified)
         assertEquals(2L, after.generationModified)
@@ -100,14 +158,16 @@ class AndroidMediaStoreDataSourceTest {
     }
 
     @Test
-    /** Verifies API 30 motion-photo detection from MediaStore's indexed XMP column. */
-    fun api30MapsMotionPhotoFromIndexedXmp() = runTest {
+    @Config(sdk = [29, 30, 34])
+    fun formatTagsUseSuffixWithoutQueryingSpecialFormatOrXmp() = runTest {
         val provider = RecordingMediaProvider(
             rows = listOf(
                 imageRow(
                     id = 12,
                     xmp = "<rdf GCamera:MotionPhoto=\"1\" />".encodeToByteArray(),
-                ),
+                ) + mapOf(MediaStore.MediaColumns.DISPLAY_NAME to "MVIMG_12.jpg"),
+                imageRow(id = 11) + mapOf(MediaStore.MediaColumns.DISPLAY_NAME to "live.LIVP"),
+                imageRow(id = 10) + mapOf(MediaStore.MediaColumns.DISPLAY_NAME to "animated.GIF"),
             ),
         )
         ShadowContentResolver.registerProviderInternal("media", provider)
@@ -119,7 +179,13 @@ class AndroidMediaStoreDataSourceTest {
         val result = async { source.loadPage(AlbumMediaFilter.IMAGES, -1, 0, 20) }
         advanceUntilIdle()
 
-        assertEquals(AlbumMediaSpecialFormat.MOTION_PHOTO, result.await().single().specialFormat)
+        assertEquals(
+            listOf(AlbumMediaSpecialFormat.NONE, AlbumMediaSpecialFormat.MOTION_PHOTO, AlbumMediaSpecialFormat.GIF),
+            result.await().map { it.specialFormat },
+        )
+        org.junit.Assert.assertFalse(provider.lastProjection!!.any {
+            it in setOf(MediaStore.MediaColumns.XMP, "_special_format", "standard_mime_type_extension")
+        })
     }
 
     @Test
@@ -195,6 +261,9 @@ class AndroidMediaStoreDataSourceTest {
         var lastQueryArgs: Bundle? = null
         var lastSortOrder: String? = null
         var lastProjection: Array<out String>? = null
+        var fullScans = 0
+        var pageQueries = 0
+        var beforePageQuery: (() -> Unit)? = null
 
         /** 处理 `onCreate` 回调。 */
         override fun onCreate(): Boolean = true
@@ -207,6 +276,8 @@ class AndroidMediaStoreDataSourceTest {
             cancellationSignal: CancellationSignal?,
         ): Cursor {
             lastQueryArgs = queryArgs?.let(::Bundle)
+            if (queryArgs?.containsKey(ContentResolver.QUERY_ARG_LIMIT) == true) pageQueries++ else fullScans++
+            if (queryArgs?.containsKey(ContentResolver.QUERY_ARG_LIMIT) == true) beforePageQuery?.invoke()
             lastProjection = projection
             return cursor(projection)
         }
@@ -220,6 +291,8 @@ class AndroidMediaStoreDataSourceTest {
             sortOrder: String?,
         ): Cursor {
             lastSortOrder = sortOrder
+            if (sortOrder?.contains(" LIMIT ") == true) pageQueries++ else fullScans++
+            if (sortOrder?.contains(" LIMIT ") == true) beforePageQuery?.invoke()
             lastProjection = projection
             return cursor(projection)
         }

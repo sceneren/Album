@@ -8,12 +8,8 @@ import com.github.sceneren.album.api.resolveAlbumMediaSpecialFormat
 /** 获取 `readOptionalMetadata` 所需的数据。 */
 internal fun Cursor.readOptionalMetadata(
     type: AlbumMediaType,
-    mimeType: String,
 ): OptionalMetadata {
     val displayName = stringOrNull(MediaStore.MediaColumns.DISPLAY_NAME)
-    val specialFormatCode = intOrNull(SPECIAL_FORMAT_COLUMN)
-        ?: intOrNull(STANDARD_MIME_TYPE_EXTENSION_COLUMN)
-    val xmp = blobOrNull(MediaStore.MediaColumns.XMP)
     return OptionalMetadata(
         displayName = displayName,
         sizeBytes = positiveLongOrNull(MediaStore.MediaColumns.SIZE),
@@ -24,13 +20,7 @@ internal fun Cursor.readOptionalMetadata(
         } else {
             null
         },
-        specialFormat = resolveAlbumMediaSpecialFormat(
-            specialFormatCode = specialFormatCode,
-            mimeType = mimeType,
-            displayName = displayName,
-            xmp = xmp,
-        ),
-        hasProviderSpecialFormat = specialFormatCode != null || xmp != null,
+        specialFormat = resolveAlbumMediaSpecialFormat(displayName),
         dateModifiedEpochSeconds = positiveLongOrNull(MediaStore.MediaColumns.DATE_MODIFIED),
         generationModified = positiveLongOrNull(MediaStore.MediaColumns.GENERATION_MODIFIED),
     )
@@ -53,16 +43,3 @@ internal fun Cursor.positiveIntOrNull(columnName: String): Int? {
     val column = getColumnIndex(columnName)
     return if (column < 0 || isNull(column)) null else getInt(column).takeIf { it > 0 }
 }
-
-private fun Cursor.intOrNull(columnName: String): Int? {
-    val column = getColumnIndex(columnName)
-    return if (column < 0 || isNull(column)) null else getInt(column)
-}
-
-private fun Cursor.blobOrNull(columnName: String): ByteArray? {
-    val column = getColumnIndex(columnName)
-    return if (column < 0 || isNull(column)) null else getBlob(column)
-}
-
-private const val SPECIAL_FORMAT_COLUMN = "_special_format"
-private const val STANDARD_MIME_TYPE_EXTENSION_COLUMN = "standard_mime_type_extension"

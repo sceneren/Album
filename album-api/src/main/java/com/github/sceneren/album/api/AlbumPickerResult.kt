@@ -4,4 +4,6 @@ package com.github.sceneren.album.api
 data class AlbumPickerResult(
     /** 表示 `items` 对应的数据。 */
     val items: List<AlbumPickerResultItem>,
+    /** Library-owned lease; keep this result until [AlbumApi.releaseGeneratedMedia] is called. */
+    val generatedMediaLeaseId: String? = null,
 )

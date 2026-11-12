@@ -6,9 +6,11 @@ import com.github.sceneren.album.api.internal.mediastore.ConsistentMediaPagingSo
 /** 系统授权 URI、部分授权 MediaStore 和相机结果共用快照一致性与锚点恢复规则。 */
 internal class AuthorizedMediaPagingSource(
     readSignature: suspend () -> Any = { Unit },
+    readEndSignature: suspend () -> Any = readSignature,
     loadPageBlock: suspend (offset: Int, limit: Int) -> List<AlbumMedia>,
 ) : ConsistentMediaPagingSource(
     readSignature = readSignature,
+    readEndSignature = readEndSignature,
     findPositions = { uris ->
         buildMap {
             var offset = 0
