@@ -1,7 +1,7 @@
 {
   "diff_version": "1.0",
-  "old_scan_time": "2026-11-10 11:50:54",
-  "new_scan_time": "2026-11-10 12:43:14",
+  "old_scan_time": "2026-11-10 12:43:14",
+  "new_scan_time": "2026-11-12 10:20:57",
   "project_type": {
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
@@ -10,8 +10,31 @@
     "modules_added": 0,
     "modules_removed": 0,
     "modules_renamed": 0,
-    "modules_changed": 0,
-    "modules_unchanged": 6
+    "modules_changed": 2,
+    "modules_unchanged": 4
   },
-  "modules": {}
+  "modules": {
+    "album-ui-compose": {
+      "status": "changed",
+      "files": {
+        "total_old": 13,
+        "total_new": 14,
+        "added": [
+          "com\\github\\sceneren\\album\\ui\\compose\\AlbumToastHandler.kt"
+        ],
+        "removed": []
+      }
+    },
+    "album-ui-view": {
+      "status": "changed",
+      "files": {
+        "total_old": 26,
+        "total_new": 27,
+        "added": [
+          "com\\github\\sceneren\\album\\ui\\view\\AlbumToastHandler.kt"
+        ],
+        "removed": []
+      }
+    }
+  }
 }

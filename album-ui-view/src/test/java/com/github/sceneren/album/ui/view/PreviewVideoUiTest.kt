@@ -22,6 +22,8 @@ import com.github.sceneren.album.api.AlbumMediaType
 import com.github.sceneren.album.ui.view.internal.video.PreviewVideoOutput
 import com.github.sceneren.album.video.AlbumVideoPlayerFactory
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -44,6 +46,34 @@ class PreviewVideoUiTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val video = media(1, AlbumMediaType.VIDEO)
     private val image = media(2, AlbumMediaType.IMAGE)
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test fun failedPreviewAppendStopsSilentlyAndKeepsLoadedImages() = runTest {
+        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        var attempts = 0
+        val preview = AlbumPreviewDialog(
+            activity = controller.get(), appearance = AlbumPickerAppearance(),
+            imageLoader = AlbumImageLoader { _, _, _ -> }, scope = this,
+            initialItems = listOf(image), initialIndex = 0, initialSelectedUris = emptySet(), nextOffset = 1,
+            onToggleSelection = {}, onConfirm = {}, onDismiss = {},
+            loadMore = { _, _ -> attempts++; Result.failure(IllegalStateException("Provider unavailable")) },
+        )
+        try {
+            org.robolectric.shadows.ShadowToast.reset()
+            preview.show()
+            preview.maybeLoadMore(0)
+            runCurrent()
+            preview.maybeLoadMore(0)
+            runCurrent()
+            assertEquals(1, attempts)
+            assertNull(org.robolectric.shadows.ShadowToast.getLatestToast())
+            val pager = dialogRoot().findViewById<ViewPager2>(R.id.auv_preview_pager)
+            assertEquals(1, pager.adapter!!.itemCount)
+        } finally {
+            preview.dismiss()
+            controller.pause().stop().destroy()
+        }
+    }
 
     @After
     fun resetFactory() {

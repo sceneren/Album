@@ -111,6 +111,23 @@ class App : Application() {
 
 Compose 的 Coil 配置、视频封面解码和完整导入见[相册选择器使用说明](docs/相册选择器使用说明.md)。
 
+## 自定义 Toast（可选）
+
+在 `Application.onCreate()` 中为实际使用的 UI 模块注册 `AlbumToastHandler`，即可通过宿主自己的方式显示提示。支持直接传入 lambda：
+
+```kotlin
+val appContext = applicationContext
+com.github.sceneren.album.ui.view.AlbumUi.setToastHandler { message ->
+    // 替换为宿主自己的 Toast 工具或自定义样式。
+    Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+}
+com.github.sceneren.album.ui.compose.AlbumUi.setToastHandler { message ->
+    Toast.makeText(appContext, message, Toast.LENGTH_LONG).show()
+}
+```
+
+示例中的 `Toast` 来自 `android.widget.Toast`，`appContext` 为初始化时获取的 Application Context。回调在主线程执行，仅接收完整的 `CharSequence` 提示内容；设置后库不再额外显示系统 Toast。Compose 的完整页和嵌入内容均支持。未设置或调用 `setToastHandler(null)` 时使用默认系统短 Toast。回调为进程级配置，请避免捕获或长期保存 Activity。
+
 ## 可选视频播放
 
 UI 模块只依赖轻量 `album-video-api`，不会传递引入 Media3。宿主引入 `album-video-media3` 后，在 `Application.onCreate()` 注册：

@@ -8,6 +8,8 @@ Reusable Android View UI library depending on `:album-api`, `:album-video-api`, 
 
 Configuration, file materialization, persistence and result contracts are shared through `album-api`. Runtime permission and real-provider validation requires a device.
 
+Optional `AlbumUi.setToastHandler(AlbumToastHandler?)` delegates picker Toast messages to the host on the main thread, passing only the original CharSequence. Missing/null handlers use the default short system Toast. Custom handlers own display/cleanup; default Toasts are still cancelled before the next message and on Activity destruction. This configuration is independent of the Compose module.
+
 Foreground resume and batched provider notifications enter a conflated, serialized change check. Unchanged data never refreshes the Pager; real changes update the retained adapter using URI/content diffs. The API retains the loaded window by surviving URI so RecyclerView can preserve its anchor and pixel offset. Provider observation is RESUMED-scoped and cancels its registrations when the picker stops.
 
 Every foreground resume queues a change check, even if an asynchronous system-picker result arrived after the preceding resume. There is no cross-resume suppression flag. `PickerResumeCheckTest` dispatches a real Activity Result after resume and verifies the next foreground transition still checks deletions; unchanged data continues to avoid Pager refresh.

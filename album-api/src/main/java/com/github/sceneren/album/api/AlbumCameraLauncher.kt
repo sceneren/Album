@@ -25,10 +25,15 @@ class AlbumCameraLauncher internal constructor(
             val prepared = client.prepareCamera(sessionId, captureType)
             prepared.fold(
                 onSuccess = { capture ->
-                    if (captureType == AlbumMediaType.IMAGE) {
-                        photoLauncher.launch(capture.uri)
-                    } else {
-                        videoLauncher.launch(capture.uri)
+                    try {
+                        if (captureType == AlbumMediaType.IMAGE) {
+                            photoLauncher.launch(capture.uri)
+                        } else {
+                            videoLauncher.launch(capture.uri)
+                        }
+                    } catch (failure: RuntimeException) {
+                        client.completeCamera(sessionId, success = false)
+                        onResult(Result.failure(failure))
                     }
                 },
                 onFailure = { failure -> onResult(Result.failure(failure)) },

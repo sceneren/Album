@@ -1,6 +1,7 @@
 package com.github.sceneren.album.ui.compose
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -286,16 +287,15 @@ internal fun AlbumPickerHost(
     /** 执行 `showMessage` 方法定义的处理。 */
     fun showMessage(message: CharSequence) {
         messageToast?.cancel()
-        messageToast = Toast.makeText(
-            applicationContext,
-            message,
-            Toast.LENGTH_SHORT,
-        ).also(Toast::show)
+        messageToast = AlbumUi.showToast(context, message)
     }
 
     /** 更新 `refreshContentNow` 对应的状态。 */
     suspend fun refreshContentNow() {
+        if (isConfirming || isCancelling || isFinished) return
         val mediaChanged = mediaChangeTracker.hasChanges().getOrDefault(false)
+        // Confirmation/cancellation can remove the session while the provider check is suspended.
+        if (isConfirming || isCancelling || isFinished) return
         val previousAccessStatus = accessStatus
         val latestAccessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val accessChanged = previousAccessStatus != latestAccessStatus
@@ -354,6 +354,7 @@ internal fun AlbumPickerHost(
                         failure.message ?: applicationContext.getString(R.string.auc_retry),
                     ),
                 )
+                refreshContent()
             }
         }
     }
@@ -461,7 +462,14 @@ internal fun AlbumPickerHost(
                     }
                 } catch (failure: RuntimeException) {
                     isExternalLauncherInFlight = false
-                    throw failure
+                    client.completeCamera(session.sessionId, success = false).onSuccess { session = it }
+                    showMessage(
+                        if (failure is ActivityNotFoundException) {
+                            applicationContext.getString(R.string.auc_camera_unavailable)
+                        } else {
+                            failure.message ?: applicationContext.getString(R.string.auc_camera_failed)
+                        },
+                    )
                 }
             }.onFailure { failure ->
                 showMessage(
@@ -595,13 +603,9 @@ internal fun AlbumPickerHost(
                     loading = false,
                     endReached = page.size < PREVIEW_PAGE_SIZE,
                 )
-            }.onFailure { failure ->
+            }.onFailure {
                 val latest = preview?.takeIf { it.id == current.id } ?: return@onFailure
-                preview = latest.copy(loading = false)
-                showMessage(
-                    failure.message
-                        ?: applicationContext.getString(R.string.auc_preview_load_failed),
-                )
+                preview = latest.copy(loading = false, nextOffset = null, endReached = true)
             }
         }
     }

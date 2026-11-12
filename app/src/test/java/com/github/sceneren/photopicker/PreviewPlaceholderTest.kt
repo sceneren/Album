@@ -10,6 +10,7 @@ import coil3.asImage
 import coil3.intercept.Interceptor
 import coil3.memory.MemoryCache
 import coil3.request.SuccessResult
+import coil3.request.ErrorResult
 import com.github.sceneren.album.api.AlbumMedia
 import com.github.sceneren.album.api.AlbumMediaSource
 import com.github.sceneren.album.api.AlbumMediaType
@@ -96,6 +97,26 @@ class PreviewPlaceholderTest {
             assertSame(thumbnail, placeholder)
             releaseOriginal.complete(Unit)
             assertSame(original, (pending.await() as SuccessResult).image)
+        } finally {
+            loader.shutdown()
+        }
+    }
+
+    @Test
+    fun failedOriginalClearsTheThumbnailInsteadOfDisplayingItAsTheResult() = runTest {
+        val thumbnail = Bitmap.createBitmap(16, 12, Bitmap.Config.ARGB_8888).asImage()
+        val failure = IllegalStateException("Original unavailable")
+        val loader = ImageLoader.Builder(context).components {
+            add(Interceptor { chain -> ErrorResult(null, chain.request, failure) })
+        }.build()
+        try {
+            loader.memoryCache!![MemoryCache.Key(thumbnailCacheKey(media))] = MemoryCache.Value(thumbnail)
+            var displayed: coil3.Image? = thumbnail
+            val request = albumImageRequest(context, media, isThumbnail = false, edge = 1024, placeholder = thumbnail)
+                .newBuilder().target(onError = { displayed = it }).build()
+            val result = loader.execute(request)
+            assertSame(failure, (result as ErrorResult).throwable)
+            assertNull(displayed)
         } finally {
             loader.shutdown()
         }

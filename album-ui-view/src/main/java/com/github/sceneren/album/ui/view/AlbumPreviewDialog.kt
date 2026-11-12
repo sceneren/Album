@@ -10,7 +10,6 @@ import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.drawable.toDrawable
@@ -391,12 +390,9 @@ internal class AlbumPreviewDialog(
                     adapter.append(page)
                     updateChrome()
                 }
-                .onFailure { failure ->
-                    Toast.makeText(
-                        activity.applicationContext,
-                        failure.message ?: activity.getString(R.string.auv_preview_load_failed),
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                .onFailure {
+                    nextOffset = null
+                    endReached = true
                 }
         }
     }

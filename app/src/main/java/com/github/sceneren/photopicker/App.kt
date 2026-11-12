@@ -119,6 +119,7 @@ private class AlbumViewImageTarget(
     private var thumbnailRequest: Disposable? = null
     private var generation = 0
     private var originalLoaded = false
+    private var originalFailed = false
     private var disposed = false
     private var thumbnailLifecycle: Lifecycle? = null
     // Keep auxiliary ownership independent from Coil's observer registration. Coil can
@@ -141,6 +142,7 @@ private class AlbumViewImageTarget(
 
     override fun onStart(placeholder: Image?) {
         originalLoaded = false
+        originalFailed = false
         if (!disposed) {
             super.onStart(placeholder ?: thumbnail)
             bindThumbnailLifecycle()
@@ -149,13 +151,13 @@ private class AlbumViewImageTarget(
     }
 
     private fun startThumbnail() {
-        if (!loadThumbnail || thumbnail != null || thumbnailRequest != null || disposed || originalLoaded ||
+        if (!loadThumbnail || thumbnail != null || thumbnailRequest != null || disposed || originalLoaded || originalFailed ||
             !view.isAttachedToWindow || thumbnailLifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == false) return
         val requestGeneration = ++generation
         val edge = (view.resources.displayMetrics.widthPixels / 4).coerceIn(128, 512)
         val request = albumImageRequest(view.context, media, isThumbnail = true, edge = edge)
             .newBuilder().target(onSuccess = { result ->
-                if (!disposed && !originalLoaded && generation == requestGeneration) {
+                if (!disposed && !originalLoaded && !originalFailed && generation == requestGeneration) {
                     thumbnail = result
                     updateImage(result)
                 }
@@ -171,7 +173,10 @@ private class AlbumViewImageTarget(
     }
 
     override fun onError(error: Image?) {
-        if (!disposed) super.onError(thumbnail ?: error)
+        if (disposed) return
+        originalFailed = true
+        cancelThumbnail()
+        super.onError(null)
     }
 
     override fun onViewAttachedToWindow(v: View) { bindThumbnailLifecycle() }
@@ -213,7 +218,7 @@ internal fun albumImageRequest(
     .data(media.uri)
     .placeholderMemoryCacheKey(thumbnailCacheKey(media))
     .placeholder(placeholder)
-    .error(placeholder)
+    .error(null as Image?)
     .apply {
         if (edge != null) size(edge, edge)
         listener(onError = { _, result ->
@@ -264,13 +269,13 @@ internal fun rememberAlbumPainter(
         model = request,
         imageLoader = imageLoader,
         placeholder = cachedPainter,
-        error = cachedPainter,
         contentScale = if (isThumbnail) ContentScale.Crop else ContentScale.Fit,
     )
     val state by asyncPainter.state.collectAsState()
     // Cache eviction or selected-only previews can lack a grid bitmap. Load a small
     // thumbnail concurrently, never blocking the full request or decoding an unbounded image.
-    val fallback = if (!isThumbnail && cachedPainter == null && state !is AsyncImagePainter.State.Success) {
+    val fallback = if (!isThumbnail && cachedPainter == null &&
+        state !is AsyncImagePainter.State.Success && state !is AsyncImagePainter.State.Error) {
         val thumbnailRequest = remember(context, media, thumbnailEdge) {
             albumImageRequest(context, media, isThumbnail = true, edge = thumbnailEdge)
         }
@@ -282,6 +287,7 @@ internal fun rememberAlbumPainter(
     }
     when {
         state is AsyncImagePainter.State.Success -> asyncPainter
+        state is AsyncImagePainter.State.Error -> asyncPainter
         fallback != null -> fallback
         else -> asyncPainter
     }

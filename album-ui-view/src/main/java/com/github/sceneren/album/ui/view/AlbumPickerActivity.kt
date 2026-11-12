@@ -5,6 +5,7 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.Dialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -101,6 +102,7 @@ class AlbumPickerActivity : ComponentActivity() {
     private var processingDialog: Dialog? = null
     private var processingSpinnerAnimator: ObjectAnimator? = null
     private var isConfirming = false
+    private var isCancelling = false
     private var isCameraPermissionRequestInFlight = false
     private var pendingCameraMediaType: AlbumMediaType? = null
     private var activeFeedSignature: FeedSignature? = null
@@ -163,7 +165,10 @@ class AlbumPickerActivity : ComponentActivity() {
                 }
                 maybeAutoConfirm()
             }.onFailure { failure ->
-                showMessage(failure.message ?: getString(R.string.auv_camera_failed))
+                showMessage(
+                    if (failure is ActivityNotFoundException) getString(R.string.auv_camera_unavailable)
+                    else failure.message ?: getString(R.string.auv_camera_failed),
+                )
             }
         }
 
@@ -183,10 +188,12 @@ class AlbumPickerActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             /** 执行 `handleOnBackPressed` 方法定义的处理。 */
             override fun handleOnBackPressed() {
+                if (isConfirming || isCancelling) return
                 if (isDirectoryPanelVisible()) {
                     hideDirectoryPanel()
                     return
                 }
+                isCancelling = true
                 lifecycleScope.launch {
                     client.cancel(session.sessionId)
                     setResult(Activity.RESULT_CANCELED)
@@ -397,7 +404,9 @@ class AlbumPickerActivity : ComponentActivity() {
     }
 
     private suspend fun refreshContentNow() {
+        if (isConfirming || isCancelling || isFinishing || isDestroyed) return
         val mediaChanged = mediaChangeTracker.hasChanges().getOrDefault(false)
+        if (isConfirming || isCancelling || isFinishing || isDestroyed) return
         val previousAccessStatus = accessStatus
         accessStatus = api.getMediaAccessStatus(config.mediaFilter)
         val canBrowseDirectories = accessStatus == MediaAccessStatus.FULL
@@ -612,7 +621,7 @@ class AlbumPickerActivity : ComponentActivity() {
     /** 执行 `showMessage` 方法定义的处理。 */
     private fun showMessage(message: CharSequence) {
         messageToast?.cancel()
-        messageToast = Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).also(Toast::show)
+        messageToast = AlbumUi.showToast(this, message)
     }
 
     /** 执行 `requestMediaPermission` 方法定义的处理。 */

@@ -3,7 +3,7 @@
     dir="D:\StudioProjects_lib\Album\album-video-api"
     name=":album-video-api"
     type="LIBRARY"
-    maven="com.github.sceneren.Album:album-video-api:0.3.2"
+    maven="com.github.sceneren.Album:album-video-api:0.4.4"
     agpVersion="9.5.1"
     buildFolder="build"
     bootClassPath="D:\Android\sdk\platforms\android-37.0\android.jar;D:\Android\sdk\build-tools\36.0.0\core-lambda-stubs.jar"

@@ -4,7 +4,7 @@
     "platform": "Android",
     "build": "Gradle Kotlin DSL"
   },
-  "scan_time": "2026-11-10 12:43:14",
+  "scan_time": "2026-11-12 10:20:57",
   "module_count": 6,
   "modules": [
     {
@@ -691,7 +691,7 @@
       "source_dirs": [
         {
           "root": "album-ui-view\\src\\main\\java",
-          "file_count": 26,
+          "file_count": 27,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\view\\Action.kt",
             "com\\github\\sceneren\\album\\ui\\view\\ActionAdapter.kt",
@@ -705,6 +705,7 @@
             "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerExtras.kt",
             "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerRequest.kt",
             "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt",
+            "com\\github\\sceneren\\album\\ui\\view\\AlbumToastHandler.kt",
             "com\\github\\sceneren\\album\\ui\\view\\AlbumUi.kt",
             "com\\github\\sceneren\\album\\ui\\view\\CameraAdapter.kt",
             "com\\github\\sceneren\\album\\ui\\view\\DirectoryAdapter.kt",
@@ -725,7 +726,7 @@
           ]
         }
       ],
-      "file_count": 26,
+      "file_count": 27,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\view\\Action.kt",
         "com\\github\\sceneren\\album\\ui\\view\\ActionAdapter.kt",
@@ -739,6 +740,7 @@
         "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerExtras.kt",
         "com\\github\\sceneren\\album\\ui\\view\\AlbumPickerRequest.kt",
         "com\\github\\sceneren\\album\\ui\\view\\AlbumPreviewDialog.kt",
+        "com\\github\\sceneren\\album\\ui\\view\\AlbumToastHandler.kt",
         "com\\github\\sceneren\\album\\ui\\view\\AlbumUi.kt",
         "com\\github\\sceneren\\album\\ui\\view\\CameraAdapter.kt",
         "com\\github\\sceneren\\album\\ui\\view\\DirectoryAdapter.kt",
@@ -792,7 +794,7 @@
           ]
         },
         {
-          "dir": "drawable-nodpi",
+          "dir": "drawable-xxhdpi",
           "count": 1,
           "files": [
             "auv_progress_spinner.png"
@@ -824,7 +826,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (26个文件)\n    └── github/  (26个文件)\n        └── sceneren/  (26个文件)\n            └── album/  (26个文件)",
+      "tree": "album-ui-view\\src\\main\\java/\n└── com/  (27个文件)\n    └── github/  (27个文件)\n        └── sceneren/  (27个文件)\n            └── album/  (27个文件)",
       "dependencies": [
         {
           "name": "album-api",
@@ -960,7 +962,7 @@
       "source_dirs": [
         {
           "root": "album-ui-compose\\src\\main\\java",
-          "file_count": 13,
+          "file_count": 14,
           "file_list": [
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
@@ -971,6 +973,7 @@
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerState.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumPreviewImage.kt",
+            "com\\github\\sceneren\\album\\ui\\compose\\AlbumToastHandler.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\AlbumVideoPreview.kt",
             "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt",
@@ -981,7 +984,7 @@
           ]
         }
       ],
-      "file_count": 13,
+      "file_count": 14,
       "file_list": [
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageLoader.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumImageTarget.kt",
@@ -992,6 +995,7 @@
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerState.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPickerSystemBars.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumPreviewImage.kt",
+        "com\\github\\sceneren\\album\\ui\\compose\\AlbumToastHandler.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumUi.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\AlbumVideoPreview.kt",
         "com\\github\\sceneren\\album\\ui\\compose\\PreviewState.kt",
@@ -1021,7 +1025,7 @@
           ]
         },
         {
-          "dir": "drawable-nodpi",
+          "dir": "drawable-xxhdpi",
           "count": 1,
           "files": [
             "auc_progress_spinner.png"
@@ -1045,7 +1049,7 @@
         }
       ],
       "asset_files": [],
-      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (13个文件)\n    └── github/  (13个文件)\n        └── sceneren/  (13个文件)\n            └── album/  (13个文件)",
+      "tree": "album-ui-compose\\src\\main\\java/\n└── com/  (14个文件)\n    └── github/  (14个文件)\n        └── sceneren/  (14个文件)\n            └── album/  (14个文件)",
       "dependencies": [
         {
           "name": "album-api",
